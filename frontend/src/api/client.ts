@@ -66,3 +66,32 @@ export const timerApi = {
   stop: () => api.post<TimerSession>('/timer/stop').then(r => r.data),
   getSessions: (task_id: number) => api.get<TimerSession[]>(`/timer/sessions/${task_id}`).then(r => r.data),
 }
+
+export interface AnalyticsSummary {
+  period_days: number
+  total_days_tracked: number
+  total_tasks: number
+  completed_tasks: number
+  completion_rate_pct: number
+}
+
+export interface StreaksData {
+  current_streak: number
+  longest_streak: number
+}
+
+export interface CategoryEntry {
+  category: string
+  total_seconds: number
+  task_count: number
+}
+
+export interface CategoriesData {
+  entries: CategoryEntry[]
+}
+
+export const analyticsApi = {
+  getSummary: (days = 30) => api.get<AnalyticsSummary>(`/analytics/summary?days=${days}`).then(r => r.data),
+  getStreaks: () => api.get<StreaksData>('/analytics/streaks').then(r => r.data),
+  getCategories: () => api.get<CategoriesData>('/analytics/categories').then(r => r.data),
+}
