@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi } from '../api/client'
@@ -11,6 +12,12 @@ export function DayDetail() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const isFuture = !!date && date > todayStr
 
+  const { data: day, isLoading, isError } = useQuery({
+    queryKey: ['day', date],
+    queryFn: () => dayApi.getByDate(date!),
+    enabled: !!date,
+  })
+
   const toggleStatus = useMutation({
     mutationFn: (task: Task) =>
       taskApi.setStatus(task.id, task.status === 'completed' ? 'pending' : 'completed'),
@@ -20,11 +27,24 @@ export function DayDetail() {
     },
   })
 
-  const { data: day, isLoading, isError } = useQuery({
-    queryKey: ['day', date],
-    queryFn: () => dayApi.getByDate(date!),
-    enabled: !!date,
+  const [addingCategory, setAddingCategory] = useState<Task['category'] | null>(null)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+
+  const createTask = useMutation({
+    mutationFn: (category: Task['category']) =>
+      taskApi.create({ day_id: day!.id, category, title: newTaskTitle.trim() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+      setNewTaskTitle('')
+      setAddingCategory(null)
+    },
   })
+
+  function handleAddTask(category: Task['category']) {
+    if (!newTaskTitle.trim() || !day) return
+    createTask.mutate(category)
+  }
 
   const categories = [
     { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600', bg: 'bg-ocean-50', border: 'border-ocean-200' },
@@ -131,7 +151,58 @@ export function DayDetail() {
             <div className="space-y-8 animate-fade-in">
               {categories.map(cat => {
                 const tasks = day.tasks.filter(t => t.category === cat.key)
-                if (tasks.length === 0) return null
+                if (tasks.length === 0) {
+                  return (
+                    <div key={cat.key}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className={`text-sm font-semibold uppercase tracking-wide ${cat.color}`}>
+                          {cat.label}
+                        </h2>
+                      </div>
+                      <div className={`rounded-2xl border ${cat.border} ${cat.bg} px-4 pt-2 pb-3`}>
+                        {addingCategory === cat.key ? (
+                          <form
+                            onSubmit={e => { e.preventDefault(); handleAddTask(cat.key) }}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              autoFocus
+                              value={newTaskTitle}
+                              onChange={e => setNewTaskTitle(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Escape') { setAddingCategory(null); setNewTaskTitle('') } }}
+                              placeholder="Task title…"
+                              className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
+                            />
+                            <button
+                              type="submit"
+                              disabled={!newTaskTitle.trim()}
+                              className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Add
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                              className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </form>
+                        ) : (
+                          <button
+                            onClick={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                            className="w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+                            </svg>
+                            Add task
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
 
                 const catCompleted = tasks.filter(t => t.status === 'completed').length
 
@@ -183,16 +254,51 @@ export function DayDetail() {
                           )}
                         </div>
                       ))}
+                      {addingCategory === cat.key ? (
+                        <form
+                          onSubmit={e => { e.preventDefault(); handleAddTask(cat.key) }}
+                          className="flex items-center gap-2 mt-2"
+                        >
+                          <input
+                            autoFocus
+                            value={newTaskTitle}
+                            onChange={e => setNewTaskTitle(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Escape') { setAddingCategory(null); setNewTaskTitle('') } }}
+                            placeholder="Task title…"
+                            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!newTaskTitle.trim()}
+                            className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                            className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          onClick={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                          className="mt-2 w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+                          </svg>
+                          Add task
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
               })}
 
-              {day.tasks.length === 0 && (
-                <div className="text-center py-12 text-stone-400">
-                  <p className="text-sm">No tasks recorded for this day.</p>
-                </div>
-              )}
+
             </div>
           )}
         </main>
