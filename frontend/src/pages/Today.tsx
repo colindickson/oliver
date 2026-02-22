@@ -1,9 +1,11 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
 import { Timer } from '../components/Timer'
+import { NotificationBanner } from '../components/NotificationBanner'
 
 interface ColumnConfig {
   title: string
@@ -49,6 +51,31 @@ export function Today() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
+  const reorderTasks = useMutation({
+    mutationFn: taskApi.reorder,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
+  // Keyboard shortcut: 'n' opens the first column's Add task form
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      // Do not fire when the user is typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+      if (e.key === 'n') {
+        document.querySelector<HTMLButtonElement>('button[data-add-task]')?.click()
+      }
+      // 't' key is handled by the Timer component
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
+
   async function handleAddTask(
     category: Task['category'],
     title: string,
@@ -70,6 +97,10 @@ export function Today() {
 
   function handleDelete(id: number) {
     deleteTask.mutate(id)
+  }
+
+  function handleReorder(taskIds: number[]) {
+    reorderTasks.mutate(taskIds)
   }
 
   if (isLoading || !day) {
@@ -116,11 +147,15 @@ export function Today() {
                 onAddTask={(title, desc) => handleAddTask(col.category, title, desc)}
                 onComplete={handleComplete}
                 onDelete={handleDelete}
+                onReorder={handleReorder}
               />
             ))}
           </div>
         </main>
       </div>
+
+      {/* Notification banner — rendered at the root so it floats over all content */}
+      <NotificationBanner />
     </div>
   )
 }
