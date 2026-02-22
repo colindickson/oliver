@@ -1,4 +1,19 @@
 import { useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { Task } from '../api/client'
 import { TaskCard } from './TaskCard'
 
@@ -12,6 +27,7 @@ interface Props {
   onAddTask: (title: string, description: string) => Promise<void>
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
+  onReorder: (taskIds: number[]) => void
 }
 
 const headerColors: Record<ColorKey, string> = {
@@ -26,6 +42,48 @@ const buttonColors: Record<ColorKey, string> = {
   green: 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200',
 }
 
+interface SortableTaskCardProps {
+  task: Task
+  onComplete: (task: Task) => void
+  onDelete: (id: number) => void
+}
+
+function SortableTaskCard({ task, onComplete, onDelete }: SortableTaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-1">
+      {/* Drag handle */}
+      <button
+        type="button"
+        className="mt-3.5 flex-shrink-0 text-gray-200 hover:text-gray-400 cursor-grab active:cursor-grabbing transition-colors px-0.5"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+          <circle cx="3" cy="3" r="1.5" />
+          <circle cx="7" cy="3" r="1.5" />
+          <circle cx="3" cy="8" r="1.5" />
+          <circle cx="7" cy="8" r="1.5" />
+          <circle cx="3" cy="13" r="1.5" />
+          <circle cx="7" cy="13" r="1.5" />
+        </svg>
+      </button>
+      <div className="flex-1 min-w-0">
+        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} />
+      </div>
+    </div>
+  )
+}
+
 export function TaskColumn({
   title,
   category,
@@ -34,14 +92,46 @@ export function TaskColumn({
   onAddTask,
   onComplete,
   onDelete,
+  onReorder,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const categoryTasks = tasks.filter(t => t.category === category)
-  const completedCount = categoryTasks.filter(t => t.status === 'completed').length
+  // Maintain local ordered list so drag feels instant
+  const initialCategoryTasks = tasks
+    .filter(t => t.category === category)
+    .sort((a, b) => a.order_index - b.order_index)
+  const [orderedTasks, setOrderedTasks] = useState<Task[]>(initialCategoryTasks)
+
+  // Sync when tasks prop changes from server (e.g. after invalidation)
+  // We use a simple comparison: if the set of IDs changed, reset local order
+  const incomingIds = initialCategoryTasks.map(t => t.id).join(',')
+  const localIds = orderedTasks.map(t => t.id).join(',')
+  const syncedTasks =
+    incomingIds === localIds
+      ? orderedTasks.map(ot => initialCategoryTasks.find(t => t.id === ot.id) ?? ot)
+      : initialCategoryTasks
+
+  const completedCount = syncedTasks.filter(t => t.status === 'completed').length
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = syncedTasks.findIndex(t => t.id === active.id)
+    const newIndex = syncedTasks.findIndex(t => t.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(syncedTasks, oldIndex, newIndex)
+    setOrderedTasks(reordered)
+    onReorder(reordered.map(t => t.id))
+  }
 
   async function handleAdd() {
     if (!newTitle.trim()) return
@@ -81,21 +171,32 @@ export function TaskColumn({
       >
         <h2 className="font-semibold text-sm uppercase tracking-wide">{title}</h2>
         <span className="text-xs text-gray-400">
-          {completedCount}/{categoryTasks.length}
+          {completedCount}/{syncedTasks.length}
         </span>
       </div>
 
-      {/* Task list */}
-      <div className="flex flex-col gap-2 flex-1">
-        {categoryTasks.map(task => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onComplete={onComplete}
-            onDelete={onDelete}
-          />
-        ))}
-      </div>
+      {/* Task list with drag-to-reorder */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={syncedTasks.map(t => t.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-2 flex-1">
+            {syncedTasks.map(task => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                onComplete={onComplete}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Add task area */}
       {adding ? (
@@ -113,7 +214,9 @@ export function TaskColumn({
             type="text"
             value={newDesc}
             onChange={e => setNewDesc(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Escape') handleCancel() }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') handleCancel()
+            }}
             placeholder="Description (optional)"
             className="w-full text-sm border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
           />
@@ -138,6 +241,7 @@ export function TaskColumn({
       ) : (
         <button
           type="button"
+          data-add-task
           onClick={() => setAdding(true)}
           className={`mt-3 w-full text-xs border rounded py-1.5 transition-colors ${buttonColors[colorClass]}`}
         >

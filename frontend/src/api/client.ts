@@ -43,6 +43,8 @@ export const taskApi = {
     api.delete(`/tasks/${id}`).then(r => r.data),
   setStatus: (id: number, status: Task['status']) =>
     api.patch<Task>(`/tasks/${id}/status`, { status }).then(r => r.data),
+  reorder: (task_ids: number[]) =>
+    api.post('/tasks/reorder', { task_ids }).then(r => r.data),
 }
 
 export interface TimerState {
@@ -95,4 +97,20 @@ export const analyticsApi = {
   getSummary: (days = 30) => api.get<AnalyticsSummary>(`/analytics/summary?days=${days}`).then(r => r.data),
   getStreaks: () => api.get<StreaksData>('/analytics/streaks').then(r => r.data),
   getCategories: () => api.get<CategoriesData>('/analytics/categories').then(r => r.data),
+}
+
+export interface Reminder {
+  id: number
+  task_id: number
+  remind_at: string
+  message: string
+  is_delivered: boolean
+}
+
+export const reminderApi = {
+  create: (task_id: number, remind_at: string, message: string) =>
+    api.post<Reminder>('/reminders', { task_id, remind_at, message }).then(r => r.data),
+  getDue: () => api.get<Reminder[]>('/reminders/due').then(r => r.data),
+  markDelivered: (id: number) =>
+    api.patch<Reminder>(`/reminders/${id}/delivered`).then(r => r.data),
 }
