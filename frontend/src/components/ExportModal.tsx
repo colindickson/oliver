@@ -36,8 +36,10 @@ export function ExportModal({ onClose }: Props) {
   // Calculate date range based on period type
   function getDateRange(type: PeriodType, from?: string, to?: string): { from: string; to: string } {
     switch (type) {
-      case 'day':
-        return { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }
+      case 'day': {
+        const today = new Date().toISOString().slice(0, 10)
+        return { from: today, to: today }
+      }
       case 'week': {
         const bounds = getWeekBounds(new Date())
         return { from: bounds.start, to: bounds.end }
