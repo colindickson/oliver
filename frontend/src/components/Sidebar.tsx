@@ -135,6 +135,23 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="px-3 py-2 border-b border-stone-700/50">
         <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-stone-700 text-white'
+                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+            }`
+          }
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M1 7L7 1L13 7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 5v7h3v-4h2v4h3V5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Home
+        </NavLink>
+        <NavLink
           to="/calendar"
           className={({ isActive }) =>
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

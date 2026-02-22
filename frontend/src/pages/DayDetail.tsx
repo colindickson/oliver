@@ -103,6 +103,14 @@ export function DayDetail() {
     },
   })
 
+  const deleteTask = useMutation({
+    mutationFn: (id: number) => taskApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+    },
+  })
+
   function handleAddTask(category: Task['category']) {
     if (!newTaskTitle.trim() || !day) return
     createTask.mutate(category)
@@ -246,7 +254,7 @@ export function DayDetail() {
                       {tasks.map(task => (
                         <div
                           key={task.id}
-                          className="bg-white rounded-xl border border-stone-100 p-4 flex items-center gap-3 shadow-sm"
+                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-center gap-3 shadow-sm"
                         >
                           <button
                             onClick={() => !isFuture && toggleStatus.mutate(task)}
@@ -278,6 +286,15 @@ export function DayDetail() {
                               — {task.description}
                             </span>
                           )}
+                          <button
+                            onClick={() => deleteTask.mutate(task.id)}
+                            className="ml-auto opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors"
+                            title="Delete task"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path d="M2 3.5h10M5.5 3.5V2.5h3v1M3.5 3.5l.5 8h6l.5-8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
                         </div>
                       ))}
                       <AddTaskForm
