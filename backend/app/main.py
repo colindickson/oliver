@@ -14,6 +14,9 @@ from app.database import Base, engine
 # Import all models so that Base.metadata is fully populated before create_all.
 import app.models  # noqa: F401
 
+from app.api import days as days_router
+from app.api import tasks as tasks_router
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +49,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(days_router.router)
+app.include_router(tasks_router.router)
 
 
 @app.get("/api/health", tags=["meta"])
