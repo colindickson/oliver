@@ -16,6 +16,7 @@ import app.models  # noqa: F401
 
 from app.api import days as days_router
 from app.api import tasks as tasks_router
+from app.api import timer as timer_router
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ app.add_middleware(
 
 app.include_router(days_router.router)
 app.include_router(tasks_router.router)
+app.include_router(timer_router.router)
 
 
 @app.get("/api/health", tags=["meta"])
