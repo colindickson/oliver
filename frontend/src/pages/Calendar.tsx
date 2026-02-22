@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { dayApi } from '../api/client'
 import type { DayResponse, Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
+import { DayOverviewModal } from '../components/DayOverviewModal'
+import { ExportModal } from '../components/ExportModal'
 
 function getCompletionRate(tasks: Task[]): number {
   if (tasks.length === 0) return 0
@@ -12,8 +13,9 @@ function getCompletionRate(tasks: Task[]): number {
 }
 
 export function Calendar() {
-  const navigate = useNavigate()
   const [viewDate, setViewDate] = useState(new Date())
+  const [selectedDay, setSelectedDay] = useState<DayResponse | null>(null)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const { data: days = [] } = useQuery({
     queryKey: ['days', 'all'],
@@ -46,6 +48,13 @@ export function Calendar() {
     setViewDate(new Date(year, month + 1, 1))
   }
 
+  function handleDayClick(dateStr: string) {
+    const dayData = dayMap.get(dateStr)
+    if (dayData) {
+      setSelectedDay(dayData)
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-stone-25">
       <Sidebar />
@@ -54,7 +63,19 @@ export function Calendar() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0">
           <h1 className="text-xl font-semibold text-stone-800">Calendar</h1>
-          <p className="text-sm text-stone-400">{monthLabel}</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-all"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M8 2v8M5 7l3 3 3-3" />
+                <path d="M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" />
+              </svg>
+              Export
+            </button>
+            <p className="text-sm text-stone-400">{monthLabel}</p>
+          </div>
         </header>
 
         {/* Calendar content */}
@@ -122,7 +143,7 @@ export function Calendar() {
               return (
                 <button
                   key={dateStr}
-                  onClick={() => hasTasks && navigate(`/day/${dateStr}`)}
+                  onClick={() => handleDayClick(dateStr)}
                   disabled={!hasTasks}
                   className={`
                     aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium
@@ -168,6 +189,26 @@ export function Calendar() {
           </div>
         </main>
       </div>
+
+      {/* Day Overview Modal */}
+      {selectedDay && (
+        <DayOverviewModal
+          day={selectedDay}
+          onClose={() => setSelectedDay(null)}
+          onExport={() => {
+            setSelectedDay(null)
+            setShowExportModal(true)
+          }}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          onClose={() => setShowExportModal(false)}
+          initialDate={selectedDay?.date}
+        />
+      )}
     </div>
   )
 }
