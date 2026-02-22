@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -37,7 +37,7 @@ async def get_today(db: AsyncSession = Depends(get_db)) -> DayResponse:
 async def get_day_by_date(
     day_date: date, db: AsyncSession = Depends(get_db)
 ) -> DayResponse:
-    """Return the Day record for a specific calendar date.
+    """Return the Day record for a specific calendar date, creating one if absent.
 
     Args:
         day_date: The date to look up, parsed from the URL path (YYYY-MM-DD).
@@ -45,15 +45,9 @@ async def get_day_by_date(
 
     Returns:
         The DayResponse for the requested date.
-
-    Raises:
-        HTTPException: 404 if no Day exists for the given date.
     """
     service = DayService(db)
-    day = await service.get_by_date(day_date)
-    if day is None:
-        raise HTTPException(status_code=404, detail="Day not found")
-    return day
+    return await service.get_or_create_by_date(day_date)
 
 
 @router.get("", response_model=list[DayResponse])

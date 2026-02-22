@@ -105,12 +105,23 @@ async def test_get_day_by_date_returns_existing_day(
     assert payload["id"] == day.id
 
 
-async def test_get_day_by_date_returns_404_when_missing(client: AsyncClient) -> None:
-    """GET /api/days/{date} returns 404 when no record exists for that date."""
-    response = await client.get("/api/days/1999-01-01")
+async def test_get_day_by_date_auto_creates_when_missing(client: AsyncClient) -> None:
+    """GET /api/days/{date} creates and returns the Day when none exists."""
+    response = await client.get("/api/days/2030-06-15")
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Day not found"
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["date"] == "2030-06-15"
+    assert "id" in payload
+    assert isinstance(payload["tasks"], list)
+
+
+async def test_get_day_by_date_auto_create_is_idempotent(client: AsyncClient) -> None:
+    """GET /api/days/{date} called twice returns the same Day id."""
+    r1 = await client.get("/api/days/2030-06-15")
+    r2 = await client.get("/api/days/2030-06-15")
+
+    assert r1.json()["id"] == r2.json()["id"]
 
 
 # ---------------------------------------------------------------------------
