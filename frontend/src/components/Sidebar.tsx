@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, NavLink } from 'react-router-dom'
 import { dayApi, analyticsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 
@@ -131,6 +131,27 @@ export function Sidebar() {
         </h1>
         <p className="text-xs text-stone-400 mt-0.5">3-3-3 Method</p>
       </div>
+
+      {/* Nav */}
+      <nav className="px-3 py-2 border-b border-stone-700/50">
+        <NavLink
+          to="/calendar"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-stone-700 text-white'
+                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+            }`
+          }
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="1" y="2" width="12" height="11" rx="1.5" />
+            <path d="M1 6h12" />
+            <path d="M4 1v2M10 1v2" />
+          </svg>
+          Calendar
+        </NavLink>
+      </nav>
 
       {/* Mini Calendar */}
       <div className="px-4 py-4 border-b border-stone-700/50">

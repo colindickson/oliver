@@ -50,6 +50,7 @@ export function Calendar() {
 
   function handleDayClick(dateStr: string) {
     const dayData = dayMap.get(dateStr)
+    console.log('Day click:', dateStr, 'dayData:', dayData, 'all days:', days.length)
     if (dayData) {
       setSelectedDay(dayData)
     }
