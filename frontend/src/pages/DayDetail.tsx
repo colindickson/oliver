@@ -1,11 +1,24 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { dayApi } from '../api/client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { dayApi, taskApi } from '../api/client'
+import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 
 export function DayDetail() {
   const { date } = useParams<{ date: string }>()
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const isFuture = !!date && date > todayStr
+
+  const toggleStatus = useMutation({
+    mutationFn: (task: Task) =>
+      taskApi.setStatus(task.id, task.status === 'completed' ? 'pending' : 'completed'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+    },
+  })
 
   const { data: day, isLoading, isError } = useQuery({
     queryKey: ['day', date],
@@ -41,14 +54,21 @@ export function DayDetail() {
               Back to Calendar
             </button>
             {day && (
-              <h1 className="text-xl font-semibold text-stone-800">
-                {new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </h1>
+              <>
+                <h1 className="text-xl font-semibold text-stone-800">
+                  {new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </h1>
+                {isFuture && (
+                  <span className="mt-1 inline-block text-xs font-medium text-ocean-600 bg-ocean-50 px-2 py-0.5 rounded-full">
+                    Planning
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -103,7 +123,7 @@ export function DayDetail() {
 
           {isError && (
             <div className="bg-terracotta-50 border border-terracotta-200 rounded-2xl p-6 text-center">
-              <p className="text-terracotta-600">No data for this day.</p>
+              <p className="text-terracotta-600">Could not load this day. Please try again.</p>
             </div>
           )}
 
@@ -131,19 +151,22 @@ export function DayDetail() {
                           key={task.id}
                           className="bg-white rounded-xl border border-stone-100 p-4 flex items-center gap-3 shadow-sm"
                         >
-                          <div
+                          <button
+                            onClick={() => !isFuture && toggleStatus.mutate(task)}
+                            disabled={isFuture}
+                            title={isFuture ? "Can't complete a future task" : undefined}
                             className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
                               task.status === 'completed'
                                 ? 'bg-moss-500'
                                 : 'bg-stone-200'
-                            }`}
+                            } ${isFuture ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
                           >
                             {task.status === 'completed' && (
                               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2">
                                 <path d="M2 6L5 9L10 3" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             )}
-                          </div>
+                          </button>
                           <span
                             className={`text-sm transition-colors ${
                               task.status === 'completed'
