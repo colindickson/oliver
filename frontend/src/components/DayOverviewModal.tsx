@@ -1,5 +1,5 @@
 // frontend/src/components/DayOverviewModal.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { DayResponse, Task } from '../api/client'
 
@@ -33,6 +33,17 @@ export function DayOverviewModal({ day, onClose, onExport }: Props) {
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
 
+  // Escape key handler
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   const stats = getCategoryStats(day.tasks)
   const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
   const grouped = groupByCategory(day.tasks)
@@ -63,6 +74,9 @@ export function DayOverviewModal({ day, onClose, onExport }: Props) {
       onClick={handleBackdropClick}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="day-overview-title"
         className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-md mx-4 animate-slide-up"
         onClick={handleDialogClick}
       >
@@ -77,10 +91,11 @@ export function DayOverviewModal({ day, onClose, onExport }: Props) {
                 <path d="M13 2v3" />
               </svg>
             </div>
-            <h2 className="text-base font-semibold text-stone-800">{formattedDate}</h2>
+            <h2 id="day-overview-title" className="text-base font-semibold text-stone-800">{formattedDate}</h2>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1 text-stone-400 hover:text-stone-600 transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -119,6 +134,8 @@ export function DayOverviewModal({ day, onClose, onExport }: Props) {
         {/* Expand/Collapse Toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Hide tasks' : 'Show all tasks'}
           className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors mb-4"
         >
           <svg
