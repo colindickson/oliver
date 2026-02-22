@@ -116,7 +116,7 @@ export function Calendar() {
             {cells.map((cellDate, i) => {
               if (!cellDate) return <div key={i} className="aspect-square" />
 
-              const dateStr = cellDate.toISOString().slice(0, 10)
+              const dateStr = cellDate.toLocaleDateString('en-CA')
               const dayData = dayMap.get(dateStr)
               const tasks = dayData?.tasks ?? []
               const isToday = dateStr === todayStr
