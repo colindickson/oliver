@@ -31,6 +31,7 @@ export interface CreateTaskPayload {
 export const dayApi = {
   getToday: () => api.get<DayResponse>('/days/today').then(r => r.data),
   getByDate: (date: string) => api.get<DayResponse>(`/days/${date}`).then(r => r.data),
+  getAll: () => api.get<DayResponse[]>('/days').then(r => r.data),
 }
 
 export const taskApi = {
