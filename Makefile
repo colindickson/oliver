@@ -1,0 +1,79 @@
+.PHONY: help install build up down stop start restart clean logs ps test mcp
+
+COMPOSE := docker compose
+BACKEND := backend
+FRONTEND := frontend
+
+help: ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
+
+install: ## Install frontend dependencies (run once before first build)
+	cd frontend && npm install
+
+build: ## Build all Docker images
+	$(COMPOSE) build
+
+up: ## Start backend and frontend services (detached)
+	$(COMPOSE) up -d
+
+down: ## Stop and remove containers, networks (keeps volumes)
+	$(COMPOSE) down
+
+stop: ## Stop running containers without removing them
+	$(COMPOSE) stop
+
+start: ## Start stopped containers
+	$(COMPOSE) start
+
+restart: ## Restart all containers
+	$(COMPOSE) restart
+
+logs: ## Follow logs from all services (Ctrl+C to exit)
+	$(COMPOSE) logs -f
+
+logs-backend: ## Follow backend logs
+	$(COMPOSE) logs -f $(BACKEND)
+
+logs-frontend: ## Follow frontend logs
+	$(COMPOSE) logs -f $(FRONTEND)
+
+ps: ## Show container status
+	$(COMPOSE) ps
+
+test: ## Run backend tests (requires Python venv with pytest)
+	/tmp/oliver-venv311/bin/pytest backend/tests/ -v
+
+test-q: ## Run backend tests (quiet)
+	/tmp/oliver-venv311/bin/pytest backend/tests/ -q
+
+mcp: ## Start MCP server (stdio mode, requires client attachment)
+	$(COMPOSE) --profile mcp up mcp-server
+
+mcp-build: ## Build MCP server image only
+	$(COMPOSE) build mcp-server
+
+clean: ## Remove containers, networks, and volumes (full reset)
+	$(COMPOSE) down -v
+
+prune: ## Remove all unused Docker resources (images, containers, volumes)
+	docker system prune -f
+
+dev: ## Start in development mode with live logs
+	$(COMPOSE) up --build
+
+dev-backend: ## Start only backend with logs
+	$(COMPOSE) up --build $(BACKEND)
+
+dev-frontend: ## Start only frontend with logs
+	$(COMPOSE) up --build $(FRONTEND)
+
+shell-backend: ## Open shell in backend container
+	$(COMPOSE) exec $(BACKEND) /bin/bash
+
+shell-frontend: ## Open shell in frontend container
+	$(COMPOSE) exec $(FRONTEND) /bin/sh
+
+db-shell: ## Open SQLite shell in backend container
+	$(COMPOSE) exec $(BACKEND) sqlite3 /data/oliver.db
+
+reset: clean build up ## Full reset: clean, rebuild, start fresh
