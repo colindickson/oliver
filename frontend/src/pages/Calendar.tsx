@@ -1,9 +1,9 @@
+import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dayApi } from '../api/client'
-import type { DayResponse, Task } from '../api/client'
+import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
-import { DayOverviewModal } from '../components/DayOverviewModal'
 import { ExportModal } from '../components/ExportModal'
 
 function getCompletionRate(tasks: Task[]): number {
@@ -13,8 +13,8 @@ function getCompletionRate(tasks: Task[]): number {
 }
 
 export function Calendar() {
+  const navigate = useNavigate()
   const [viewDate, setViewDate] = useState(new Date())
-  const [selectedDay, setSelectedDay] = useState<DayResponse | null>(null)
   const [showExportModal, setShowExportModal] = useState(false)
 
   const { data: days = [] } = useQuery({
@@ -22,7 +22,7 @@ export function Calendar() {
     queryFn: dayApi.getAll,
   })
 
-  const dayMap = new Map<string, DayResponse>(days.map(d => [d.date, d]))
+  const dayMap = new Map(days.map(d => [d.date, d]))
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
@@ -36,8 +36,7 @@ export function Calendar() {
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const today = new Date()
-  const todayStr = today.toISOString().slice(0, 10)
+  const todayStr = new Date().toLocaleDateString('en-CA')
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -46,14 +45,6 @@ export function Calendar() {
   }
   function nextMonth() {
     setViewDate(new Date(year, month + 1, 1))
-  }
-
-  function handleDayClick(dateStr: string) {
-    const dayData = dayMap.get(dateStr)
-    console.log('Day click:', dateStr, 'dayData:', dayData, 'all days:', days.length)
-    if (dayData) {
-      setSelectedDay(dayData)
-    }
   }
 
   return (
@@ -133,7 +124,7 @@ export function Calendar() {
               const completed = tasks.filter(t => t.status === 'completed').length
               const rate = getCompletionRate(tasks)
 
-              let bgClass = 'bg-stone-50 text-stone-300'
+              let bgClass = 'bg-stone-50 text-stone-400 hover:bg-stone-100'
               if (hasTasks) {
                 if (rate >= 1) bgClass = 'bg-moss-100 text-moss-700 hover:bg-moss-200'
                 else if (rate >= 0.67) bgClass = 'bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -144,14 +135,12 @@ export function Calendar() {
               return (
                 <button
                   key={dateStr}
-                  onClick={() => handleDayClick(dateStr)}
-                  disabled={!hasTasks}
+                  onClick={() => navigate(`/day/${dateStr}`)}
                   className={`
                     aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium
-                    transition-all duration-200
+                    transition-all duration-200 cursor-pointer hover:shadow-soft hover:-translate-y-0.5
                     ${bgClass}
                     ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-2' : ''}
-                    ${hasTasks ? 'cursor-pointer hover:shadow-soft hover:-translate-y-0.5' : 'cursor-default'}
                   `}
                 >
                   <span>{cellDate.getDate()}</span>
@@ -191,24 +180,9 @@ export function Calendar() {
         </main>
       </div>
 
-      {/* Day Overview Modal */}
-      {selectedDay && (
-        <DayOverviewModal
-          day={selectedDay}
-          onClose={() => setSelectedDay(null)}
-          onExport={() => {
-            setSelectedDay(null)
-            setShowExportModal(true)
-          }}
-        />
-      )}
-
       {/* Export Modal */}
       {showExportModal && (
-        <ExportModal
-          onClose={() => setShowExportModal(false)}
-          initialDate={selectedDay?.date}
-        />
+        <ExportModal onClose={() => setShowExportModal(false)} />
       )}
     </div>
   )

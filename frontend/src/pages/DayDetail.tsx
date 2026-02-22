@@ -5,11 +5,73 @@ import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 
+interface AddTaskFormProps {
+  category: 'deep_work' | 'short_task' | 'maintenance'
+  isOpen: boolean
+  title: string
+  onOpen: () => void
+  onTitleChange: (value: string) => void
+  onSubmit: () => void
+  onCancel: () => void
+  mt?: boolean
+}
+
+function AddTaskForm({ category, isOpen, title, onOpen, onTitleChange, onSubmit, onCancel, mt }: AddTaskFormProps) {
+  if (isOpen) {
+    return (
+      <form
+        onSubmit={e => { e.preventDefault(); onSubmit() }}
+        className={`flex items-center gap-2${mt ? ' mt-2' : ''}`}
+      >
+        <input
+          autoFocus
+          value={title}
+          onChange={e => onTitleChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+          placeholder="Task title…"
+          className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
+        />
+        <button
+          type="submit"
+          disabled={!title.trim()}
+          className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Add
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+        >
+          Cancel
+        </button>
+      </form>
+    )
+  }
+  return (
+    <button
+      onClick={onOpen}
+      className={`${mt ? 'mt-2 ' : ''}w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors`}
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+      </svg>
+      Add task
+    </button>
+  )
+}
+
+const categories = [
+  { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600', bg: 'bg-ocean-50', border: 'border-ocean-200' },
+  { key: 'short_task', label: 'Short Tasks', color: 'text-terracotta-600', bg: 'bg-terracotta-50', border: 'border-terracotta-200' },
+  { key: 'maintenance', label: 'Maintenance', color: 'text-moss-600', bg: 'bg-moss-50', border: 'border-moss-200' },
+] as const
+
 export function DayDetail() {
   const { date } = useParams<{ date: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = new Date().toLocaleDateString('en-CA')
   const isFuture = !!date && date > todayStr
 
   const { data: day, isLoading, isError } = useQuery({
@@ -45,12 +107,6 @@ export function DayDetail() {
     if (!newTaskTitle.trim() || !day) return
     createTask.mutate(category)
   }
-
-  const categories = [
-    { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600', bg: 'bg-ocean-50', border: 'border-ocean-200' },
-    { key: 'short_task', label: 'Short Tasks', color: 'text-terracotta-600', bg: 'bg-terracotta-50', border: 'border-terracotta-200' },
-    { key: 'maintenance', label: 'Maintenance', color: 'text-moss-600', bg: 'bg-moss-50', border: 'border-moss-200' },
-  ] as const
 
   const completedCount = day?.tasks.filter(t => t.status === 'completed').length ?? 0
   const totalCount = day?.tasks.length ?? 0
@@ -160,45 +216,15 @@ export function DayDetail() {
                         </h2>
                       </div>
                       <div className={`rounded-2xl border ${cat.border} ${cat.bg} px-4 pt-2 pb-3`}>
-                        {addingCategory === cat.key ? (
-                          <form
-                            onSubmit={e => { e.preventDefault(); handleAddTask(cat.key) }}
-                            className="flex items-center gap-2"
-                          >
-                            <input
-                              autoFocus
-                              value={newTaskTitle}
-                              onChange={e => setNewTaskTitle(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Escape') { setAddingCategory(null); setNewTaskTitle('') } }}
-                              placeholder="Task title…"
-                              className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
-                            />
-                            <button
-                              type="submit"
-                              disabled={!newTaskTitle.trim()}
-                              className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                              Add
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setAddingCategory(null); setNewTaskTitle('') }}
-                              className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </form>
-                        ) : (
-                          <button
-                            onClick={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
-                            className="w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M6 2v8M2 6h8" strokeLinecap="round" />
-                            </svg>
-                            Add task
-                          </button>
-                        )}
+                        <AddTaskForm
+                          category={cat.key}
+                          isOpen={addingCategory === cat.key}
+                          title={newTaskTitle}
+                          onOpen={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                          onTitleChange={setNewTaskTitle}
+                          onSubmit={() => handleAddTask(cat.key)}
+                          onCancel={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                        />
                       </div>
                     </div>
                   )
@@ -254,45 +280,16 @@ export function DayDetail() {
                           )}
                         </div>
                       ))}
-                      {addingCategory === cat.key ? (
-                        <form
-                          onSubmit={e => { e.preventDefault(); handleAddTask(cat.key) }}
-                          className="flex items-center gap-2 mt-2"
-                        >
-                          <input
-                            autoFocus
-                            value={newTaskTitle}
-                            onChange={e => setNewTaskTitle(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Escape') { setAddingCategory(null); setNewTaskTitle('') } }}
-                            placeholder="Task title…"
-                            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!newTaskTitle.trim()}
-                            className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Add
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setAddingCategory(null); setNewTaskTitle('') }}
-                            className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </form>
-                      ) : (
-                        <button
-                          onClick={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
-                          className="mt-2 w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M6 2v8M2 6h8" strokeLinecap="round" />
-                          </svg>
-                          Add task
-                        </button>
-                      )}
+                      <AddTaskForm
+                        category={cat.key}
+                        isOpen={addingCategory === cat.key}
+                        title={newTaskTitle}
+                        onOpen={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                        onTitleChange={setNewTaskTitle}
+                        onSubmit={() => handleAddTask(cat.key)}
+                        onCancel={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                        mt
+                      />
                     </div>
                   </div>
                 )
