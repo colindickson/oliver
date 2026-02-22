@@ -2,9 +2,14 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { dayApi } from '../api/client'
-import type { DayResponse } from '../api/client'
-import { CalendarDay } from '../components/CalendarDay'
+import type { DayResponse, Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
+
+function getCompletionRate(tasks: Task[]): number {
+  if (tasks.length === 0) return 0
+  const completed = tasks.filter(t => t.status === 'completed').length
+  return completed / tasks.length
+}
 
 export function Calendar() {
   const navigate = useNavigate()
@@ -15,25 +20,18 @@ export function Calendar() {
     queryFn: dayApi.getAll,
   })
 
-  // Build a map: "YYYY-MM-DD" → DayResponse for quick lookup
-  const dayMap = new Map<string, DayResponse>(
-    days.map(d => [d.date, d])
-  )
+  const dayMap = new Map<string, DayResponse>(days.map(d => [d.date, d]))
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
-  // Build the grid: fill from Monday, get all days in this month
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
-
-  // Grid starts on Monday (0=Mon, 6=Sun)
-  const startOffset = (firstDay.getDay() + 6) % 7  // convert Sun-based to Mon-based
+  const startOffset = (firstDay.getDay() + 6) % 7
   const cells: Array<Date | null> = [
     ...Array(startOffset).fill(null),
     ...Array.from({ length: lastDay.getDate() }, (_, i) => new Date(year, month, i + 1)),
   ]
-  // Pad to complete weeks
   while (cells.length % 7 !== 0) cells.push(null)
 
   const today = new Date()
@@ -49,56 +47,126 @@ export function Calendar() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-stone-25">
       <Sidebar />
-      <div className="flex-1 p-8">
+
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">{monthLabel}</h1>
-          <div className="flex gap-2">
-            <button onClick={prevMonth} className="px-3 py-1.5 text-sm bg-white border rounded-lg hover:bg-gray-50">
-              &lt;
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0">
+          <h1 className="text-xl font-semibold text-stone-800">Calendar</h1>
+          <p className="text-sm text-stone-400">{monthLabel}</p>
+        </header>
+
+        {/* Calendar content */}
+        <main className="flex-1 p-8">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-6 max-w-2xl">
+            <button
+              onClick={prevMonth}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-all"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 4L6 8L10 12" />
+              </svg>
+              Previous
             </button>
-            <button onClick={nextMonth} className="px-3 py-1.5 text-sm bg-white border rounded-lg hover:bg-gray-50">
-              &gt;
+
+            <button
+              onClick={() => setViewDate(new Date())}
+              className="px-4 py-2 text-sm font-medium text-terracotta-600 bg-terracotta-50 rounded-xl hover:bg-terracotta-100 transition-colors"
+            >
+              Today
+            </button>
+
+            <button
+              onClick={nextMonth}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-all"
+            >
+              Next
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 4L10 8L6 12" />
+              </svg>
             </button>
           </div>
-        </div>
 
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-            <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
-          ))}
-        </div>
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-2 mb-2 max-w-2xl">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+              <div key={d} className="text-center text-xs font-medium text-stone-400 py-2">
+                {d}
+              </div>
+            ))}
+          </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {cells.map((cellDate, i) => {
-            if (!cellDate) return <div key={i} />
-            const dateStr = cellDate.toISOString().slice(0, 10)
-            const dayData = dayMap.get(dateStr)
-            const isToday = dateStr === todayStr
-            return (
-              <CalendarDay
-                key={dateStr}
-                date={cellDate}
-                tasks={dayData?.tasks ?? []}
-                isToday={isToday}
-                onClick={() => navigate(`/day/${dateStr}`)}
-              />
-            )
-          })}
-        </div>
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-2 max-w-2xl">
+            {cells.map((cellDate, i) => {
+              if (!cellDate) return <div key={i} className="aspect-square" />
 
-        {/* Legend */}
-        <div className="mt-6 flex items-center gap-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-gray-50 border" /> No tasks</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-100" /> &lt;33%</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-200" /> &lt;67%</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-green-300" /> &lt;100%</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-green-500" /> 100%</div>
-        </div>
+              const dateStr = cellDate.toISOString().slice(0, 10)
+              const dayData = dayMap.get(dateStr)
+              const tasks = dayData?.tasks ?? []
+              const isToday = dateStr === todayStr
+              const hasTasks = tasks.length > 0
+              const completed = tasks.filter(t => t.status === 'completed').length
+              const rate = getCompletionRate(tasks)
+
+              let bgClass = 'bg-stone-50 text-stone-300'
+              if (hasTasks) {
+                if (rate >= 1) bgClass = 'bg-moss-100 text-moss-700 hover:bg-moss-200'
+                else if (rate >= 0.67) bgClass = 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                else if (rate >= 0.33) bgClass = 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                else bgClass = 'bg-terracotta-50 text-terracotta-700 hover:bg-terracotta-100'
+              }
+
+              return (
+                <button
+                  key={dateStr}
+                  onClick={() => hasTasks && navigate(`/day/${dateStr}`)}
+                  disabled={!hasTasks}
+                  className={`
+                    aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium
+                    transition-all duration-200
+                    ${bgClass}
+                    ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-2' : ''}
+                    ${hasTasks ? 'cursor-pointer hover:shadow-soft hover:-translate-y-0.5' : 'cursor-default'}
+                  `}
+                >
+                  <span>{cellDate.getDate()}</span>
+                  {hasTasks && (
+                    <span className="text-[10px] opacity-60 mt-0.5">
+                      {completed}/{tasks.length}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="mt-8 flex items-center gap-6 text-xs text-stone-500 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-stone-50 border border-stone-200" />
+              <span>No tasks</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-terracotta-100" />
+              <span>&lt;33%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-stone-100" />
+              <span>33-67%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-amber-100" />
+              <span>67-99%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-moss-100" />
+              <span>100%</span>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   )

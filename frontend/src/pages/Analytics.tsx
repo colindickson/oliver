@@ -2,11 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '../api/client'
 import type { CategoryEntry } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
-import { StreakCard } from '../components/StreakCard'
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 function formatSeconds(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -22,22 +21,25 @@ function humanCategory(category: string): string {
     .join(' ')
 }
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Sub-components
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 interface SummaryCardProps {
   label: string
   value: string | number
   sub?: string
+  accent?: boolean
 }
 
-function SummaryCard({ label, value, sub }: SummaryCardProps) {
+function SummaryCard({ label, value, sub, accent }: SummaryCardProps) {
   return (
-    <div className="bg-white border rounded-xl p-5 shadow-sm">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-soft">
+      <p className="text-xs font-medium text-stone-400 uppercase tracking-wider">{label}</p>
+      <p className={`text-3xl font-semibold mt-2 tabular-nums ${accent ? 'text-terracotta-600' : 'text-stone-800'}`}>
+        {value}
+      </p>
+      {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
     </div>
   )
 }
@@ -51,28 +53,31 @@ interface BarProps {
 function Bar({ value, max, color }: BarProps) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex-1 bg-gray-100 rounded-full h-3">
-        <div className={`h-3 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+    <div className="flex items-center gap-4">
+      <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${color}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <span className="text-sm tabular-nums w-12 text-right">{pct}%</span>
+      <span className="text-sm tabular-nums w-12 text-right text-stone-500">{pct}%</span>
     </div>
   )
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  deep_work: 'bg-blue-500',
-  short_task: 'bg-amber-400',
-  maintenance: 'bg-green-500',
+  deep_work: 'bg-ocean-500',
+  short_task: 'bg-terracotta-500',
+  maintenance: 'bg-moss-500',
 }
 
 function defaultColor(category: string): string {
-  return CATEGORY_COLORS[category] ?? 'bg-slate-400'
+  return CATEGORY_COLORS[category] ?? 'bg-stone-400'
 }
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Analytics page
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 export function Analytics() {
   const { data: summary, isLoading: summaryLoading } = useQuery({
@@ -99,26 +104,26 @@ export function Analytics() {
     ) ?? 0
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-stone-25">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex-shrink-0">
-          <h1 className="text-xl font-semibold text-gray-900">Analytics</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Last 30 days</p>
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0">
+          <h1 className="text-xl font-semibold text-stone-800">Analytics</h1>
+          <p className="text-sm text-stone-400 mt-0.5">Last 30 days</p>
         </header>
 
-        <main className="flex-1 p-8 space-y-8">
+        <main className="flex-1 p-8 space-y-8 overflow-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-stone-400 text-sm">
               Loading...
             </div>
           ) : (
             <>
               {/* Summary cards */}
               <section>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">
                   Overview
                 </h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -126,6 +131,7 @@ export function Analytics() {
                     label="Completion rate"
                     value={`${summary?.completion_rate_pct ?? 0}%`}
                     sub={`${summary?.completed_tasks ?? 0} of ${summary?.total_tasks ?? 0} tasks`}
+                    accent
                   />
                   <SummaryCard
                     label="Days tracked"
@@ -145,37 +151,49 @@ export function Analytics() {
 
               {/* Streaks */}
               <section>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">
                   Streaks
                 </h2>
-                <div className="max-w-xs">
-                  <StreakCard
-                    current={streaks?.current_streak ?? 0}
-                    longest={streaks?.longest_streak ?? 0}
-                  />
+                <div className="grid grid-cols-2 gap-4 max-w-md">
+                  <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-soft text-center">
+                    <p className="text-5xl font-bold text-terracotta-600 tabular-nums">
+                      {streaks?.current_streak ?? 0}
+                    </p>
+                    <p className="text-sm text-stone-400 mt-2">Current streak</p>
+                    {streaks?.current_streak === streaks?.longest_streak && (streaks?.current_streak ?? 0) > 0 && (
+                      <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-medium bg-terracotta-100 text-terracotta-600 rounded-full">
+                        Best!
+                      </span>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-soft text-center">
+                    <p className="text-5xl font-bold text-stone-600 tabular-nums">
+                      {streaks?.longest_streak ?? 0}
+                    </p>
+                    <p className="text-sm text-stone-400 mt-2">Longest streak</p>
+                  </div>
                 </div>
               </section>
 
               {/* Category breakdown */}
               <section>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">
                   Time by category
                 </h2>
                 {categories?.entries.length === 0 ? (
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-stone-400">
                     No timer sessions recorded yet.
                   </p>
                 ) : (
-                  <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4 max-w-lg">
+                  <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-soft space-y-5 max-w-lg">
                     {categories?.entries.map((entry: CategoryEntry) => (
                       <div key={entry.category}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-stone-700">
                             {humanCategory(entry.category)}
                           </span>
-                          <span className="text-xs text-gray-400">
-                            {formatSeconds(entry.total_seconds)} &middot;{' '}
-                            {entry.task_count} task{entry.task_count !== 1 ? 's' : ''}
+                          <span className="text-xs text-stone-400">
+                            {formatSeconds(entry.total_seconds)} · {entry.task_count} task{entry.task_count !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <Bar

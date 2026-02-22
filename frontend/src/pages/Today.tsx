@@ -4,7 +4,6 @@ import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
-import { Timer } from '../components/Timer'
 import { NotificationBanner } from '../components/NotificationBanner'
 
 interface ColumnConfig {
@@ -59,7 +58,6 @@ export function Today() {
   // Keyboard shortcut: 'n' opens the first column's Add task form
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      // Do not fire when the user is typing in an input or textarea
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -69,7 +67,6 @@ export function Today() {
       if (e.key === 'n') {
         document.querySelector<HTMLButtonElement>('button[data-add-task]')?.click()
       }
-      // 't' key is handled by the Timer component
     }
 
     window.addEventListener('keydown', handleKey)
@@ -107,36 +104,72 @@ export function Today() {
     return (
       <div className="flex min-h-screen">
         <Sidebar />
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+        <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
           Loading...
         </div>
       </div>
     )
   }
 
+  // Calculate progress
+  const totalTasks = day.tasks.length
+  const completedTasks = day.tasks.filter(t => t.status === 'completed').length
+  const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-stone-25">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Today</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{formatDate(new Date())}</p>
+            <h1 className="text-xl font-semibold text-stone-800">Today</h1>
+            <p className="text-sm text-stone-400 mt-0.5">{formatDate(new Date())}</p>
           </div>
-          <Timer
-            activeTaskId={
-              day.tasks.find(
-                t => t.category === 'deep_work' && t.status !== 'completed',
-              )?.id
-            }
-          />
+
+          {/* Progress indicator */}
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-stone-800 tabular-nums">
+                {completedTasks}<span className="text-stone-400">/{totalTasks}</span>
+              </p>
+              <p className="text-xs text-stone-400">tasks completed</p>
+            </div>
+
+            {/* Progress ring */}
+            <div className="relative w-12 h-12">
+              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke="#e7e5e4"
+                  strokeWidth="4"
+                />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke={progressPct === 100 ? '#4a8a4a' : '#e86b3a'}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray={`${progressPct * 1.256} 125.6`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600">
+                {progressPct}%
+              </span>
+            </div>
+          </div>
         </header>
 
         {/* Three-column board */}
-        <main className="flex-1 p-8">
-          <div className="flex gap-8 h-full">
+        <main className="flex-1 p-8 overflow-auto">
+          <div className="flex gap-6 h-full">
             {columns.map(col => (
               <TaskColumn
                 key={col.category}
@@ -154,7 +187,7 @@ export function Today() {
         </main>
       </div>
 
-      {/* Notification banner — rendered at the root so it floats over all content */}
+      {/* Notification banner */}
       <NotificationBanner />
     </div>
   )

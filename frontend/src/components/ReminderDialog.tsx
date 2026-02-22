@@ -12,7 +12,7 @@ export function ReminderDialog({ task, onClose }: Props) {
 
   const defaultTime = new Date(Date.now() + 30 * 60 * 1000)
     .toISOString()
-    .slice(0, 16) // "YYYY-MM-DDTHH:mm"
+    .slice(0, 16)
 
   const [remindAt, setRemindAt] = useState(defaultTime)
   const [message, setMessage] = useState(`Reminder: ${task.title}`)
@@ -36,50 +36,65 @@ export function ReminderDialog({ task, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
       onClick={handleBackdropClick}
     >
       <div
-        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4"
+        className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up"
         onClick={handleDialogClick}
       >
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Set Reminder</h2>
-        <p className="text-sm text-gray-500 mb-4 truncate">{task.title}</p>
-
-        <div className="space-y-3">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#d97706" strokeWidth="1.5">
+              <path d="M10 17C10 17 15 13.5 15 9C15 5.5 12.5 3 10 3C7.5 3 5 5.5 5 9C5 13.5 10 17 10 17Z" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M10 6V9" strokeLinecap="round" />
+            </svg>
+          </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">When</label>
+            <h2 className="text-base font-semibold text-stone-800">Set Reminder</h2>
+            <p className="text-xs text-stone-400 truncate max-w-[200px]">{task.title}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wider block mb-2">
+              When
+            </label>
             <input
               type="datetime-local"
               value={remindAt}
               onChange={e => setRemindAt(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Message</label>
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wider block mb-2">
+              Message
+            </label>
             <input
               type="text"
               value={message}
               onChange={e => setMessage(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
             />
           </div>
         </div>
 
-        <div className="flex gap-2 mt-5">
+        <div className="flex gap-3 mt-6">
           <button
             type="button"
             onClick={() => void handleSave()}
             disabled={createReminder.isPending}
-            className="flex-1 bg-blue-600 text-white text-sm rounded-lg py-2 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex-1 bg-terracotta-600 text-white text-sm font-medium rounded-xl py-2.5 hover:bg-terracotta-500 disabled:opacity-50 transition-colors"
           >
             {createReminder.isPending ? 'Saving...' : 'Set Reminder'}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            className="px-5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
           >
             Cancel
           </button>

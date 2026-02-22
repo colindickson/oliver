@@ -1,3 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-stone-25 text-stone-800;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-stone-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-stone-400;
+  }
+
+  /* Focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-terracotta-400 ring-offset-2 ring-offset-stone-25;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-terracotta-100 text-stone-900;
+  }
+}
+
+@layer components {
+  /* Sidebar calendar day styles */
+  .calendar-day {
+    @apply aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-medium
+           transition-all duration-200 cursor-pointer
+           hover:bg-stone-100 active:scale-95;
+  }
+
+  .calendar-day-today {
+    @apply ring-2 ring-terracotta-500 ring-offset-1;
+  }
+
+  .calendar-day-empty {
+    @apply text-stone-300 cursor-default hover:bg-transparent active:scale-100;
+  }
+
+  .calendar-day-has-tasks {
+    @apply bg-stone-100 text-stone-700;
+  }
+
+  .calendar-day-completed {
+    @apply bg-moss-100 text-moss-700;
+  }
+
+  .calendar-day-partial {
+    @apply bg-amber-50 text-amber-700;
+  }
+
+  .calendar-day-low {
+    @apply bg-terracotta-50 text-terracotta-700;
+  }
+
+  /* Timer pulse animation */
+  .timer-running {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(232, 107, 58, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(232, 107, 58, 0);
+    }
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    @apply shadow-soft -translate-y-0.5;
+  }
+}
+
+@layer utilities {
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-terracotta-500 to-terracotta-600;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md;
+  }
+
+  /* Dot pattern background */
+  .dot-pattern {
+    background-image: radial-gradient(circle, #d6d3d1 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
