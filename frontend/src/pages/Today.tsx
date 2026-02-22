@@ -3,6 +3,7 @@ import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
+import { Timer } from '../components/Timer'
 
 interface ColumnConfig {
   title: string
@@ -93,7 +94,13 @@ export function Today() {
             <h1 className="text-xl font-semibold text-gray-900">Today</h1>
             <p className="text-sm text-gray-500 mt-0.5">{formatDate(new Date())}</p>
           </div>
-          <div className="text-sm text-gray-400 italic">Timer &middot; Phase 3</div>
+          <Timer
+            activeTaskId={
+              day.tasks.find(
+                t => t.category === 'deep_work' && t.status !== 'completed',
+              )?.id
+            }
+          />
         </header>
 
         {/* Three-column board */}

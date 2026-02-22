@@ -43,3 +43,26 @@ export const taskApi = {
   setStatus: (id: number, status: Task['status']) =>
     api.patch<Task>(`/tasks/${id}/status`, { status }).then(r => r.data),
 }
+
+export interface TimerState {
+  status: 'idle' | 'running' | 'paused'
+  task_id: number | null
+  elapsed_seconds: number
+  accumulated_seconds: number
+}
+
+export interface TimerSession {
+  id: number
+  task_id: number
+  started_at: string
+  ended_at: string | null
+  duration_seconds: number | null
+}
+
+export const timerApi = {
+  getCurrent: () => api.get<TimerState>('/timer/current').then(r => r.data),
+  start: (task_id: number) => api.post<TimerState>('/timer/start', { task_id }).then(r => r.data),
+  pause: () => api.post<TimerState>('/timer/pause').then(r => r.data),
+  stop: () => api.post<TimerSession>('/timer/stop').then(r => r.data),
+  getSessions: (task_id: number) => api.get<TimerSession[]>(`/timer/sessions/${task_id}`).then(r => r.data),
+}
