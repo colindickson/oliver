@@ -1,0 +1,34 @@
+version: '3.9'
+
+volumes:
+  db:
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - db:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/oliver.db
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  mcp-server:
+    build: ./mcp-server
+    volumes:
+      - db:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/oliver.db
+    stdin_open: true
+    tty: true
+    profiles:
+      - mcp
