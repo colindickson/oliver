@@ -6,15 +6,14 @@ import { buildExportData, downloadJson, generateExportFilename, getWeekBounds } 
 
 interface Props {
   onClose: () => void
-  initialDate?: string
 }
 
 type PeriodType = 'day' | 'week' | 'custom'
 
-export function ExportModal({ onClose, initialDate }: Props) {
+export function ExportModal({ onClose }: Props) {
   const [periodType, setPeriodType] = useState<PeriodType>('day')
-  const [customFrom, setCustomFrom] = useState(initialDate ?? new Date().toISOString().slice(0, 10))
-  const [customTo, setCustomTo] = useState(initialDate ?? new Date().toISOString().slice(0, 10))
+  const [customFrom, setCustomFrom] = useState(new Date().toISOString().slice(0, 10))
+  const [customTo, setCustomTo] = useState(new Date().toISOString().slice(0, 10))
   const [exporting, setExporting] = useState(false)
 
   const { data: days = [] } = useQuery({
@@ -35,22 +34,20 @@ export function ExportModal({ onClose, initialDate }: Props) {
   }, [handleKeyDown])
 
   // Calculate date range based on period type
-  function getDateRange(type: PeriodType, initial?: string, from?: string, to?: string): { from: string; to: string } {
-    const baseDate = initial ? new Date(initial + 'T00:00:00') : new Date()
-
+  function getDateRange(type: PeriodType, from?: string, to?: string): { from: string; to: string } {
     switch (type) {
       case 'day':
-        const dayStr = initial ?? new Date().toISOString().slice(0, 10)
-        return { from: dayStr, to: dayStr }
-      case 'week':
-        const bounds = getWeekBounds(baseDate)
+        return { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }
+      case 'week': {
+        const bounds = getWeekBounds(new Date())
         return { from: bounds.start, to: bounds.end }
+      }
       case 'custom':
         return { from: from ?? '', to: to ?? '' }
     }
   }
 
-  const dateRange = getDateRange(periodType, initialDate, customFrom, customTo)
+  const dateRange = getDateRange(periodType, customFrom, customTo)
 
   // Get preview stats
   const previewDays = days.filter(d => d.date >= dateRange.from && d.date <= dateRange.to)
