@@ -35,7 +35,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,  # required for SQLite ALTER TABLE emulation
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -57,7 +56,6 @@ def _run_migrations_sync(connection: object) -> None:
     context.configure(
         connection=connection,  # type: ignore[arg-type]
         target_metadata=target_metadata,
-        render_as_batch=True,  # required for SQLite ALTER TABLE emulation
     )
     with context.begin_transaction():
         context.run_migrations()

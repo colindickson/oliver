@@ -6,6 +6,7 @@ dependency used to inject a database session into route handlers.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import declarative_base
 
-DATABASE_URL = "sqlite+aiosqlite:////data/oliver.db"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_async_engine(
     DATABASE_URL,

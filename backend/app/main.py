@@ -2,17 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database import Base, engine
-
-# Import all models so that Base.metadata is fully populated before create_all.
-import app.models  # noqa: F401
 
 from app.api import analytics as analytics_router
 from app.api import days as days_router
@@ -20,15 +14,10 @@ from app.api import reminders as reminders_router
 from app.api import tasks as tasks_router
 from app.api import timer as timer_router
 
-logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables verified / created.")
     yield
 
 

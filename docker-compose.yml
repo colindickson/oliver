@@ -1,17 +1,33 @@
 version: '3.9'
 
 volumes:
-  db:
+  pgdata:
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=oliver
+      - POSTGRES_PASSWORD=oliver
+      - POSTGRES_DB=oliver
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oliver"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build: ./backend
     ports:
       - "8000:8000"
-    volumes:
-      - db:/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////data/oliver.db
+      - DATABASE_URL=postgresql+asyncpg://oliver:oliver@postgres:5432/oliver
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -24,10 +40,11 @@ services:
 
   mcp-server:
     build: ./mcp-server
-    volumes:
-      - db:/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////data/oliver.db
+      - DATABASE_URL=postgresql://oliver:oliver@postgres:5432/oliver
+    depends_on:
+      postgres:
+        condition: service_healthy
     stdin_open: true
     tty: true
     profiles:
