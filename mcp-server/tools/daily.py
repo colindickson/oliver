@@ -80,6 +80,7 @@ def get_daily_plan(date_str: str = "") -> str:
                     "description": t.description,
                     "status": t.status,
                     "order_index": t.order_index,
+                    "tags": [tag.name for tag in t.tags],
                 }
                 for t in tasks
             ],

@@ -2,6 +2,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from models.base import Base
+from models.tag import task_tags_table
 
 CATEGORY_DEEP_WORK = "deep_work"
 CATEGORY_SHORT_TASK = "short_task"
@@ -42,3 +43,4 @@ class Task(Base):
     timer_sessions = relationship(
         "TimerSession", back_populates="task", cascade="all, delete-orphan"
     )
+    tags = relationship("Tag", secondary=task_tags_table, lazy="selectin")
