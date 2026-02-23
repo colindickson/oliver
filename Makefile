@@ -53,7 +53,14 @@ mcp-build: ## Build MCP server image only
 	$(COMPOSE) build mcp-server
 
 clean: ## Remove containers, networks, and volumes (full reset)
-	$(COMPOSE) down -v
+	@echo "WARNING: This will remove all containers, networks, and volumes (including your database)."
+	@read -p "Type 'yes' to confirm: " CONFIRM; \
+	if [ "$$(echo $$CONFIRM | tr '[:upper:]' '[:lower:]')" = "yes" ]; then \
+		$(COMPOSE) down -v; \
+	else \
+		echo "Aborted."; \
+		exit 1; \
+	fi
 
 prune: ## Remove all unused Docker resources (images, containers, volumes)
 	docker system prune -f
