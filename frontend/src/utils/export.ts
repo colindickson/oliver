@@ -1,5 +1,5 @@
 // frontend/src/utils/export.ts
-import type { DayResponse, Task, TimerSession } from '../api/client'
+import type { DailyNote, DayRating, DayResponse, Roadblock, Task, TimerSession } from '../api/client'
 
 interface ExportMetadata {
   exported_at: string
@@ -46,6 +46,9 @@ interface DayExport {
   total_tasks: number
   completed: number
   completion_rate: number
+  notes: Pick<DailyNote, 'content' | 'updated_at'> | null
+  roadblocks: Pick<Roadblock, 'content' | 'updated_at'> | null
+  rating: Pick<DayRating, 'focus' | 'energy' | 'satisfaction'> | null
   tasks: TaskExport[]
 }
 
@@ -82,6 +85,9 @@ export function buildExportData(
     completion_rate: day.tasks.length > 0
       ? day.tasks.filter(t => t.status === 'completed').length / day.tasks.length
       : 0,
+    notes: day.notes ? { content: day.notes.content, updated_at: day.notes.updated_at } : null,
+    roadblocks: day.roadblocks ? { content: day.roadblocks.content, updated_at: day.roadblocks.updated_at } : null,
+    rating: day.rating ? { focus: day.rating.focus, energy: day.rating.energy, satisfaction: day.rating.satisfaction } : null,
     tasks: day.tasks.map(task => ({
       id: task.id,
       title: task.title,
