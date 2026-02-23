@@ -1,4 +1,4 @@
-.PHONY: help install build up down stop start restart clean logs ps test mcp
+.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status
 
 COMPOSE := docker compose
 BACKEND := backend
@@ -75,5 +75,11 @@ shell-frontend: ## Open shell in frontend container
 
 db-shell: ## Open SQLite shell in backend container
 	$(COMPOSE) exec $(BACKEND) sqlite3 /data/oliver.db
+
+migrate: ## Run Alembic migrations (alembic upgrade head)
+	$(COMPOSE) exec $(BACKEND) alembic upgrade head
+
+migrate-status: ## Show current Alembic migration status
+	$(COMPOSE) exec $(BACKEND) alembic current
 
 reset: clean build up ## Full reset: clean, rebuild, start fresh
