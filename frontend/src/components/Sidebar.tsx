@@ -72,10 +72,10 @@ interface StatProps {
 function Stat({ label, value, sub, accent }: StatProps) {
   return (
     <div className="flex-1 text-center py-3">
-      <p className={`text-2xl font-semibold tabular-nums ${accent ? 'text-terracotta-600' : 'text-stone-800'}`}>
+      <p className={`text-2xl font-semibold tabular-nums ${accent ? 'text-terracotta-400' : 'text-stone-100'}`}>
         {value}
       </p>
-      <p className="text-[11px] text-stone-400 mt-0.5">{label}</p>
+      <p className="text-[11px] text-stone-300 mt-0.5">{label}</p>
       {sub && <p className="text-[10px] text-stone-300">{sub}</p>}
     </div>
   )
@@ -129,7 +129,7 @@ export function Sidebar() {
         <h1 className="font-display text-2xl font-semibold tracking-tight text-white">
           Oliver
         </h1>
-        <p className="text-xs text-stone-400 mt-0.5">3-3-3 Method</p>
+        <p className="text-xs text-stone-300 mt-0.5">3-3-3 Method</p>
       </div>
 
       {/* Nav */}
@@ -141,7 +141,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -157,7 +157,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -174,7 +174,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -194,7 +194,7 @@ export function Sidebar() {
           <div className="flex gap-1">
             <button
               onClick={() => setViewDate(new Date(year, month - 1, 1))}
-              className="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-white hover:bg-stone-700 rounded transition-colors"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-white hover:bg-stone-700 rounded transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M8 2L4 6L8 10" />
@@ -202,7 +202,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={() => setViewDate(new Date(year, month + 1, 1))}
-              className="w-6 h-6 flex items-center justify-center text-stone-400 hover:text-white hover:bg-stone-700 rounded transition-colors"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-white hover:bg-stone-700 rounded transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 2L8 6L4 10" />
@@ -214,7 +214,7 @@ export function Sidebar() {
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <div key={i} className="text-center text-[10px] text-stone-500 font-medium py-1">
+            <div key={i} className="text-center text-[10px] text-stone-300 font-medium py-1">
               {d}
             </div>
           ))}
@@ -232,7 +232,7 @@ export function Sidebar() {
             const completed = tasks.filter(t => t.status === 'completed').length
             const rate = hasTasks ? completed / tasks.length : 0
 
-            let bgClass = 'text-stone-600'
+            let bgClass = 'text-stone-400'
             if (hasTasks) {
               if (rate >= 1) bgClass = 'bg-moss-600/30 text-moss-300'
               else if (rate >= 0.67) bgClass = 'bg-amber-500/20 text-amber-300'
@@ -263,7 +263,7 @@ export function Sidebar() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 mt-3 px-1 text-[10px] text-stone-500">
+        <div className="flex items-center gap-3 mt-3 px-1 text-[10px] text-stone-300">
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-sm bg-moss-600/30" />
             <span>100%</span>
@@ -281,7 +281,7 @@ export function Sidebar() {
 
       {/* Stats */}
       <div className="px-4 py-4 border-b border-stone-700/50">
-        <h3 className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-2 px-1">
+        <h3 className="text-xs font-medium text-stone-300 uppercase tracking-wider mb-2 px-1">
           This Week
         </h3>
         <div className="bg-stone-800/50 rounded-xl overflow-hidden">
