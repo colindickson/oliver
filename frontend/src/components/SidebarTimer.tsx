@@ -76,7 +76,7 @@ export function SidebarTimer() {
     : activeTask?.title
 
   return (
-    <div className="p-4 border-t border-stone-700/50 bg-stone-900/50">
+    <div className="p-4 border-t border-stone-700/50 bg-stone-900/50 dark:bg-stone-900/70">
       {/* Timer display */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

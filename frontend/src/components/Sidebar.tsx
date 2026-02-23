@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, NavLink } from 'react-router-dom'
 import { dayApi, analyticsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
+import { useTheme } from '../contexts/ThemeContext'
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -88,6 +89,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
 export function Sidebar() {
   const navigate = useNavigate()
   const [viewDate, setViewDate] = useState(new Date())
+  const { theme, toggleTheme } = useTheme()
 
   const { data: days = [] } = useQuery({
     queryKey: ['days', 'all'],
@@ -126,10 +128,28 @@ export function Sidebar() {
     <aside className="w-72 min-h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
       {/* Header */}
       <div className="px-5 py-5 border-b border-stone-700/50">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-white">
-          Oliver
-        </h1>
-        <p className="text-xs text-stone-300 mt-0.5">3-3-3 Method</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Oliver</h1>
+            <p className="text-xs text-stone-300 mt-0.5">3-3-3 Method</p>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-700 transition-colors flex-shrink-0"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? (
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="7.5" cy="7.5" r="2.5" />
+                <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.05 3.05l1.06 1.06M10.9 10.9l1.06 1.06M3.05 11.95l1.06-1.06M10.9 4.1l1.06-1.06" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9.5A6 6 0 015.5 2a6 6 0 100 10A6 6 0 0012 9.5z" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Nav */}

@@ -40,7 +40,7 @@ export function ReminderDialog({ task, onClose }: Props) {
       onClick={handleBackdropClick}
     >
       <div
-        className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up"
+        className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up dark:bg-stone-700 dark:border dark:border-amber-800/40"
         onClick={handleDialogClick}
       >
         {/* Header */}
@@ -52,7 +52,7 @@ export function ReminderDialog({ task, onClose }: Props) {
             </svg>
           </div>
           <div>
-            <h2 className="text-base font-semibold text-stone-800">Set Reminder</h2>
+            <h2 className="text-base font-semibold text-stone-800 dark:text-stone-100">Set Reminder</h2>
             <p className="text-xs text-stone-400 truncate max-w-[200px]">{task.title}</p>
           </div>
         </div>
@@ -66,7 +66,7 @@ export function ReminderDialog({ task, onClose }: Props) {
               type="datetime-local"
               value={remindAt}
               onChange={e => setRemindAt(e.target.value)}
-              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
+              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-600 dark:border-stone-500 dark:text-stone-100"
             />
           </div>
           <div>
@@ -77,7 +77,7 @@ export function ReminderDialog({ task, onClose }: Props) {
               type="text"
               value={message}
               onChange={e => setMessage(e.target.value)}
-              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
+              className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-600 dark:border-stone-500 dark:text-stone-100"
             />
           </div>
         </div>
@@ -94,7 +94,7 @@ export function ReminderDialog({ task, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="px-5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
+            className="px-5 text-sm text-stone-500 hover:text-stone-700 transition-colors dark:text-stone-400 dark:hover:text-stone-200"
           >
             Cancel
           </button>

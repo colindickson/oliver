@@ -26,7 +26,7 @@ function StarRow({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm text-stone-500 w-24 flex-shrink-0">{label}</span>
+      <span className="text-sm text-stone-500 dark:text-stone-400 w-24 flex-shrink-0">{label}</span>
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(star => {
           const filled = value !== null && star <= value
@@ -76,10 +76,10 @@ export function DayRating({ dayId, initialRating, onSave }: DayRatingProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wide">
+      <h3 className="text-sm font-semibold text-stone-600 dark:text-stone-300 uppercase tracking-wide">
         Day Rating
       </h3>
-      <div className="bg-white rounded-xl border border-stone-200 px-4 py-3 space-y-2.5">
+      <div className="bg-white dark:bg-stone-700 dark:border-stone-600/50 rounded-xl border border-stone-200 px-4 py-3 space-y-2.5">
         <StarRow label="Focus" value={focus} onChange={v => handleChange('focus', v)} />
         <StarRow label="Energy" value={energy} onChange={v => handleChange('energy', v)} />
         <StarRow

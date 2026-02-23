@@ -32,15 +32,15 @@ interface Props {
 }
 
 const headerColors: Record<ColorKey, string> = {
-  blue: 'border-ocean-400 text-ocean-700',
-  amber: 'border-terracotta-400 text-terracotta-700',
-  green: 'border-moss-400 text-moss-700',
+  blue: 'border-ocean-400 text-ocean-700 dark:text-ocean-400',
+  amber: 'border-terracotta-400 text-terracotta-700 dark:text-terracotta-400',
+  green: 'border-moss-400 text-moss-700 dark:text-moss-400',
 }
 
 const buttonColors: Record<ColorKey, string> = {
-  blue: 'bg-ocean-50 text-ocean-600 hover:bg-ocean-100 border-ocean-200',
-  amber: 'bg-terracotta-50 text-terracotta-600 hover:bg-terracotta-100 border-terracotta-200',
-  green: 'bg-moss-50 text-moss-600 hover:bg-moss-100 border-moss-200',
+  blue: 'bg-ocean-50 text-ocean-600 hover:bg-ocean-100 border-ocean-200 dark:bg-ocean-900/20 dark:text-ocean-300 dark:hover:bg-ocean-900/30 dark:border-ocean-800/30',
+  amber: 'bg-terracotta-50 text-terracotta-600 hover:bg-terracotta-100 border-terracotta-200 dark:bg-terracotta-900/20 dark:text-terracotta-300 dark:hover:bg-terracotta-900/30 dark:border-terracotta-800/30',
+  green: 'bg-moss-50 text-moss-600 hover:bg-moss-100 border-moss-200 dark:bg-moss-900/20 dark:text-moss-300 dark:hover:bg-moss-900/30 dark:border-moss-800/30',
 }
 
 interface SortableTaskCardProps {
@@ -64,7 +64,7 @@ function SortableTaskCard({ task, onComplete, onDelete }: SortableTaskCardProps)
       {/* Drag handle */}
       <button
         type="button"
-        className="mt-3 flex-shrink-0 text-stone-200 hover:text-stone-400 cursor-grab active:cursor-grabbing transition-colors px-0.5"
+        className="mt-3 flex-shrink-0 text-stone-200 hover:text-stone-400 cursor-grab active:cursor-grabbing transition-colors px-0.5 dark:text-stone-600 dark:hover:text-stone-400"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
@@ -168,7 +168,7 @@ export function TaskColumn({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-white rounded-2xl border border-stone-100 shadow-soft p-5">
+    <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-stone-700 dark:border-stone-600/30 rounded-2xl border border-stone-100 shadow-soft p-5">
       {/* Column header */}
       <div
         className={`flex items-center justify-between mb-4 pb-3 border-b-2 ${headerColors[colorClass]}`}
@@ -212,7 +212,7 @@ export function TaskColumn({
             onChange={e => setNewTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Task title"
-            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
+            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
           />
           <input
             type="text"
@@ -222,7 +222,7 @@ export function TaskColumn({
               if (e.key === 'Escape') handleCancel()
             }}
             placeholder="Description (optional)"
-            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
+            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
           />
           <TagInput value={newTags} onChange={setNewTags} />
           <div className="flex gap-2 pt-1">
@@ -230,14 +230,14 @@ export function TaskColumn({
               type="button"
               onClick={() => void handleAdd()}
               disabled={isSubmitting || !newTitle.trim()}
-              className="text-sm bg-stone-800 text-white rounded-lg px-4 py-2 hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="text-sm bg-stone-800 text-white rounded-lg px-4 py-2 hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
             >
               Add
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2"
+              className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
             >
               Cancel
             </button>

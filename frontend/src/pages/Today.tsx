@@ -7,6 +7,7 @@ import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface ColumnConfig {
   title: string
@@ -30,6 +31,7 @@ function formatDate(date: Date): string {
 
 export function Today() {
   const qc = useQueryClient()
+  const { theme } = useTheme()
 
   const { data: day, isLoading } = useQuery({
     queryKey: ['day', 'today'],
@@ -139,21 +141,21 @@ export function Today() {
   const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
   return (
-    <div className="flex min-h-screen bg-stone-25">
+    <div className="flex min-h-screen bg-stone-25 dark:bg-stone-800">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
           <div>
-            <h1 className="text-xl font-semibold text-stone-800">Today</h1>
+            <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Today</h1>
             <p className="text-sm text-stone-400 mt-0.5">{formatDate(new Date())}</p>
           </div>
 
           {/* Progress indicator */}
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-2xl font-semibold text-stone-800 tabular-nums">
+              <p className="text-2xl font-semibold text-stone-800 dark:text-stone-100 tabular-nums">
                 {completedTasks}<span className="text-stone-400">/{totalTasks}</span>
               </p>
               <p className="text-xs text-stone-400">tasks completed</p>
@@ -167,7 +169,7 @@ export function Today() {
                   cy="24"
                   r="20"
                   fill="none"
-                  stroke="#e7e5e4"
+                  stroke={theme === 'dark' ? '#44403c' : '#e7e5e4'}
                   strokeWidth="4"
                 />
                 <circle
@@ -182,7 +184,7 @@ export function Today() {
                   className="transition-all duration-500"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600">
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600 dark:text-stone-300">
                 {progressPct}%
               </span>
             </div>

@@ -30,11 +30,11 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wide">
+        <h3 className="text-sm font-semibold text-stone-600 dark:text-stone-300 uppercase tracking-wide">
           {label}
         </h3>
         <span
-          className={`text-xs text-moss-600 transition-opacity duration-300 ${
+          className={`text-xs text-moss-600 dark:text-moss-400 transition-opacity duration-300 ${
             saved ? 'opacity-100' : 'opacity-0'
           }`}
         >
@@ -46,7 +46,7 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
         onChange={e => handleChange(e.target.value)}
         placeholder={`Add ${label.toLowerCase()}…`}
         rows={3}
-        className="w-full text-sm px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-stone-800 placeholder-stone-300 resize-none focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
+        className="w-full text-sm px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-stone-800 placeholder-stone-300 resize-none focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500"
       />
     </div>
   )

@@ -10,12 +10,12 @@ export function Tags() {
   })
 
   return (
-    <div className="flex min-h-screen bg-stone-25">
+    <div className="flex min-h-screen bg-stone-25 dark:bg-stone-800">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0">
-          <h1 className="text-xl font-semibold text-stone-800">Tags</h1>
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
+          <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Tags</h1>
           <p className="text-sm text-stone-400 mt-0.5">All tags used across your tasks</p>
         </header>
 
@@ -39,12 +39,12 @@ export function Tags() {
                 <Link
                   key={tag.id}
                   to={`/tags/${encodeURIComponent(tag.name)}`}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm hover:border-terracotta-300 hover:shadow-md transition-all"
+                  className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm hover:border-terracotta-300 hover:shadow-md transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:border-terracotta-600/50"
                 >
-                  <span className="text-sm font-medium text-stone-700 group-hover:text-terracotta-600 transition-colors">
+                  <span className="text-sm font-medium text-stone-700 group-hover:text-terracotta-600 transition-colors dark:text-stone-200 dark:group-hover:text-terracotta-300">
                     #{tag.name}
                   </span>
-                  <span className="text-xs text-stone-400 tabular-nums bg-stone-100 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs text-stone-400 tabular-nums bg-stone-100 px-1.5 py-0.5 rounded-full dark:text-stone-400 dark:bg-stone-600">
                     {tag.task_count}
                   </span>
                 </Link>

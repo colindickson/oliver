@@ -116,7 +116,7 @@ export function ExportModal({ onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"
-        className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up"
+        className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up dark:bg-stone-700"
         onClick={handleDialogClick}
       >
         {/* Header */}
@@ -127,7 +127,7 @@ export function ExportModal({ onClose }: Props) {
               <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" />
             </svg>
           </div>
-          <h2 id="export-modal-title" className="text-base font-semibold text-stone-800">Export Tasks</h2>
+          <h2 id="export-modal-title" className="text-base font-semibold text-stone-800 dark:text-stone-100">Export Tasks</h2>
         </div>
 
         {/* Period Selection */}
@@ -144,8 +144,8 @@ export function ExportModal({ onClose }: Props) {
                 aria-checked={periodType === type}
                 className={`flex-1 py-2 text-sm font-medium rounded-xl transition-colors ${
                   periodType === type
-                    ? 'bg-ocean-100 text-ocean-700'
-                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                    ? 'bg-ocean-100 text-ocean-700 dark:bg-ocean-900/30 dark:text-ocean-300'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-600 dark:text-stone-300 dark:hover:bg-stone-500'
                 }`}
               >
                 {type === 'day' ? 'Day' : type === 'week' ? 'Week' : 'Custom'}
@@ -166,7 +166,7 @@ export function ExportModal({ onClose }: Props) {
                 type="date"
                 value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ocean-300 focus:border-transparent transition-shadow"
+                className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ocean-300 focus:border-transparent transition-shadow dark:bg-stone-600 dark:border-stone-500 dark:text-stone-100"
               />
             </div>
             <div>
@@ -178,16 +178,16 @@ export function ExportModal({ onClose }: Props) {
                 type="date"
                 value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
-                className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ocean-300 focus:border-transparent transition-shadow"
+                className="w-full text-sm border border-stone-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ocean-300 focus:border-transparent transition-shadow dark:bg-stone-600 dark:border-stone-500 dark:text-stone-100"
               />
             </div>
           </div>
         )}
 
         {/* Preview */}
-        <div className="bg-stone-50 rounded-xl p-4 mb-5">
-          <div className="text-sm text-stone-600 mb-1">{formattedRange}</div>
-          <div className="text-sm text-stone-500">
+        <div className="bg-stone-50 rounded-xl p-4 mb-5 dark:bg-stone-600/50">
+          <div className="text-sm text-stone-600 dark:text-stone-300 mb-1">{formattedRange}</div>
+          <div className="text-sm text-stone-500 dark:text-stone-400">
             {previewStats.dayCount} {previewStats.dayCount === 1 ? 'day' : 'days'} - {previewStats.taskCount} tasks - {previewStats.taskCount > 0 ? Math.round((previewStats.completedCount / previewStats.taskCount) * 100) : 0}% complete
           </div>
         </div>
@@ -196,7 +196,7 @@ export function ExportModal({ onClose }: Props) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="px-5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
+            className="px-5 text-sm text-stone-500 hover:text-stone-700 transition-colors dark:text-stone-400 dark:hover:text-stone-200"
           >
             Cancel
           </button>

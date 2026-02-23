@@ -7,6 +7,7 @@ import { Sidebar } from '../components/Sidebar'
 import { TagInput } from '../components/TagInput'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface AddTaskFormProps {
   category: 'deep_work' | 'short_task' | 'maintenance'
@@ -35,7 +36,7 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
             onChange={e => onTitleChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
             placeholder="Task title…"
-            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
           />
           <button
             type="submit"
@@ -59,7 +60,7 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
   return (
     <button
       onClick={onOpen}
-      className={`${mt ? 'mt-2 ' : ''}w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors`}
+      className={`${mt ? 'mt-2 ' : ''}w-full text-left text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-white/60 transition-colors dark:text-stone-500 dark:hover:text-stone-300 dark:hover:bg-stone-700/50`}
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M6 2v8M2 6h8" strokeLinecap="round" />
@@ -70,15 +71,16 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
 }
 
 const categories = [
-  { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600', bg: 'bg-ocean-50', border: 'border-ocean-200' },
-  { key: 'short_task', label: 'Short Tasks', color: 'text-terracotta-600', bg: 'bg-terracotta-50', border: 'border-terracotta-200' },
-  { key: 'maintenance', label: 'Maintenance', color: 'text-moss-600', bg: 'bg-moss-50', border: 'border-moss-200' },
+  { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600 dark:text-ocean-400', bg: 'bg-ocean-50 dark:bg-ocean-900/20', border: 'border-ocean-200 dark:border-ocean-800/30' },
+  { key: 'short_task', label: 'Short Tasks', color: 'text-terracotta-600 dark:text-terracotta-400', bg: 'bg-terracotta-50 dark:bg-terracotta-900/20', border: 'border-terracotta-200 dark:border-terracotta-800/30' },
+  { key: 'maintenance', label: 'Maintenance', color: 'text-moss-600 dark:text-moss-400', bg: 'bg-moss-50 dark:bg-moss-900/20', border: 'border-moss-200 dark:border-moss-800/30' },
 ] as const
 
 export function DayDetail() {
   const { date } = useParams<{ date: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { theme } = useTheme()
   const todayStr = new Date().toLocaleDateString('en-CA')
   const isFuture = !!date && date > todayStr
 
@@ -167,12 +169,12 @@ export function DayDetail() {
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
-    <div className="flex min-h-screen bg-stone-25">
+    <div className="flex min-h-screen bg-stone-25 dark:bg-stone-800">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
           <div>
             <button
               onClick={() => navigate('/calendar')}
@@ -185,7 +187,7 @@ export function DayDetail() {
             </button>
             {day && (
               <>
-                <h1 className="text-xl font-semibold text-stone-800">
+                <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">
                   {new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
                     weekday: 'long',
                     month: 'long',
@@ -194,7 +196,7 @@ export function DayDetail() {
                   })}
                 </h1>
                 {isFuture && (
-                  <span className="mt-1 inline-block text-xs font-medium text-ocean-600 bg-ocean-50 px-2 py-0.5 rounded-full">
+                  <span className="mt-1 inline-block text-xs font-medium text-ocean-600 bg-ocean-50 px-2 py-0.5 rounded-full dark:text-ocean-300 dark:bg-ocean-900/20">
                     Planning
                   </span>
                 )}
@@ -206,7 +208,7 @@ export function DayDetail() {
           {day && totalCount > 0 && (
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-2xl font-semibold text-stone-800 tabular-nums">
+                <p className="text-2xl font-semibold text-stone-800 dark:text-stone-100 tabular-nums">
                   {completedCount}<span className="text-stone-400">/{totalCount}</span>
                 </p>
                 <p className="text-xs text-stone-400">tasks completed</p>
@@ -220,7 +222,7 @@ export function DayDetail() {
                     cy="24"
                     r="20"
                     fill="none"
-                    stroke="#e7e5e4"
+                    stroke={theme === 'dark' ? '#44403c' : '#e7e5e4'}
                     strokeWidth="4"
                   />
                   <circle
@@ -235,7 +237,7 @@ export function DayDetail() {
                     className="transition-all duration-500"
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600">
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600 dark:text-stone-300">
                   {completionRate}%
                 </span>
               </div>
@@ -252,7 +254,7 @@ export function DayDetail() {
           )}
 
           {isError && (
-            <div className="bg-terracotta-50 border border-terracotta-200 rounded-2xl p-6 text-center">
+            <div className="bg-terracotta-50 border border-terracotta-200 rounded-2xl p-6 text-center dark:bg-terracotta-900/20 dark:border-terracotta-800/30">
               <p className="text-terracotta-600">Could not load this day. Please try again.</p>
             </div>
           )}
@@ -302,7 +304,7 @@ export function DayDetail() {
                       {tasks.map(task => (
                         <div
                           key={task.id}
-                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-start gap-3 shadow-sm"
+                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-start gap-3 shadow-sm dark:bg-stone-800 dark:border-stone-700/50"
                         >
                           <button
                             onClick={() => !isFuture && toggleStatus.mutate(task)}
@@ -311,7 +313,7 @@ export function DayDetail() {
                             className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
                               task.status === 'completed'
                                 ? 'bg-moss-500'
-                                : 'bg-stone-200'
+                                : 'bg-stone-200 dark:bg-stone-600'
                             } ${isFuture ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
                           >
                             {task.status === 'completed' && (
@@ -325,7 +327,7 @@ export function DayDetail() {
                               className={`text-sm transition-colors ${
                                 task.status === 'completed'
                                   ? 'line-through text-stone-400'
-                                  : 'text-stone-800'
+                                  : 'text-stone-800 dark:text-stone-100'
                               }`}
                             >
                               {task.title}
@@ -340,7 +342,7 @@ export function DayDetail() {
                                 {task.tags.map(tag => (
                                   <span
                                     key={tag}
-                                    className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500"
+                                    className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400"
                                   >
                                     #{tag}
                                   </span>
@@ -350,7 +352,7 @@ export function DayDetail() {
                           </div>
                           <button
                             onClick={() => deleteTask.mutate(task.id)}
-                            className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0"
+                            className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 dark:text-stone-600 dark:hover:text-red-400"
                             title="Delete task"
                           >
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
