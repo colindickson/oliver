@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table('days',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('date', sa.Date(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('date')
     )
@@ -43,7 +43,7 @@ def upgrade() -> None:
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('status', sa.String(), nullable=False),
     sa.Column('order_index', sa.Integer(), nullable=False),
-    sa.Column('completed_at', sa.DateTime(), nullable=True),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['day_id'], ['days.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -51,7 +51,7 @@ def upgrade() -> None:
     op.create_table('reminders',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('task_id', sa.Integer(), nullable=False),
-    sa.Column('remind_at', sa.DateTime(), nullable=False),
+    sa.Column('remind_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('message', sa.String(), nullable=False),
     sa.Column('is_delivered', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['task_id'], ['tasks.id'], ondelete='CASCADE'),
@@ -61,8 +61,8 @@ def upgrade() -> None:
     op.create_table('timer_sessions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('task_id', sa.Integer(), nullable=False),
-    sa.Column('started_at', sa.DateTime(), nullable=False),
-    sa.Column('ended_at', sa.DateTime(), nullable=True),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('duration_seconds', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['task_id'], ['tasks.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')

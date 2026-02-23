@@ -56,7 +56,7 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default=STATUS_PENDING)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     day: Mapped[Day] = relationship("Day", back_populates="tasks")
     timer_sessions: Mapped[list[TimerSession]] = relationship(

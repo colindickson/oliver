@@ -69,7 +69,7 @@ class ReminderService:
         Returns:
             A list of :class:`Reminder` instances ordered by remind_at ascending.
         """
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         result = await self._db.execute(
             select(Reminder)
             .where(Reminder.remind_at <= now, Reminder.is_delivered == False)  # noqa: E712

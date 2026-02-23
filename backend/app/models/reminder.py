@@ -34,7 +34,7 @@ class Reminder(Base):
         nullable=False,
         index=True,
     )
-    remind_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    remind_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     message: Mapped[str] = mapped_column(String, nullable=False)
     is_delivered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
