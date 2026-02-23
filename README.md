@@ -109,9 +109,23 @@ The server runs in stdio mode and is designed to be attached to by an MCP-compat
 | `timer` | Start, stop, and query work timers |
 | `analytics` | Query productivity trends and summaries |
 
-### Connecting to Claude Code
+### Connecting to Claude Code or Claude Desktop
 
-Add the following to your Claude Code MCP configuration:
+The MCP server uses stdio transport. Claude spawns a container on-demand when it connects — you don't need to run `make mcp` first, but **the main services (postgres) must be running**:
+
+```bash
+make up
+```
+
+#### Claude Code
+
+Add the server via the CLI:
+
+```bash
+claude mcp add oliver -- docker compose --profile mcp run --rm -i mcp-server
+```
+
+Or manually add the following to `~/.claude.json` under `mcpServers`:
 
 ```json
 {
@@ -119,11 +133,35 @@ Add the following to your Claude Code MCP configuration:
     "oliver": {
       "command": "docker",
       "args": ["compose", "--profile", "mcp", "run", "--rm", "-i", "mcp-server"],
-      "cwd": "/path/to/oliver"
+      "cwd": "/Users/you/code/oliver"
     }
   }
 }
 ```
+
+> **Note on `cwd`:** The MCP server runs inside Docker, but `docker compose` itself runs on your host machine. The `cwd` is the path to the Oliver project directory on your Mac — the folder containing `docker-compose.yml`. Claude runs `docker compose` from that directory so it can find the project. It is not a path inside the container.
+
+#### Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) and add the same block under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "oliver": {
+      "command": "docker",
+      "args": ["compose", "--profile", "mcp", "run", "--rm", "-i", "mcp-server"],
+      "cwd": "/Users/you/code/oliver"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving. On Windows the config file is at `%APPDATA%\Claude\claude_desktop_config.json`.
+
+#### Verify the connection
+
+Once configured, ask Claude: _"What's on my Oliver plan for today?"_ — it should call `get_daily_plan_tool` and return your tasks.
 
 ---
 
