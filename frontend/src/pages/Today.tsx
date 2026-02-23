@@ -5,6 +5,8 @@ import type { Task } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
+import { DayNotes } from '../components/DayNotes'
+import { DayRating } from '../components/DayRating'
 
 interface ColumnConfig {
   title: string
@@ -36,6 +38,24 @@ export function Today() {
 
   const createTask = useMutation({
     mutationFn: taskApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
+  const upsertNotes = useMutation({
+    mutationFn: ({ dayId, content }: { dayId: number; content: string }) =>
+      dayApi.upsertNotes(dayId, content),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
+  const upsertRoadblocks = useMutation({
+    mutationFn: ({ dayId, content }: { dayId: number; content: string }) =>
+      dayApi.upsertRoadblocks(dayId, content),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
+  const upsertRating = useMutation({
+    mutationFn: ({ dayId, rating }: { dayId: number; rating: Parameters<typeof dayApi.upsertRating>[1] }) =>
+      dayApi.upsertRating(dayId, rating),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
@@ -171,7 +191,7 @@ export function Today() {
 
         {/* Three-column board */}
         <main className="flex-1 p-8 overflow-auto">
-          <div className="flex gap-6 h-full">
+          <div className="flex gap-6 mb-8">
             {columns.map(col => (
               <TaskColumn
                 key={col.category}
@@ -185,6 +205,33 @@ export function Today() {
                 onReorder={handleReorder}
               />
             ))}
+          </div>
+
+          {/* Notes, Roadblocks, and Rating */}
+          <div className="max-w-2xl space-y-6">
+            <DayNotes
+              label="Notes"
+              dayId={day.id}
+              initialContent={day.notes?.content ?? ''}
+              onSave={(dayId, content) =>
+                upsertNotes.mutateAsync({ dayId, content })
+              }
+            />
+            <DayNotes
+              label="Roadblocks"
+              dayId={day.id}
+              initialContent={day.roadblocks?.content ?? ''}
+              onSave={(dayId, content) =>
+                upsertRoadblocks.mutateAsync({ dayId, content })
+              }
+            />
+            <DayRating
+              dayId={day.id}
+              initialRating={day.rating}
+              onSave={(dayId, rating) =>
+                upsertRating.mutateAsync({ dayId, rating })
+              }
+            />
           </div>
         </main>
       </div>

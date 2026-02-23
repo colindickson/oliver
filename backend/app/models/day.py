@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Date, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.daily_note import DailyNote
+    from app.models.day_rating import DayRating
+    from app.models.roadblock import Roadblock
 
 
 class Day(Base):
@@ -18,6 +24,9 @@ class Day(Base):
         date: The calendar date this row represents (unique).
         created_at: UTC timestamp when the row was first inserted.
         tasks: All tasks associated with this day.
+        notes: Optional free-form notes for the day.
+        roadblocks: Optional roadblock notes for the day.
+        rating: Optional subjective ratings for the day.
     """
 
     __tablename__ = "days"
@@ -35,6 +44,30 @@ class Day(Base):
         back_populates="day",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+
+    notes: Mapped[Optional[DailyNote]] = relationship(
+        "DailyNote",
+        back_populates="day",
+        uselist=False,
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+    roadblocks: Mapped[Optional[Roadblock]] = relationship(
+        "Roadblock",
+        back_populates="day",
+        uselist=False,
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+    rating: Mapped[Optional[DayRating]] = relationship(
+        "DayRating",
+        back_populates="day",
+        uselist=False,
+        lazy="selectin",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (Index("ix_days_date", "date"),)

@@ -5,7 +5,10 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 
 from db import SessionLocal
+from models.daily_note import DailyNote
 from models.day import Day
+from models.day_rating import DayRating
+from models.roadblock import Roadblock
 from models.task import Task, STATUS_PENDING
 
 
@@ -62,6 +65,10 @@ def get_daily_plan(date_str: str = "") -> str:
             .order_by(Task.order_index)
             .all()
         )
+        note = session.query(DailyNote).filter(DailyNote.day_id == day.id).first()
+        roadblock = session.query(Roadblock).filter(Roadblock.day_id == day.id).first()
+        rating = session.query(DayRating).filter(DayRating.day_id == day.id).first()
+
         result = {
             "date": day.date.isoformat(),
             "day_id": day.id,
@@ -76,6 +83,13 @@ def get_daily_plan(date_str: str = "") -> str:
                 }
                 for t in tasks
             ],
+            "notes": note.content if note else None,
+            "roadblocks": roadblock.content if roadblock else None,
+            "rating": {
+                "focus": rating.focus,
+                "energy": rating.energy,
+                "satisfaction": rating.satisfaction,
+            } if rating else None,
         }
     return json.dumps(result, indent=2)
 

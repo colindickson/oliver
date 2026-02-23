@@ -14,11 +14,36 @@ export interface Task {
   tags: string[]
 }
 
+export interface DailyNote {
+  id: number
+  day_id: number
+  content: string
+  updated_at: string
+}
+
+export interface Roadblock {
+  id: number
+  day_id: number
+  content: string
+  updated_at: string
+}
+
+export interface DayRating {
+  id: number
+  day_id: number
+  focus: number | null
+  energy: number | null
+  satisfaction: number | null
+}
+
 export interface DayResponse {
   id: number
   date: string
   created_at: string
   tasks: Task[]
+  notes: DailyNote | null
+  roadblocks: Roadblock | null
+  rating: DayRating | null
 }
 
 export interface CreateTaskPayload {
@@ -34,6 +59,12 @@ export const dayApi = {
   getToday: () => api.get<DayResponse>('/days/today').then(r => r.data),
   getByDate: (date: string) => api.get<DayResponse>(`/days/${date}`).then(r => r.data),
   getAll: () => api.get<DayResponse[]>('/days').then(r => r.data),
+  upsertNotes: (day_id: number, content: string) =>
+    api.put<DailyNote>(`/days/${day_id}/notes`, { content }).then(r => r.data),
+  upsertRoadblocks: (day_id: number, content: string) =>
+    api.put<Roadblock>(`/days/${day_id}/roadblocks`, { content }).then(r => r.data),
+  upsertRating: (day_id: number, rating: Partial<Omit<DayRating, 'id' | 'day_id'>>) =>
+    api.put<DayRating>(`/days/${day_id}/rating`, rating).then(r => r.data),
 }
 
 export const taskApi = {

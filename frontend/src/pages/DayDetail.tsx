@@ -5,6 +5,8 @@ import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { TagInput } from '../components/TagInput'
+import { DayNotes } from '../components/DayNotes'
+import { DayRating } from '../components/DayRating'
 
 interface AddTaskFormProps {
   category: 'deep_work' | 'short_task' | 'maintenance'
@@ -123,6 +125,24 @@ export function DayDetail() {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'all'] })
     },
+  })
+
+  const upsertNotes = useMutation({
+    mutationFn: ({ dayId, content }: { dayId: number; content: string }) =>
+      dayApi.upsertNotes(dayId, content),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', date] }),
+  })
+
+  const upsertRoadblocks = useMutation({
+    mutationFn: ({ dayId, content }: { dayId: number; content: string }) =>
+      dayApi.upsertRoadblocks(dayId, content),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', date] }),
+  })
+
+  const upsertRating = useMutation({
+    mutationFn: ({ dayId, rating }: { dayId: number; rating: Parameters<typeof dayApi.upsertRating>[1] }) =>
+      dayApi.upsertRating(dayId, rating),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', date] }),
   })
 
   function handleAddTask(category: Task['category']) {
@@ -355,6 +375,33 @@ export function DayDetail() {
                   </div>
                 )
               })}
+
+              {/* Notes, Roadblocks, and Rating */}
+              <div className="space-y-6 pb-8">
+                <DayNotes
+                  label="Notes"
+                  dayId={day.id}
+                  initialContent={day.notes?.content ?? ''}
+                  onSave={(dayId, content) =>
+                    upsertNotes.mutateAsync({ dayId, content })
+                  }
+                />
+                <DayNotes
+                  label="Roadblocks"
+                  dayId={day.id}
+                  initialContent={day.roadblocks?.content ?? ''}
+                  onSave={(dayId, content) =>
+                    upsertRoadblocks.mutateAsync({ dayId, content })
+                  }
+                />
+                <DayRating
+                  dayId={day.id}
+                  initialRating={day.rating}
+                  onSave={(dayId, rating) =>
+                    upsertRating.mutateAsync({ dayId, rating })
+                  }
+                />
+              </div>
             </div>
           )}
         </main>
