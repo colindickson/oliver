@@ -77,6 +77,7 @@ export function Today() {
     category: Task['category'],
     title: string,
     description: string,
+    tags: string[],
   ) {
     if (!day) return
     await createTask.mutateAsync({
@@ -84,6 +85,7 @@ export function Today() {
       category,
       title,
       description: description || undefined,
+      tags: tags.length > 0 ? tags : undefined,
     })
   }
 
@@ -177,7 +179,7 @@ export function Today() {
                 category={col.category}
                 tasks={day.tasks}
                 colorClass={col.color}
-                onAddTask={(title, desc) => handleAddTask(col.category, title, desc)}
+                onAddTask={(title, desc, tags) => handleAddTask(col.category, title, desc, tags)}
                 onComplete={handleComplete}
                 onDelete={handleDelete}
                 onReorder={handleReorder}

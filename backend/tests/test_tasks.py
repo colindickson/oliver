@@ -89,6 +89,7 @@ async def test_create_task(client: AsyncClient, day: Day) -> None:
     assert body["order_index"] == 0
     assert body["completed_at"] is None
     assert "id" in body
+    assert body["tags"] == []
 
 
 async def test_create_task_without_optional_fields(client: AsyncClient, day: Day) -> None:

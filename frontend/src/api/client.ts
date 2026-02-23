@@ -11,6 +11,7 @@ export interface Task {
   status: 'pending' | 'in_progress' | 'completed'
   order_index: number
   completed_at: string | null
+  tags: string[]
 }
 
 export interface DayResponse {
@@ -26,6 +27,7 @@ export interface CreateTaskPayload {
   title: string
   description?: string
   order_index?: number
+  tags?: string[]
 }
 
 export const dayApi = {
@@ -37,7 +39,7 @@ export const dayApi = {
 export const taskApi = {
   create: (payload: CreateTaskPayload) =>
     api.post<Task>('/tasks', payload).then(r => r.data),
-  update: (id: number, payload: Partial<Pick<Task, 'title' | 'description'>>) =>
+  update: (id: number, payload: Partial<Pick<Task, 'title' | 'description'>> & { tags?: string[] }) =>
     api.put<Task>(`/tasks/${id}`, payload).then(r => r.data),
   delete: (id: number) =>
     api.delete(`/tasks/${id}`).then(r => r.data),
@@ -113,4 +115,21 @@ export const reminderApi = {
   getDue: () => api.get<Reminder[]>('/reminders/due').then(r => r.data),
   markDelivered: (id: number) =>
     api.patch<Reminder>(`/reminders/${id}/delivered`).then(r => r.data),
+}
+
+export interface TagResponse {
+  id: number
+  name: string
+  task_count: number
+}
+
+export interface TagTaskGroup {
+  date: string
+  tasks: Task[]
+}
+
+export const tagApi = {
+  getAll: () => api.get<TagResponse[]>('/tags').then(r => r.data),
+  getTasksForTag: (name: string) =>
+    api.get<TagTaskGroup[]>(`/tags/${encodeURIComponent(name)}/tasks`).then(r => r.data),
 }

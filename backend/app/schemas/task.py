@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class TaskCreate(BaseModel):
@@ -16,6 +17,7 @@ class TaskCreate(BaseModel):
         title: Short human-readable label.
         description: Optional extended notes.
         order_index: Display position within the category; defaults to 0.
+        tags: Tag names to apply (max 5, stored lowercase without #).
     """
 
     day_id: int
@@ -23,6 +25,7 @@ class TaskCreate(BaseModel):
     title: str
     description: str | None = None
     order_index: int = 0
+    tags: list[str] = []
 
 
 class TaskUpdate(BaseModel):
@@ -35,11 +38,13 @@ class TaskUpdate(BaseModel):
         title: Replacement title string.
         description: Replacement description string.
         order_index: New display position.
+        tags: Replacement tag list. None = don't touch; [] = remove all.
     """
 
     title: str | None = None
     description: str | None = None
     order_index: int | None = None
+    tags: list[str] | None = None
 
 
 class TaskStatusUpdate(BaseModel):
@@ -75,6 +80,7 @@ class TaskResponse(BaseModel):
         status: Current lifecycle status.
         order_index: Display position within the category.
         completed_at: UTC timestamp set when status becomes ``completed``.
+        tags: List of tag name strings applied to this task.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -87,3 +93,16 @@ class TaskResponse(BaseModel):
     status: str
     order_index: int
     completed_at: datetime | None
+    tags: list[str] = []
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def coerce_tags(cls, v: Any) -> list[str]:
+        """Convert ORM Tag objects to plain name strings."""
+        result = []
+        for item in v:
+            if isinstance(item, str):
+                result.append(item)
+            else:
+                result.append(item.name)
+        return result

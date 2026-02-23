@@ -9,6 +9,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.tag import Tag, task_tags_table
 
 if TYPE_CHECKING:
     from app.models.day import Day
@@ -69,5 +70,10 @@ class Task(Base):
         "Reminder",
         back_populates="task",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    tags: Mapped[list[Tag]] = relationship(
+        "Tag",
+        secondary=task_tags_table,
         lazy="selectin",
     )

@@ -7,6 +7,7 @@ All models must be imported here before ``Base.metadata`` is used for
 from app.models.day import Day
 from app.models.reminder import Reminder
 from app.models.setting import Setting
+from app.models.tag import Tag
 from app.models.task import Task
 from app.models.timer_session import TimerSession
 
@@ -14,6 +15,7 @@ __all__ = [
     "Day",
     "Reminder",
     "Setting",
+    "Tag",
     "Task",
     "TimerSession",
 ]

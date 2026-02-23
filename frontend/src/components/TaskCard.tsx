@@ -1,6 +1,10 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Task } from '../api/client'
+import { taskApi } from '../api/client'
 import { ReminderDialog } from './ReminderDialog'
+import { TagInput } from './TagInput'
 
 interface Props {
   task: Task
@@ -11,11 +15,71 @@ interface Props {
 export function TaskCard({ task, onComplete, onDelete }: Props) {
   const isCompleted = task.status === 'completed'
   const [showReminder, setShowReminder] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editTags, setEditTags] = useState<string[]>(task.tags ?? [])
+  const [saving, setSaving] = useState(false)
+  const qc = useQueryClient()
+
+  function handleEditOpen() {
+    setEditTitle(task.title)
+    setEditTags(task.tags ?? [])
+    setEditing(true)
+  }
+
+  async function handleSave() {
+    if (!editTitle.trim()) return
+    setSaving(true)
+    try {
+      await taskApi.update(task.id, { title: editTitle.trim(), tags: editTags })
+      qc.invalidateQueries({ queryKey: ['day'] })
+      qc.invalidateQueries({ queryKey: ['tags'] })
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="p-3 rounded-xl border border-terracotta-200 bg-white shadow-sm space-y-2">
+        <input
+          autoFocus
+          type="text"
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') void handleSave()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent"
+        />
+        <TagInput value={editTags} onChange={setEditTags} />
+        <div className="flex gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || !editTitle.trim()}
+            className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
       <div
-        className={`p-3 rounded-xl border border-stone-100 bg-white shadow-sm flex items-start gap-3 transition-all duration-200 hover:shadow-soft ${
+        className={`group p-3 rounded-xl border border-stone-100 bg-white shadow-sm flex items-start gap-3 transition-all duration-200 hover:shadow-soft ${
           isCompleted ? 'opacity-50' : 'opacity-100'
         }`}
       >
@@ -49,10 +113,36 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
           {task.description && (
             <p className="text-xs text-stone-400 mt-0.5 truncate">{task.description}</p>
           )}
+          {task.tags && task.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {task.tags.map(tag => (
+                <Link
+                  key={tag}
+                  to={`/tags/${encodeURIComponent(tag)}`}
+                  onClick={e => e.stopPropagation()}
+                  className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 hover:bg-terracotta-50 hover:text-terracotta-600 transition-colors"
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Edit */}
+          <button
+            type="button"
+            onClick={handleEditOpen}
+            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+            aria-label="Edit task"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M9 2L11 4L5 10H3V8L9 2Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
           {/* Set reminder */}
           <button
             type="button"

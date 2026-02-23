@@ -21,6 +21,7 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.tag_service import TagService
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -93,7 +94,21 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> T
 
     Returns:
         The persisted TaskResponse.
+
+    Raises:
+        HTTPException: 400 if more than 5 tags are provided.
     """
+    if len(body.tags) > 5:
+        raise HTTPException(status_code=400, detail="A task may have at most 5 tags")
+
+    # Resolve tags before creating the task so we can set them on the
+    # transient object — avoids a lazy-load in async context.
+    tag_objects = []
+    if body.tags:
+        service = TagService(db)
+        for tag_name in body.tags:
+            tag_objects.append(await service.get_or_create_tag(tag_name))
+
     task = Task(
         day_id=body.day_id,
         category=body.category,
@@ -101,6 +116,7 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> T
         description=body.description,
         order_index=body.order_index,
     )
+    task.tags = tag_objects  # set on transient — no DB load required
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -151,7 +167,8 @@ async def update_task(
     """Update mutable fields on an existing Task.
 
     Only non-None fields in the payload are applied, preserving unchanged
-    values.
+    values. ``body.tags = None`` means don't touch tags; ``body.tags = []``
+    removes all tags.
 
     Args:
         task_id: Primary key of the Task to update.
@@ -163,6 +180,7 @@ async def update_task(
 
     Raises:
         HTTPException: 404 if no Task with ``task_id`` exists.
+        HTTPException: 400 if more than 5 tags are provided.
     """
     task = await _get_task_or_404(task_id, db)
     if body.title is not None:
@@ -171,6 +189,17 @@ async def update_task(
         task.description = body.description
     if body.order_index is not None:
         task.order_index = body.order_index
+
+    if body.tags is not None:
+        if len(body.tags) > 5:
+            raise HTTPException(status_code=400, detail="A task may have at most 5 tags")
+        new_tag_objects = []
+        if body.tags:
+            service = TagService(db)
+            for tag_name in body.tags:
+                new_tag_objects.append(await service.get_or_create_tag(tag_name))
+        task.tags = new_tag_objects
+
     await db.commit()
     await db.refresh(task)
     return task

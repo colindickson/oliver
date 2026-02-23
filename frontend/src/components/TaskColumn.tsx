@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { Task } from '../api/client'
 import { TaskCard } from './TaskCard'
+import { TagInput } from './TagInput'
 
 type ColorKey = 'blue' | 'amber' | 'green'
 
@@ -24,7 +25,7 @@ interface Props {
   category: Task['category']
   tasks: Task[]
   colorClass: ColorKey
-  onAddTask: (title: string, description: string) => Promise<void>
+  onAddTask: (title: string, description: string, tags: string[]) => Promise<void>
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
   onReorder: (taskIds: number[]) => void
@@ -40,12 +41,6 @@ const buttonColors: Record<ColorKey, string> = {
   blue: 'bg-ocean-50 text-ocean-600 hover:bg-ocean-100 border-ocean-200',
   amber: 'bg-terracotta-50 text-terracotta-600 hover:bg-terracotta-100 border-terracotta-200',
   green: 'bg-moss-50 text-moss-600 hover:bg-moss-100 border-moss-200',
-}
-
-const iconColors: Record<ColorKey, string> = {
-  blue: 'text-ocean-400',
-  amber: 'text-terracotta-400',
-  green: 'text-moss-400',
 }
 
 interface SortableTaskCardProps {
@@ -103,6 +98,7 @@ export function TaskColumn({
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [newTags, setNewTags] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Maintain local ordered list
@@ -142,9 +138,10 @@ export function TaskColumn({
     if (!newTitle.trim()) return
     setIsSubmitting(true)
     try {
-      await onAddTask(newTitle.trim(), newDesc.trim())
+      await onAddTask(newTitle.trim(), newDesc.trim(), newTags)
       setNewTitle('')
       setNewDesc('')
+      setNewTags([])
       setAdding(false)
     } finally {
       setIsSubmitting(false)
@@ -159,6 +156,7 @@ export function TaskColumn({
       setAdding(false)
       setNewTitle('')
       setNewDesc('')
+      setNewTags([])
     }
   }
 
@@ -166,6 +164,7 @@ export function TaskColumn({
     setAdding(false)
     setNewTitle('')
     setNewDesc('')
+    setNewTags([])
   }
 
   return (
@@ -225,6 +224,7 @@ export function TaskColumn({
             placeholder="Description (optional)"
             className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow"
           />
+          <TagInput value={newTags} onChange={setNewTags} />
           <div className="flex gap-2 pt-1">
             <button
               type="button"

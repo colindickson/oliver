@@ -4,47 +4,53 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
+import { TagInput } from '../components/TagInput'
 
 interface AddTaskFormProps {
   category: 'deep_work' | 'short_task' | 'maintenance'
   isOpen: boolean
   title: string
+  tags: string[]
   onOpen: () => void
   onTitleChange: (value: string) => void
+  onTagsChange: (tags: string[]) => void
   onSubmit: () => void
   onCancel: () => void
   mt?: boolean
 }
 
-function AddTaskForm({ category, isOpen, title, onOpen, onTitleChange, onSubmit, onCancel, mt }: AddTaskFormProps) {
+function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onTagsChange, onSubmit, onCancel, mt }: AddTaskFormProps) {
   if (isOpen) {
     return (
       <form
         onSubmit={e => { e.preventDefault(); onSubmit() }}
-        className={`flex items-center gap-2${mt ? ' mt-2' : ''}`}
+        className={`space-y-2${mt ? ' mt-2' : ''}`}
       >
-        <input
-          autoFocus
-          value={title}
-          onChange={e => onTitleChange(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
-          placeholder="Task title…"
-          className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
-        />
-        <button
-          type="submit"
-          disabled={!title.trim()}
-          className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Add
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
-        >
-          Cancel
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            value={title}
+            onChange={e => onTitleChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+            placeholder="Task title…"
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white"
+          />
+          <button
+            type="submit"
+            disabled={!title.trim()}
+            className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+        <TagInput value={tags} onChange={onTagsChange} />
       </form>
     )
   }
@@ -91,14 +97,22 @@ export function DayDetail() {
 
   const [addingCategory, setAddingCategory] = useState<Task['category'] | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskTags, setNewTaskTags] = useState<string[]>([])
 
   const createTask = useMutation({
     mutationFn: (category: Task['category']) =>
-      taskApi.create({ day_id: day!.id, category, title: newTaskTitle.trim() }),
+      taskApi.create({
+        day_id: day!.id,
+        category,
+        title: newTaskTitle.trim(),
+        tags: newTaskTags.length > 0 ? newTaskTags : undefined,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'all'] })
+      qc.invalidateQueries({ queryKey: ['tags'] })
       setNewTaskTitle('')
+      setNewTaskTags([])
       setAddingCategory(null)
     },
   })
@@ -114,6 +128,18 @@ export function DayDetail() {
   function handleAddTask(category: Task['category']) {
     if (!newTaskTitle.trim() || !day) return
     createTask.mutate(category)
+  }
+
+  function openAdd(category: Task['category']) {
+    setAddingCategory(category)
+    setNewTaskTitle('')
+    setNewTaskTags([])
+  }
+
+  function cancelAdd() {
+    setAddingCategory(null)
+    setNewTaskTitle('')
+    setNewTaskTags([])
   }
 
   const completedCount = day?.tasks.filter(t => t.status === 'completed').length ?? 0
@@ -228,10 +254,12 @@ export function DayDetail() {
                           category={cat.key}
                           isOpen={addingCategory === cat.key}
                           title={newTaskTitle}
-                          onOpen={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                          tags={newTaskTags}
+                          onOpen={() => openAdd(cat.key)}
                           onTitleChange={setNewTaskTitle}
+                          onTagsChange={setNewTaskTags}
                           onSubmit={() => handleAddTask(cat.key)}
-                          onCancel={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                          onCancel={cancelAdd}
                         />
                       </div>
                     </div>
@@ -254,13 +282,13 @@ export function DayDetail() {
                       {tasks.map(task => (
                         <div
                           key={task.id}
-                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-center gap-3 shadow-sm"
+                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-start gap-3 shadow-sm"
                         >
                           <button
                             onClick={() => !isFuture && toggleStatus.mutate(task)}
                             disabled={isFuture}
                             title={isFuture ? "Can't complete a future task" : undefined}
-                            className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
+                            className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
                               task.status === 'completed'
                                 ? 'bg-moss-500'
                                 : 'bg-stone-200'
@@ -272,23 +300,37 @@ export function DayDetail() {
                               </svg>
                             )}
                           </button>
-                          <span
-                            className={`text-sm transition-colors ${
-                              task.status === 'completed'
-                                ? 'line-through text-stone-400'
-                                : 'text-stone-800'
-                            }`}
-                          >
-                            {task.title}
-                          </span>
-                          {task.description && (
-                            <span className="text-xs text-stone-400 truncate">
-                              — {task.description}
+                          <div className="flex-1 min-w-0">
+                            <span
+                              className={`text-sm transition-colors ${
+                                task.status === 'completed'
+                                  ? 'line-through text-stone-400'
+                                  : 'text-stone-800'
+                              }`}
+                            >
+                              {task.title}
                             </span>
-                          )}
+                            {task.description && (
+                              <span className="text-xs text-stone-400 truncate block">
+                                {task.description}
+                              </span>
+                            )}
+                            {task.tags && task.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {task.tags.map(tag => (
+                                  <span
+                                    key={tag}
+                                    className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <button
                             onClick={() => deleteTask.mutate(task.id)}
-                            className="ml-auto opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors"
+                            className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0"
                             title="Delete task"
                           >
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -301,18 +343,18 @@ export function DayDetail() {
                         category={cat.key}
                         isOpen={addingCategory === cat.key}
                         title={newTaskTitle}
-                        onOpen={() => { setAddingCategory(cat.key); setNewTaskTitle('') }}
+                        tags={newTaskTags}
+                        onOpen={() => openAdd(cat.key)}
                         onTitleChange={setNewTaskTitle}
+                        onTagsChange={setNewTaskTags}
                         onSubmit={() => handleAddTask(cat.key)}
-                        onCancel={() => { setAddingCategory(null); setNewTaskTitle('') }}
+                        onCancel={cancelAdd}
                         mt
                       />
                     </div>
                   </div>
                 )
               })}
-
-
             </div>
           )}
         </main>
