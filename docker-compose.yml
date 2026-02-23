@@ -38,6 +38,17 @@ services:
       - backend
     restart: unless-stopped
 
+  pgweb:
+    image: sosedoff/pgweb
+    ports:
+      - "8081:8081"
+    environment:
+      - DATABASE_URL=postgres://oliver:oliver@postgres:5432/oliver?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   mcp-server:
     build: ./mcp-server
     environment:
@@ -47,5 +58,3 @@ services:
         condition: service_healthy
     stdin_open: true
     tty: true
-    profiles:
-      - mcp
