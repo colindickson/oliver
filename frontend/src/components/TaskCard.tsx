@@ -17,12 +17,14 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
   const [showReminder, setShowReminder] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
+  const [editDescription, setEditDescription] = useState(task.description ?? '')
   const [editTags, setEditTags] = useState<string[]>(task.tags ?? [])
   const [saving, setSaving] = useState(false)
   const qc = useQueryClient()
 
   function handleEditOpen() {
     setEditTitle(task.title)
+    setEditDescription(task.description ?? '')
     setEditTags(task.tags ?? [])
     setEditing(true)
   }
@@ -31,7 +33,11 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
     if (!editTitle.trim()) return
     setSaving(true)
     try {
-      await taskApi.update(task.id, { title: editTitle.trim(), tags: editTags })
+      await taskApi.update(task.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        tags: editTags,
+      })
       qc.invalidateQueries({ queryKey: ['day'] })
       qc.invalidateQueries({ queryKey: ['tags'] })
       setEditing(false)
@@ -53,6 +59,13 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
             if (e.key === 'Escape') setEditing(false)
           }}
           className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100"
+        />
+        <textarea
+          value={editDescription}
+          onChange={e => setEditDescription(e.target.value)}
+          placeholder="Description (optional)"
+          rows={2}
+          className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent resize-none dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-400"
         />
         <TagInput value={editTags} onChange={setEditTags} />
         <div className="flex gap-2 pt-0.5">
