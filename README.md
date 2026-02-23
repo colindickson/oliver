@@ -111,7 +111,7 @@ The server runs in stdio mode and is designed to be attached to by an MCP-compat
 
 ### Connecting to Claude Code or Claude Desktop
 
-The MCP server uses stdio transport. Claude spawns a container on-demand when it connects — you don't need to run `make mcp` first, but **the main services (postgres) must be running**:
+The MCP server uses stdio transport. The **main services (postgres) must be running** before connecting:
 
 ```bash
 make up
@@ -122,7 +122,7 @@ make up
 Add the server via the CLI:
 
 ```bash
-claude mcp add oliver -- docker compose --profile mcp run --rm -i mcp-server
+claude mcp add oliver -- docker compose -f /path/to/oliver/docker-compose.yml run --rm -i -T mcp-server
 ```
 
 Or manually add the following to `~/.claude.json` under `mcpServers`:
@@ -132,14 +132,21 @@ Or manually add the following to `~/.claude.json` under `mcpServers`:
   "mcpServers": {
     "oliver": {
       "command": "docker",
-      "args": ["compose", "--profile", "mcp", "run", "--rm", "-i", "mcp-server"],
-      "cwd": "/Users/you/code/oliver"
+      "args": [
+        "compose",
+        "-f", "/path/to/oliver/docker-compose.yml",
+        "run", "--rm", "-i", "-T",
+        "mcp-server"
+      ],
+      "cwd": "/path/to/oliver"
     }
   }
 }
 ```
 
-> **Note on `cwd`:** The MCP server runs inside Docker, but `docker compose` itself runs on your host machine. The `cwd` is the path to the Oliver project directory on your Mac — the folder containing `docker-compose.yml`. Claude runs `docker compose` from that directory so it can find the project. It is not a path inside the container.
+> **Note on `-f` and `cwd`:** The `-f` flag points `docker compose` at the project's `docker-compose.yml` using an absolute path, so the command works from any working directory. `cwd` sets the working directory for `docker compose` on the host — it should be the Oliver project root. Neither is a path inside the container.
+
+> **Note on `-T`:** The `-T` flag disables pseudo-TTY allocation. This is required for stdio-based MCP transport, which communicates over raw stdin/stdout.
 
 #### Claude Desktop
 
@@ -150,8 +157,12 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) a
   "mcpServers": {
     "oliver": {
       "command": "docker",
-      "args": ["compose", "--profile", "mcp", "run", "--rm", "-i", "mcp-server"],
-      "cwd": "/Users/you/code/oliver"
+      "args": [
+        "compose",
+        "-f", "/path/to/oliver/docker-compose.yml",
+        "run", "--rm", "-i", "-T",
+        "mcp-server"
+      ]
     }
   }
 }
