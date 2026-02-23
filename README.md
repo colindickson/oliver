@@ -186,8 +186,24 @@ make test-q   # Quiet output
 
 Tests use `pytest` and `pytest-asyncio` against the backend application layer.
 
+
+---
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request with improvements, bug fixes, or new features. For major changes, please discuss them in an issue first.
+
+### TODOs
+
+* Improve UI/UX design
+* Add user authentication and multi-user support
+* Implement Github / Linear / Jira integrations
+* Add support for recurring tasks and templates
+* Enhance analytics with more detailed reports and visualizations
+
+
 ---
 
 ## License
 
-MIT
+None
