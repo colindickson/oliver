@@ -4,6 +4,7 @@ import { Calendar } from './pages/Calendar'
 import { DayDetail } from './pages/DayDetail'
 import { Tags } from './pages/Tags'
 import { TagDetail } from './pages/TagDetail'
+import { Backlog } from './pages/Backlog'
 
 function AnalyticsPage() { return <div className="flex min-h-screen"><div className="p-8 text-gray-500">Analytics — Phase 5</div></div> }
 
@@ -16,6 +17,7 @@ export default function App() {
       <Route path="/analytics" element={<AnalyticsPage />} />
       <Route path="/tags" element={<Tags />} />
       <Route path="/tags/:tagName" element={<TagDetail />} />
+      <Route path="/backlog" element={<Backlog />} />
     </Routes>
   )
 }

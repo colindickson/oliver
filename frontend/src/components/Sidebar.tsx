@@ -204,6 +204,22 @@ export function Sidebar() {
           </svg>
           Tags
         </NavLink>
+        <NavLink
+          to="/backlog"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-stone-700 text-white'
+                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+            }`
+          }
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M2 2h10v10H2z" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M5 5h4M5 7h4M5 9h2" strokeLinecap="round" />
+          </svg>
+          Backlog
+        </NavLink>
       </nav>
 
       {/* Mini Calendar */}
