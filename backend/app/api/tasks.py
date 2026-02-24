@@ -255,3 +255,29 @@ async def update_task_status(
     await db.commit()
     await db.refresh(task)
     return task
+
+
+@router.post("/{task_id}/move-to-backlog", response_model=TaskResponse)
+async def move_task_to_backlog(
+    task_id: int, db: AsyncSession = Depends(get_db)
+) -> TaskResponse:
+    """Move a task from a day back to the backlog.
+
+    Sets day_id and category to null, preserving other fields.
+
+    Args:
+        task_id: Primary key of the Task to move.
+        db: Injected async database session.
+
+    Returns:
+        The updated TaskResponse.
+
+    Raises:
+        HTTPException: 404 if no Task with ``task_id`` exists.
+    """
+    task = await _get_task_or_404(task_id, db)
+    task.day_id = None
+    task.category = None
+    await db.commit()
+    await db.refresh(task)
+    return task
