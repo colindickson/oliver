@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi } from '../api/client'
 import type { Task } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
+import { ConfirmableDelete } from '../components/ConfirmableDelete'
 import { TagInput } from '../components/TagInput'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
@@ -133,17 +134,9 @@ function TaskItem({ task, isFuture, onToggleStatus, onDelete }: TaskItemProps) {
             <path d="M9 2L11 4L5 10H3V8L9 2Z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-red-400 dark:hover:bg-stone-700"
-          title="Delete task"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3.5 4L4.5 12H9.5L10.5 4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M2 4H12" strokeLinecap="round" />
-            <path d="M5 4V2.5H9V4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <ConfirmableDelete onConfirm={() => onDelete(task.id)} />
+        </span>
       </div>
     </div>
   )

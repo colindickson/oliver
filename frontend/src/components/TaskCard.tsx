@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Task } from '../api/client'
 import { useTaskEdit } from '../hooks/useTaskEdit'
+import { ConfirmableDelete } from './ConfirmableDelete'
 import { ReminderDialog } from './ReminderDialog'
 import { TagInput } from './TagInput'
 
@@ -153,18 +154,7 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
           </button>
 
           {/* Delete */}
-          <button
-            type="button"
-            onClick={() => onDelete(task.id)}
-            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors dark:text-stone-600 dark:hover:text-red-400 dark:hover:bg-stone-700"
-            aria-label="Delete task"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3.5 4L4.5 12H9.5L10.5 4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 4H12" strokeLinecap="round" />
-              <path d="M5 4V2.5H9V4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          <ConfirmableDelete onConfirm={() => onDelete(task.id)} />
         </div>
       </div>
 
