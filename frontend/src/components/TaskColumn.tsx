@@ -14,7 +14,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Task } from '../api/client'
+import { useQuery } from '@tanstack/react-query'
+import { backlogApi, type Task } from '../api/client'
 import { TaskCard } from './TaskCard'
 import { TagInput } from './TagInput'
 
@@ -30,6 +31,7 @@ interface Props {
   onDelete: (id: number) => void
   onReorder: (taskIds: number[]) => void
   onMoveToBacklog?: (task: Task) => void
+  onScheduleFromBacklog?: (task: Task) => void
 }
 
 const headerColors: Record<ColorKey, string> = {
@@ -97,12 +99,21 @@ export function TaskColumn({
   onDelete,
   onReorder,
   onMoveToBacklog,
+  onScheduleFromBacklog,
 }: Props) {
   const [adding, setAdding] = useState(false)
+  const [addMode, setAddMode] = useState<'new' | 'backlog'>('new')
+  const [backlogSearch, setBacklogSearch] = useState('')
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newTags, setNewTags] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: backlogTasks = [] } = useQuery({
+    queryKey: ['backlog'],
+    queryFn: () => backlogApi.list(),
+    enabled: adding && addMode === 'backlog',
+  })
 
   // Maintain local ordered list
   const initialCategoryTasks = tasks
@@ -165,6 +176,8 @@ export function TaskColumn({
 
   function handleCancel() {
     setAdding(false)
+    setAddMode('new')
+    setBacklogSearch('')
     setNewTitle('')
     setNewDesc('')
     setNewTags([])
@@ -209,43 +222,122 @@ export function TaskColumn({
       {/* Add task area */}
       {adding ? (
         <div className="mt-4 space-y-2 animate-fade-in">
-          <input
-            autoFocus
-            type="text"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Task title"
-            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
-          />
-          <input
-            type="text"
-            value={newDesc}
-            onChange={e => setNewDesc(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Escape') handleCancel()
-            }}
-            placeholder="Description (optional)"
-            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
-          />
-          <TagInput value={newTags} onChange={setNewTags} />
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => void handleAdd()}
-              disabled={isSubmitting || !newTitle.trim()}
-              className="text-sm bg-stone-800 text-white rounded-lg px-4 py-2 hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
-            >
-              Cancel
-            </button>
-          </div>
+          {/* Mode toggle — only shown when backlog feature is available */}
+          {onScheduleFromBacklog && (
+            <div className="flex gap-1 p-0.5 bg-stone-100 rounded-lg dark:bg-stone-600">
+              <button
+                type="button"
+                onClick={() => setAddMode('new')}
+                className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                  addMode === 'new'
+                    ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-700 dark:text-stone-100'
+                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                }`}
+              >
+                New task
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode('backlog')}
+                className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                  addMode === 'backlog'
+                    ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-700 dark:text-stone-100'
+                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                }`}
+              >
+                From backlog
+              </button>
+            </div>
+          )}
+
+          {addMode === 'new' ? (
+            <>
+              <input
+                autoFocus
+                type="text"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Task title"
+                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+              />
+              <input
+                type="text"
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') handleCancel()
+                }}
+                placeholder="Description (optional)"
+                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+              />
+              <TagInput value={newTags} onChange={setNewTags} />
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => void handleAdd()}
+                  disabled={isSubmitting || !newTitle.trim()}
+                  className="text-sm bg-stone-800 text-white rounded-lg px-4 py-2 hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                autoFocus
+                type="text"
+                value={backlogSearch}
+                onChange={e => setBacklogSearch(e.target.value)}
+                placeholder="Search backlog…"
+                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+              />
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {backlogTasks.length === 0 ? (
+                  <p className="text-xs text-stone-400 text-center py-4 dark:text-stone-500">
+                    Backlog is empty
+                  </p>
+                ) : (
+                  backlogTasks
+                    .filter(t =>
+                      !backlogSearch.trim() ||
+                      t.title.toLowerCase().includes(backlogSearch.toLowerCase())
+                    )
+                    .map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          onScheduleFromBacklog?.(t)
+                          handleCancel()
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
+                      >
+                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                        {t.description && (
+                          <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
+                        )}
+                      </button>
+                    ))
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <button

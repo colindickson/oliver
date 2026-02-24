@@ -165,18 +165,14 @@ interface MoveToDayModalProps {
 }
 
 function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
-  const [selectedDay, setSelectedDay] = useState<string>('today')
-  const [selectedCategory, setSelectedCategory] = useState<'deep_work' | 'short_task' | 'maintenance'>(task.category ?? 'short_task')
-
-  const { data: days = [] } = useQuery({
-    queryKey: ['days', 'all'],
-    queryFn: dayApi.getAll,
-  })
-
   // Get today's date string
   const todayStr = new Date().toISOString().slice(0, 10)
 
-  // Build list of recent days (last 7 days + next 7 days)
+  const [selectedDay, setSelectedDay] = useState<string>(todayStr)
+  const [selectedCategory, setSelectedCategory] = useState<'deep_work' | 'short_task' | 'maintenance'>(task.category ?? 'short_task')
+  const [isMoving, setIsMoving] = useState(false)
+
+  // Build list of next 7 days
   const recentDays = useMemo(() => {
     const result: Array<{ date: string; label: string }> = [
       { date: todayStr, label: 'Today' },
@@ -194,11 +190,16 @@ function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
     return result
   }, [todayStr])
 
-  function handleMove() {
-    const dayId = days.find(d => d.date === selectedDay)?.id
-    if (!dayId) return
-    onMove(task.id, dayId, selectedCategory)
-    onClose()
+  async function handleMove() {
+    setIsMoving(true)
+    try {
+      // getByDate creates the day if it doesn't exist yet
+      const day = await dayApi.getByDate(selectedDay)
+      onMove(task.id, day.id, selectedCategory)
+      onClose()
+    } finally {
+      setIsMoving(false)
+    }
   }
 
   return (
@@ -261,10 +262,11 @@ function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
           </button>
           <button
             type="button"
-            onClick={handleMove}
-            className="text-xs bg-terracotta-500 text-white rounded-lg px-4 py-1.5 hover:bg-terracotta-600 transition-all"
+            onClick={() => void handleMove()}
+            disabled={isMoving}
+            className="text-xs bg-terracotta-500 text-white rounded-lg px-4 py-1.5 hover:bg-terracotta-600 transition-all disabled:opacity-50"
           >
-            Move Task
+            {isMoving ? 'Moving…' : 'Move Task'}
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dayApi, taskApi } from '../api/client'
+import { dayApi, taskApi, backlogApi } from '../api/client'
 import type { Task } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
@@ -11,7 +11,7 @@ import { useTheme } from '../contexts/ThemeContext'
 
 interface ColumnConfig {
   title: string
-  category: Task['category']
+  category: NonNullable<Task['category']>
   color: 'blue' | 'amber' | 'green'
 }
 
@@ -85,6 +85,15 @@ export function Today() {
     },
   })
 
+  const scheduleFromBacklog = useMutation({
+    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
+      backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['backlog'] })
+    },
+  })
+
   // Keyboard shortcut: 'n' opens the first column's Add task form
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -134,6 +143,10 @@ export function Today() {
 
   function handleMoveToBacklog(task: Task) {
     moveToBacklog.mutate(task.id)
+  }
+
+  function handleScheduleFromBacklog(task: Task, category: NonNullable<Task['category']>) {
+    scheduleFromBacklog.mutate({ taskId: task.id, category })
   }
 
   if (isLoading || !day) {
@@ -218,6 +231,7 @@ export function Today() {
                 onDelete={handleDelete}
                 onReorder={handleReorder}
                 onMoveToBacklog={handleMoveToBacklog}
+                onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
               />
             ))}
           </div>
