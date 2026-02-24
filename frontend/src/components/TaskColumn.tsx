@@ -29,6 +29,7 @@ interface Props {
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
   onReorder: (taskIds: number[]) => void
+  onMoveToBacklog?: (task: Task) => void
 }
 
 const headerColors: Record<ColorKey, string> = {
@@ -47,9 +48,10 @@ interface SortableTaskCardProps {
   task: Task
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
+  onMoveToBacklog?: (task: Task) => void
 }
 
-function SortableTaskCard({ task, onComplete, onDelete }: SortableTaskCardProps) {
+function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
 
@@ -79,7 +81,7 @@ function SortableTaskCard({ task, onComplete, onDelete }: SortableTaskCardProps)
         </svg>
       </button>
       <div className="flex-1 min-w-0">
-        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} />
+        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} onMoveToBacklog={onMoveToBacklog} />
       </div>
     </div>
   )
@@ -94,6 +96,7 @@ export function TaskColumn({
   onComplete,
   onDelete,
   onReorder,
+  onMoveToBacklog,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -196,6 +199,7 @@ export function TaskColumn({
                 task={task}
                 onComplete={onComplete}
                 onDelete={onDelete}
+                onMoveToBacklog={onMoveToBacklog}
               />
             ))}
           </div>

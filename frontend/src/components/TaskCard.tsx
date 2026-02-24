@@ -10,9 +10,10 @@ interface Props {
   task: Task
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
+  onMoveToBacklog?: (task: Task) => void
 }
 
-export function TaskCard({ task, onComplete, onDelete }: Props) {
+export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog }: Props) {
   const isCompleted = task.status === 'completed'
   const [showReminder, setShowReminder] = useState(false)
 
@@ -152,6 +153,22 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
               <path d="M7 4V6" strokeLinecap="round" />
             </svg>
           </button>
+
+          {/* Move to backlog */}
+          {onMoveToBacklog && (
+            <button
+              type="button"
+              onClick={() => onMoveToBacklog(task)}
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-ocean-400 hover:bg-ocean-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-ocean-300 dark:hover:bg-stone-700"
+              aria-label="Send to backlog"
+              title="Send to backlog"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M2 2h10v10H2z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 5h4M5 7h4M5 9h2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
 
           {/* Delete */}
           <ConfirmableDelete onConfirm={() => onDelete(task.id)} />

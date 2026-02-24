@@ -77,6 +77,14 @@ export function Today() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
+  const moveToBacklog = useMutation({
+    mutationFn: taskApi.moveToBacklog,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['backlog'] })
+    },
+  })
+
   // Keyboard shortcut: 'n' opens the first column's Add task form
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -122,6 +130,10 @@ export function Today() {
 
   function handleReorder(taskIds: number[]) {
     reorderTasks.mutate(taskIds)
+  }
+
+  function handleMoveToBacklog(task: Task) {
+    moveToBacklog.mutate(task.id)
   }
 
   if (isLoading || !day) {
@@ -205,6 +217,7 @@ export function Today() {
                 onComplete={handleComplete}
                 onDelete={handleDelete}
                 onReorder={handleReorder}
+                onMoveToBacklog={handleMoveToBacklog}
               />
             ))}
           </div>
