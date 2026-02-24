@@ -92,6 +92,8 @@ export const taskApi = {
     api.post('/tasks/reorder', { task_ids }).then(r => r.data),
   moveToBacklog: (id: number) =>
     api.post<Task>(`/tasks/${id}/move-to-backlog`).then(r => r.data),
+  continueTomorrow: (id: number) =>
+    api.post<Task>(`/tasks/${id}/continue-tomorrow`).then(r => r.data),
 }
 
 export interface TimerState {
