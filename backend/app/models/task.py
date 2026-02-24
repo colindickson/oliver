@@ -31,7 +31,7 @@ class Task(Base):
     Attributes:
         id: Auto-increment primary key.
         day_id: Foreign key to ``days.id`` with cascade delete. Nullable — ``None`` means backlog task.
-        category: One of ``deep_work``, ``short_task``, or ``maintenance``.
+        category: One of ``deep_work``, ``short_task``, or ``maintenance``. Nullable for backlog tasks.
         title: Short human-readable title.
         description: Optional extended description.
         status: Lifecycle state — ``pending``, ``in_progress``, or ``completed``.
@@ -50,7 +50,7 @@ class Task(Base):
         nullable=True,
         index=True,
     )
-    category: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default=STATUS_PENDING)
