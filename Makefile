@@ -74,6 +74,6 @@ migrate: ## Run Alembic migrations (alembic upgrade head)
 migrate-status: ## Show current Alembic migration status
 	$(COMPOSE) exec $(BACKEND) alembic current
 
-reset: down clean build build-mcp up ## Full reset: clean, rebuild, start fresh
+reset: down clean build mcp-build up ## Full reset: clean, rebuild, start fresh
 
-restart: down build build-mcp up
+restart: down build mcp-build up

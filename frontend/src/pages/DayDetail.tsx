@@ -8,6 +8,146 @@ import { TagInput } from '../components/TagInput'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
 import { useTheme } from '../contexts/ThemeContext'
+import { useTaskEdit } from '../hooks/useTaskEdit'
+
+interface TaskItemProps {
+  task: Task
+  isFuture: boolean
+  onToggleStatus: (task: Task) => void
+  onDelete: (id: number) => void
+}
+
+function TaskItem({ task, isFuture, onToggleStatus, onDelete }: TaskItemProps) {
+  const {
+    editing,
+    editTitle,
+    editDescription,
+    editTags,
+    saving,
+    openEdit,
+    saveEdit,
+    cancelEdit,
+    setEditTitle,
+    setEditDescription,
+    setEditTags,
+  } = useTaskEdit({ task })
+
+  const isCompleted = task.status === 'completed'
+
+  if (editing) {
+    return (
+      <div className="bg-white rounded-xl border border-terracotta-200 p-4 space-y-2 dark:bg-stone-800 dark:border-terracotta-700/40">
+        <input
+          autoFocus
+          type="text"
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') void saveEdit()
+            if (e.key === 'Escape') cancelEdit()
+          }}
+          className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100"
+        />
+        <textarea
+          value={editDescription}
+          onChange={e => setEditDescription(e.target.value)}
+          placeholder="Description (optional)"
+          rows={2}
+          className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent resize-none dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-400"
+        />
+        <TagInput value={editTags} onChange={setEditTags} />
+        <div className="flex gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={() => void saveEdit()}
+            disabled={saving || !editTitle.trim()}
+            className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={cancelEdit}
+            className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group bg-white rounded-xl border border-stone-100 p-4 flex items-start gap-3 shadow-sm dark:bg-stone-800 dark:border-stone-700/50">
+      <button
+        onClick={() => !isFuture && onToggleStatus(task)}
+        disabled={isFuture}
+        title={isFuture ? "Can't complete a future task" : undefined}
+        className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
+          isCompleted
+            ? 'bg-moss-500'
+            : 'bg-stone-200 dark:bg-stone-600'
+        } ${isFuture ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+      >
+        {isCompleted && (
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2">
+            <path d="M2 6L5 9L10 3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <span
+          className={`text-sm transition-colors ${
+            isCompleted
+              ? 'line-through text-stone-400'
+              : 'text-stone-800 dark:text-stone-100'
+          }`}
+        >
+          {task.title}
+        </span>
+        {task.description && (
+          <span className="text-xs text-stone-400 truncate block">
+            {task.description}
+          </span>
+        )}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {task.tags.map(tag => (
+              <span
+                key={tag}
+                className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={openEdit}
+          className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
+          aria-label="Edit task"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M9 2L11 4L5 10H3V8L9 2Z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          onClick={() => onDelete(task.id)}
+          className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-red-400 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-red-400 dark:hover:bg-stone-700"
+          title="Delete task"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3.5 4L4.5 12H9.5L10.5 4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 4H12" strokeLinecap="round" />
+            <path d="M5 4V2.5H9V4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface AddTaskFormProps {
   category: 'deep_work' | 'short_task' | 'maintenance'
@@ -302,64 +442,13 @@ export function DayDetail() {
                     </div>
                     <div className={`space-y-2 rounded-2xl border ${cat.border} ${cat.bg} p-4`}>
                       {tasks.map(task => (
-                        <div
+                        <TaskItem
                           key={task.id}
-                          className="group bg-white rounded-xl border border-stone-100 p-4 flex items-start gap-3 shadow-sm dark:bg-stone-800 dark:border-stone-700/50"
-                        >
-                          <button
-                            onClick={() => !isFuture && toggleStatus.mutate(task)}
-                            disabled={isFuture}
-                            title={isFuture ? "Can't complete a future task" : undefined}
-                            className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
-                              task.status === 'completed'
-                                ? 'bg-moss-500'
-                                : 'bg-stone-200 dark:bg-stone-600'
-                            } ${isFuture ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
-                          >
-                            {task.status === 'completed' && (
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2">
-                                <path d="M2 6L5 9L10 3" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <span
-                              className={`text-sm transition-colors ${
-                                task.status === 'completed'
-                                  ? 'line-through text-stone-400'
-                                  : 'text-stone-800 dark:text-stone-100'
-                              }`}
-                            >
-                              {task.title}
-                            </span>
-                            {task.description && (
-                              <span className="text-xs text-stone-400 truncate block">
-                                {task.description}
-                              </span>
-                            )}
-                            {task.tags && task.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {task.tags.map(tag => (
-                                  <span
-                                    key={tag}
-                                    className="text-xs px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400"
-                                  >
-                                    #{tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => deleteTask.mutate(task.id)}
-                            className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 dark:text-stone-600 dark:hover:text-red-400"
-                            title="Delete task"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M2 3.5h10M5.5 3.5V2.5h3v1M3.5 3.5l.5 8h6l.5-8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                        </div>
+                          task={task}
+                          isFuture={isFuture}
+                          onToggleStatus={(task) => toggleStatus.mutate(task)}
+                          onDelete={(id) => deleteTask.mutate(id)}
+                        />
                       ))}
                       <AddTaskForm
                         category={cat.key}

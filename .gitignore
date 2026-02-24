@@ -41,3 +41,5 @@ dist/
 *.swp
 *.swo
 .DS_Store
+
+docs/plans/

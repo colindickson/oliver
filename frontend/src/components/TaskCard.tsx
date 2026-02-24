@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import type { Task } from '../api/client'
-import { taskApi } from '../api/client'
+import { useTaskEdit } from '../hooks/useTaskEdit'
 import { ReminderDialog } from './ReminderDialog'
 import { TagInput } from './TagInput'
 
@@ -15,36 +14,20 @@ interface Props {
 export function TaskCard({ task, onComplete, onDelete }: Props) {
   const isCompleted = task.status === 'completed'
   const [showReminder, setShowReminder] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(task.title)
-  const [editDescription, setEditDescription] = useState(task.description ?? '')
-  const [editTags, setEditTags] = useState<string[]>(task.tags ?? [])
-  const [saving, setSaving] = useState(false)
-  const qc = useQueryClient()
 
-  function handleEditOpen() {
-    setEditTitle(task.title)
-    setEditDescription(task.description ?? '')
-    setEditTags(task.tags ?? [])
-    setEditing(true)
-  }
-
-  async function handleSave() {
-    if (!editTitle.trim()) return
-    setSaving(true)
-    try {
-      await taskApi.update(task.id, {
-        title: editTitle.trim(),
-        description: editDescription.trim() || null,
-        tags: editTags,
-      })
-      qc.invalidateQueries({ queryKey: ['day'] })
-      qc.invalidateQueries({ queryKey: ['tags'] })
-      setEditing(false)
-    } finally {
-      setSaving(false)
-    }
-  }
+  const {
+    editing,
+    editTitle,
+    editDescription,
+    editTags,
+    saving,
+    openEdit,
+    saveEdit,
+    cancelEdit,
+    setEditTitle,
+    setEditDescription,
+    setEditTags,
+  } = useTaskEdit({ task })
 
   if (editing) {
     return (
@@ -55,8 +38,8 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
           value={editTitle}
           onChange={e => setEditTitle(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter') void handleSave()
-            if (e.key === 'Escape') setEditing(false)
+            if (e.key === 'Enter') void saveEdit()
+            if (e.key === 'Escape') cancelEdit()
           }}
           className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100"
         />
@@ -71,7 +54,7 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
         <div className="flex gap-2 pt-0.5">
           <button
             type="button"
-            onClick={() => void handleSave()}
+            onClick={() => void saveEdit()}
             disabled={saving || !editTitle.trim()}
             className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
           >
@@ -79,7 +62,7 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => setEditing(false)}
+            onClick={cancelEdit}
             className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
           >
             Cancel
@@ -147,7 +130,7 @@ export function TaskCard({ task, onComplete, onDelete }: Props) {
           {/* Edit */}
           <button
             type="button"
-            onClick={handleEditOpen}
+            onClick={openEdit}
             className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
             aria-label="Edit task"
           >
