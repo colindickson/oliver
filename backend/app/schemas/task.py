@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TaskCreate(BaseModel):
@@ -75,13 +75,16 @@ class BacklogTaskCreate(BaseModel):
         title: Short human-readable label.
         description: Optional extended notes.
         category: Optional category — can be set now or when moving to a day.
+            Accepts both "category" and "suggested_category" as field names.
         tags: Tag names to apply (max 5, stored lowercase without #).
     """
 
     title: str
     description: str | None = None
-    category: str | None = None
+    category: str | None = Field(default=None, validation_alias="suggested_category")
     tags: list[str] = []
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MoveToDayPayload(BaseModel):
