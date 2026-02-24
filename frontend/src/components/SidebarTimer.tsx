@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { timerApi, dayApi } from '../api/client'
 import { DeepWorkProgress } from './DeepWorkProgress'
@@ -70,6 +71,32 @@ export function SidebarTimer() {
     if (!taskId) return
     startTimer.mutate(taskId)
   }
+
+  function handleToggle() {
+    if (isRunning) {
+      pauseTimer.mutate()
+    } else {
+      handleStart()
+    }
+  }
+
+  // Keyboard shortcut: 'T' toggles timer
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+      if (e.key === 't' || e.key === 'T') {
+        handleToggle()
+      }
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isRunning, activeTask, timer?.task_id])
 
   // Find task name if timer is active
   const activeTaskName = timer?.task_id
