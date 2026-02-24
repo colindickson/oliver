@@ -109,9 +109,11 @@ export function TagDetail() {
                             </div>
                           )}
                         </div>
-                        <span className="text-xs text-stone-400 flex-shrink-0 capitalize">
-                          {task.category.replace('_', ' ')}
-                        </span>
+                        {task.category && (
+                          <span className="text-xs text-stone-400 flex-shrink-0 capitalize">
+                            {task.category.replace('_', ' ')}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

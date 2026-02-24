@@ -4,14 +4,26 @@ const api = axios.create({ baseURL: '/api' })
 
 export interface Task {
   id: number
-  day_id: number
-  category: 'deep_work' | 'short_task' | 'maintenance'
+  day_id: number | null  // nullable for backlog tasks
+  category: 'deep_work' | 'short_task' | 'maintenance' | null  // nullable for backlog
   title: string
   description: string | null
   status: 'pending' | 'in_progress' | 'completed'
   order_index: number
   completed_at: string | null
   tags: string[]
+}
+
+export interface CreateBacklogTaskPayload {
+  title: string
+  description?: string
+  category?: 'deep_work' | 'short_task' | 'maintenance'
+  tags?: string[]
+}
+
+export interface MoveToDayPayload {
+  day_id: number
+  category?: 'deep_work' | 'short_task' | 'maintenance'
 }
 
 export interface DailyNote {
@@ -78,6 +90,8 @@ export const taskApi = {
     api.patch<Task>(`/tasks/${id}/status`, { status }).then(r => r.data),
   reorder: (task_ids: number[]) =>
     api.post('/tasks/reorder', { task_ids }).then(r => r.data),
+  moveToBacklog: (id: number) =>
+    api.post<Task>(`/tasks/${id}/move-to-backlog`).then(r => r.data),
 }
 
 export interface TimerState {
@@ -169,4 +183,18 @@ export const tagApi = {
   getAll: () => api.get<TagResponse[]>('/tags').then(r => r.data),
   getTasksForTag: (name: string) =>
     api.get<TagTaskGroup[]>(`/tags/${encodeURIComponent(name)}/tasks`).then(r => r.data),
+}
+
+export const backlogApi = {
+  list: (params?: { tag?: string; search?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.tag) query.set('tag', params.tag)
+    if (params?.search) query.set('search', params.search)
+    const queryString = query.toString()
+    return api.get<Task[]>(`/backlog${queryString ? `?${queryString}` : ''}`).then(r => r.data)
+  },
+  create: (payload: CreateBacklogTaskPayload) =>
+    api.post<Task>('/backlog', payload).then(r => r.data),
+  moveToDay: (id: number, payload: MoveToDayPayload) =>
+    api.post<Task>(`/backlog/${id}/move-to-day`, payload).then(r => r.data),
 }
