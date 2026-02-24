@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.analytics import CategoriesResponse, StreaksResponse, SummaryResponse
+from app.schemas.analytics import (
+    CategoriesResponse,
+    StreaksResponse,
+    SummaryResponse,
+    TodayDeepWorkResponse,
+)
 from app.services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -57,3 +62,19 @@ async def get_categories(db: AsyncSession = Depends(get_db)) -> CategoriesRespon
     """
     data = await AnalyticsService(db).get_category_time()
     return CategoriesResponse(**data)
+
+
+@router.get("/today-deep-work", response_model=TodayDeepWorkResponse)
+async def get_today_deep_work(
+    db: AsyncSession = Depends(get_db),
+) -> TodayDeepWorkResponse:
+    """Return today's total deep work time and the 3-hour goal.
+
+    Args:
+        db: Injected database session.
+
+    Returns:
+        A ``TodayDeepWorkResponse`` with ``total_seconds`` and ``goal_seconds``.
+    """
+    data = await AnalyticsService(db).get_today_deep_work_time()
+    return TodayDeepWorkResponse(**data)

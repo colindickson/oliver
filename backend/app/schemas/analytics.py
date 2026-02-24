@@ -60,3 +60,15 @@ class CategoriesResponse(BaseModel):
     """
 
     entries: list[CategoryTimeEntry]
+
+
+class TodayDeepWorkResponse(BaseModel):
+    """Today's deep work time tracking progress.
+
+    Attributes:
+        total_seconds: Sum of all deep_work timer session durations for today.
+        goal_seconds: The daily goal in seconds (3 hours = 10800 seconds).
+    """
+
+    total_seconds: int
+    goal_seconds: int

@@ -333,3 +333,140 @@ async def test_categories_empty_when_no_sessions(
     assert response.status_code == 200
     payload = response.json()
     assert payload["entries"] == []
+
+
+# ---------------------------------------------------------------------------
+# GET /api/analytics/today-deep-work
+# ---------------------------------------------------------------------------
+
+
+async def test_today_deep_work_returns_expected_fields(client: AsyncClient) -> None:
+    """GET /api/analytics/today-deep-work returns required fields."""
+    response = await client.get("/api/analytics/today-deep-work")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "total_seconds" in payload
+    assert "goal_seconds" in payload
+    assert payload["goal_seconds"] == 10800  # 3 hours
+
+
+async def test_today_deep_work_sums_sessions(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /api/analytics/today-deep-work sums all deep work timer sessions for today."""
+    today = date.today()
+    day = await _seed_day_with_tasks(
+        db_session,
+        today,
+        categories=["deep_work", "deep_work", "short_task"],
+        completed_count=3,
+    )
+    tasks = day.tasks
+
+    deep_tasks = [t for t in tasks if t.category == "deep_work"]
+    short_task = next(t for t in tasks if t.category == "short_task")
+
+    now = datetime.now(timezone.utc)
+    # Add timer sessions: two deep work sessions of 1800s each
+    for task in deep_tasks:
+        db_session.add(
+            TimerSession(
+                task_id=task.id,
+                started_at=now - timedelta(seconds=1800),
+                ended_at=now,
+                duration_seconds=1800,
+            )
+        )
+    # Add a short_task session (should be excluded)
+    db_session.add(
+        TimerSession(
+            task_id=short_task.id,
+            started_at=now - timedelta(seconds=600),
+            ended_at=now,
+            duration_seconds=600,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/analytics/today-deep-work")
+
+    assert response.status_code == 200
+    payload = response.json()
+    # Should sum only deep work sessions: 1800 + 1800 = 3600
+    assert payload["total_seconds"] == 3600
+    assert payload["goal_seconds"] == 10800
+
+
+async def test_today_deep_work_excludes_other_days(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /api/analytics/today-deep-work only counts sessions from today."""
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    # Today's day with deep work task
+    today_day = await _seed_day_with_tasks(
+        db_session,
+        today,
+        categories=["deep_work"],
+        completed_count=1,
+    )
+    today_task = today_day.tasks[0]
+
+    # Yesterday's day with deep work task
+    yesterday_day = await _seed_day_with_tasks(
+        db_session,
+        yesterday,
+        categories=["deep_work"],
+        completed_count=1,
+    )
+    yesterday_task = yesterday_day.tasks[0]
+
+    now = datetime.now(timezone.utc)
+    # Add session for today
+    db_session.add(
+        TimerSession(
+            task_id=today_task.id,
+            started_at=now - timedelta(seconds=900),
+            ended_at=now,
+            duration_seconds=900,
+        )
+    )
+    # Add session for yesterday
+    db_session.add(
+        TimerSession(
+            task_id=yesterday_task.id,
+            started_at=now - timedelta(seconds=1200),
+            ended_at=now,
+            duration_seconds=1200,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/analytics/today-deep-work")
+
+    assert response.status_code == 200
+    payload = response.json()
+    # Should only count today's session
+    assert payload["total_seconds"] == 900
+
+
+async def test_today_deep_work_returns_zero_when_no_sessions(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /api/analytics/today-deep-work returns 0 when no timer sessions exist."""
+    today = date.today()
+    await _seed_day_with_tasks(
+        db_session,
+        today,
+        categories=["deep_work"],
+        completed_count=0,
+    )
+
+    response = await client.get("/api/analytics/today-deep-work")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_seconds"] == 0
+    assert payload["goal_seconds"] == 10800

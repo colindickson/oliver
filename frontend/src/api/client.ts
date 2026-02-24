@@ -126,10 +126,16 @@ export interface CategoriesData {
   entries: CategoryEntry[]
 }
 
+export interface TodayDeepWorkResponse {
+  total_seconds: number
+  goal_seconds: number
+}
+
 export const analyticsApi = {
   getSummary: (days = 30) => api.get<AnalyticsSummary>(`/analytics/summary?days=${days}`).then(r => r.data),
   getStreaks: () => api.get<StreaksData>('/analytics/streaks').then(r => r.data),
   getCategories: () => api.get<CategoriesData>('/analytics/categories').then(r => r.data),
+  getTodayDeepWork: () => api.get<TodayDeepWorkResponse>('/analytics/today-deep-work').then(r => r.data),
 }
 
 export interface Reminder {

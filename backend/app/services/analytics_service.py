@@ -178,3 +178,39 @@ class AnalyticsService:
         ]
 
         return {"entries": entries}
+
+    # ------------------------------------------------------------------
+    # Today's deep work time
+    # ------------------------------------------------------------------
+
+    async def get_today_deep_work_time(self) -> dict:
+        """Calculate total deep work time for today.
+
+        Sums all timer session durations for deep_work tasks on today's date.
+
+        Returns:
+            A dict with keys ``total_seconds`` and ``goal_seconds``.
+            goal_seconds is fixed at 10800 (3 hours).
+        """
+        today = date.today()
+
+        # Find today's day record
+        day_result = await self._db.execute(
+            select(Day).where(Day.date == today)
+        )
+        day = day_result.scalar_one_or_none()
+
+        if not day:
+            return {"total_seconds": 0, "goal_seconds": 10800}
+
+        # Sum all timer session durations for deep_work tasks on this day
+        result = await self._db.execute(
+            select(func.coalesce(func.sum(TimerSession.duration_seconds), 0))
+            .join(Task, TimerSession.task_id == Task.id)
+            .where(Task.day_id == day.id)
+            .where(Task.category == "deep_work")
+            .where(TimerSession.duration_seconds.is_not(None))
+        )
+        total_seconds = int(result.scalar_one() or 0)
+
+        return {"total_seconds": total_seconds, "goal_seconds": 10800}

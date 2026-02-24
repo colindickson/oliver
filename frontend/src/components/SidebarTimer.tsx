@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { timerApi, dayApi } from '../api/client'
+import { DeepWorkProgress } from './DeepWorkProgress'
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -115,6 +116,9 @@ export function SidebarTimer() {
           {activeTaskName}
         </p>
       )}
+
+      {/* Deep work progress */}
+      <DeepWorkProgress className="mb-3" />
 
       {/* Controls */}
       <div className="flex gap-2">
