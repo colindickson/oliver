@@ -8,7 +8,7 @@ Oliver is a local-first productivity app built around the 3-3-3 Method. It runs 
 
 ## The Method
 
-Each day is structured into nine intentional items across three categories:
+Each day is structured into intentional items across three categories:
 
 | Category | Count | Description |
 |---|---|---|
@@ -20,7 +20,7 @@ Each day is structured into nine intentional items across three categories:
 
 ## Features
 
-- **Daily planning board** — a clean three-column layout for the day's nine items
+- **Daily planning board** — a clean three-column layout for the day's items
 - **Calendar view** — track progress across days, weeks, and months
 - **Built-in timer** — stay focused during deep work sessions
 - **Task management** — add, edit, delete, and reorder tasks with drag-and-drop
@@ -184,17 +184,6 @@ Once configured, ask Claude: _"What's on my Oliver plan for today?"_ — it shou
 | Database | PostgreSQL 16 |
 | MCP Server | Python `mcp` SDK |
 | Infrastructure | Docker Compose |
-
----
-
-## Running Tests
-
-```bash
-make test     # Verbose output
-make test-q   # Quiet output
-```
-
-Tests use `pytest` and `pytest-asyncio` against the backend application layer.
 
 
 ---
