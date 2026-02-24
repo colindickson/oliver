@@ -131,7 +131,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Oliver</h1>
-            <p className="text-xs text-stone-300 mt-0.5">3-3-3 Method</p>
+            <p className="text-xs text-stone-300 mt-0.5">3-3-3 Technique</p>
           </div>
           <button
             onClick={toggleTheme}

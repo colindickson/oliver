@@ -1,6 +1,6 @@
 """Shared constants for task categories, statuses, and limits."""
 
-# Task categories (3-3-3 method)
+# Task categories (3-3-3 Technique)
 CATEGORY_DEEP_WORK = "deep_work"
 CATEGORY_SHORT_TASK = "short_task"
 CATEGORY_MAINTENANCE = "maintenance"

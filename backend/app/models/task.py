@@ -1,4 +1,4 @@
-"""Task model — one of the nine daily items in the 3-3-3 method."""
+"""Task model — one of the daily items in the 3-3-3 Technique."""
 
 from __future__ import annotations
 

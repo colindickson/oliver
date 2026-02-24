@@ -1,8 +1,8 @@
 # Oliver
 
-> "The 3-3-3 Method is a daily productivity framework designed to reduce overwhelm by structuring the workday into three distinct, manageable parts: 3 hours on a major project, 3 shorter urgent tasks, and 3 maintenance tasks. Popularized by author Oliver Burkeman, this approach promotes sustainable productivity by focusing on high-impact work and ensuring essential daily maintenance is completed without burnout."
+> "The 3-3-3 Technique is a daily productivity framework designed to reduce overwhelm by structuring the workday into three distinct, manageable parts: 3 hours on a major project, 3 shorter urgent tasks, and 3 maintenance tasks. Popularized by author Oliver Burkeman, this approach promotes sustainable productivity by focusing on high-impact work and ensuring essential daily maintenance is completed without burnout."
 
-Oliver is a local-first productivity app built around the 3-3-3 Method. It runs entirely on your machine via Docker — your data stays yours.
+Oliver is a local-first productivity app built around the 3-3-3 Technique. It runs entirely on your machine via Docker — your data stays yours.
 
 ---
 

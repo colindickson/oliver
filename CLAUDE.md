@@ -1,6 +1,6 @@
 ## Project Overview
 
-**Oliver** is a local-first productivity app built around the **3-3-3 Method** (3 hours deep work, 3 urgent tasks, 3 maintenance tasks per day). The stack is React + TypeScript frontend, FastAPI + SQLAlchemy backend, PostgreSQL, and an MCP server exposing task data to AI agents.
+**Oliver** is a local-first productivity app built around the **3-3-3 Technique** (3 hours deep work, 3 urgent tasks, 3 maintenance tasks per day). The stack is React + TypeScript frontend, FastAPI + SQLAlchemy backend, PostgreSQL, and an MCP server exposing task data to AI agents.
 
 ## Commands
 
