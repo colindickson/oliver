@@ -463,6 +463,7 @@ export function DayDetail() {
               {/* Notes, Roadblocks, and Rating */}
               <div className="space-y-6 pb-8">
                 <DayNotes
+                  key={`notes-${day.id}`}
                   label="Notes"
                   dayId={day.id}
                   initialContent={day.notes?.content ?? ''}
@@ -471,6 +472,7 @@ export function DayDetail() {
                   }
                 />
                 <DayNotes
+                  key={`roadblocks-${day.id}`}
                   label="Roadblocks"
                   dayId={day.id}
                   initialContent={day.roadblocks?.content ?? ''}
@@ -479,6 +481,7 @@ export function DayDetail() {
                   }
                 />
                 <DayRating
+                  key={`rating-${day.id}`}
                   dayId={day.id}
                   initialRating={day.rating}
                   onSave={(dayId, rating) =>
