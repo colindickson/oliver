@@ -1,4 +1,4 @@
-.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status
+.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status db-backup db-restore
 
 COMPOSE := docker compose
 BACKEND := backend
@@ -65,8 +65,41 @@ shell-backend: ## Open shell in backend container
 shell-frontend: ## Open shell in frontend container
 	$(COMPOSE) exec $(FRONTEND) /bin/sh
 
-db-shell: ## Open SQLite shell in backend container
-	$(COMPOSE) exec $(BACKEND) sqlite3 /data/oliver.db
+db-shell: ## Open psql shell in postgres container
+	$(COMPOSE) exec postgres psql -U oliver -d oliver
+
+BACKUP_DIR := backups
+
+db-backup: ## Create a database backup (optional: FILE=name)
+	@mkdir -p $(BACKUP_DIR)
+	@if [ -n "$(FILE)" ]; then \
+		BACKUP_FILE="$(BACKUP_DIR)/$(FILE).sql"; \
+	else \
+		BACKUP_FILE="$(BACKUP_DIR)/oliver_$$(date +%Y%m%d_%H%M%S).sql"; \
+	fi; \
+	echo "Creating backup: $$BACKUP_FILE"; \
+	$(COMPOSE) exec -T postgres pg_dump -U oliver oliver > "$$BACKUP_FILE"; \
+	echo "Backup complete: $$BACKUP_FILE"
+
+db-restore: ## Restore database from backup file (usage: make db-restore FILE=backups/filename.sql)
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE parameter required. Usage: make db-restore FILE=backups/filename.sql"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(FILE)" ]; then \
+		echo "Error: File not found: $(FILE)"; \
+		exit 1; \
+	fi
+	@echo "WARNING: This will overwrite the current database."
+	@read -p "Type 'yes' to confirm: " CONFIRM; \
+	if [ "$$(echo $$CONFIRM | tr '[:upper:]' '[:lower:]')" = "yes" ]; then \
+		echo "Restoring from: $(FILE)"; \
+		$(COMPOSE) exec -T postgres psql -U oliver -d oliver < "$(FILE)"; \
+		echo "Restore complete."; \
+	else \
+		echo "Aborted."; \
+		exit 1; \
+	fi
 
 migrate: ## Run Alembic migrations (alembic upgrade head)
 	$(COMPOSE) exec $(BACKEND) alembic upgrade head
