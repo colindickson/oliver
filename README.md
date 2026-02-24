@@ -37,10 +37,13 @@ oliver/
 ├── frontend/     React 18 + TypeScript + Vite + Tailwind CSS
 ├── backend/      FastAPI + SQLAlchemy (async) + PostgreSQL
 ├── mcp-server/   MCP server (stdio) for agent integration
+├── shared/       Shared Python library (constants, validation)
 └── docker-compose.yml
 ```
 
 All services run locally via Docker Compose. Data is persisted in a named PostgreSQL volume.
+
+The `shared/` package contains common Python code used by both the backend and MCP server.
 
 ---
 

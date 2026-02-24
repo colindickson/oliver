@@ -61,6 +61,8 @@ make mcp-build      # Build MCP server image
 
 The backend API and MCP server are **independent consumers** of the same PostgreSQL database. The MCP server connects directly to Postgres (sync SQLAlchemy + psycopg2), bypassing the backend API entirely. Both have their own copy of the ORM models under their respective `models/` directories — keep them in sync when modifying the schema.
 
+Both services share common code via the `shared/oliver_shared/` Python package (constants, validation logic). This package is installed via pip in both Dockerfiles during image build.
+
 ### Backend Layer Structure
 
 ```
