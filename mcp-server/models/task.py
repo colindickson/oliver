@@ -18,8 +18,8 @@ class Task(Base):
 
     Attributes:
         id: Auto-increment primary key.
-        day_id: Foreign key to ``days.id`` with cascade delete.
-        category: One of ``deep_work``, ``short_task``, or ``maintenance``.
+        day_id: Foreign key to ``days.id`` with cascade delete. Nullable -- ``None`` means backlog task.
+        category: One of ``deep_work``, ``short_task``, or ``maintenance``. Nullable for backlog tasks.
         title: Short human-readable title.
         description: Optional extended description.
         status: Lifecycle state -- ``pending``, ``in_progress``, or ``completed``.
@@ -31,8 +31,8 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    day_id = Column(Integer, ForeignKey("days.id", ondelete="CASCADE"), nullable=False)
-    category = Column(String, nullable=False)
+    day_id = Column(Integer, ForeignKey("days.id", ondelete="CASCADE"), nullable=True)
+    category = Column(String, nullable=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     status = Column(String, nullable=False, default=STATUS_PENDING)
