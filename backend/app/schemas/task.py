@@ -68,6 +68,34 @@ class TaskReorder(BaseModel):
     task_ids: list[int]
 
 
+class BacklogTaskCreate(BaseModel):
+    """Payload to create a backlog task (no day_id required).
+
+    Attributes:
+        title: Short human-readable label.
+        description: Optional extended notes.
+        category: Optional category — can be set now or when moving to a day.
+        tags: Tag names to apply (max 5, stored lowercase without #).
+    """
+
+    title: str
+    description: str | None = None
+    category: str | None = None
+    tags: list[str] = []
+
+
+class MoveToDayPayload(BaseModel):
+    """Payload to move a backlog task to a specific day.
+
+    Attributes:
+        day_id: The day to move the task to.
+        category: Optional category override. If not provided, uses existing category.
+    """
+
+    day_id: int
+    category: str | None = None
+
+
 class TaskResponse(BaseModel):
     """Serialised representation of a Task returned by the API.
 
@@ -86,8 +114,8 @@ class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    day_id: int
-    category: str
+    day_id: int | None
+    category: str | None
     title: str
     description: str | None
     status: str
