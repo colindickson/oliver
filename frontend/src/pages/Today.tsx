@@ -85,6 +85,11 @@ export function Today() {
     },
   })
 
+  const continueTomorrow = useMutation({
+    mutationFn: taskApi.continueTomorrow,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
   const scheduleFromBacklog = useMutation({
     mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
       backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
@@ -143,6 +148,10 @@ export function Today() {
 
   function handleMoveToBacklog(task: Task) {
     moveToBacklog.mutate(task.id)
+  }
+
+  function handleContinueTomorrow(task: Task) {
+    continueTomorrow.mutate(task.id)
   }
 
   function handleScheduleFromBacklog(task: Task, category: NonNullable<Task['category']>) {
@@ -231,6 +240,7 @@ export function Today() {
                 onDelete={handleDelete}
                 onReorder={handleReorder}
                 onMoveToBacklog={handleMoveToBacklog}
+                onContinueTomorrow={handleContinueTomorrow}
                 onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
               />
             ))}
