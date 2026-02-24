@@ -102,7 +102,7 @@ def update_task(
     title: str = "",
     description: str = "",
     status: str = "",
-    tags: list[str] | str | None = None,
+    tags: list[str] | None = None,
 ) -> str:
     """Update one or more fields on an existing task.
 
@@ -114,8 +114,7 @@ def update_task(
         title: New title, or empty string to leave unchanged.
         description: New description, or empty string to leave unchanged.
         status: New status value, or empty string to leave unchanged.
-        tags: New tags - empty string means no change, empty list [] removes all tags,
-              non-empty list replaces tags (max 5, will be normalized).
+        tags: None to leave unchanged, [] to clear all tags, list to replace (max 5).
 
     Returns:
         JSON-encoded dict with ``success``, ``task_id``, and ``tags``, or an ``error``
@@ -134,10 +133,7 @@ def update_task(
             if status == STATUS_COMPLETED:
                 task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        # Handle tags - empty string means no change (backward compatible)
-        if tags != "" and tags is not None:
-            if isinstance(tags, str):
-                tags = []
+        if tags is not None:
             if len(tags) > MAX_TAGS_PER_TASK:
                 return json.dumps({"error": f"Maximum {MAX_TAGS_PER_TASK} tags allowed per task"})
             tag_objects = _get_or_create_tags(session, tags)

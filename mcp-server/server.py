@@ -1,6 +1,5 @@
 """Oliver MCP server — exposes the 3-3-3 productivity tools over stdio transport."""
 
-import json
 import os
 import sys
 
@@ -37,11 +36,11 @@ def create_task_tool(
     category: str,
     day_date: str = "",
     description: str = "",
-    tags: str = "",
+    tags: list[str] | None = None,
 ) -> str:
-    """Create a task. category must be: deep_work, short_task, or maintenance. day_date defaults to today (YYYY-MM-DD). tags is a JSON array string like '["tag1", "tag2"]' (max 5 tags)."""
-    tags_list = json.loads(tags) if tags else []
-    return create_task(title, category, day_date, description, tags_list)
+    """Create a task. category must be: deep_work, short_task, or maintenance.
+    day_date defaults to today (YYYY-MM-DD). tags is an optional list of tag strings (max 5)."""
+    return create_task(title, category, day_date, description, tags or [])
 
 
 @mcp.tool()
@@ -50,11 +49,11 @@ def update_task_tool(
     title: str = "",
     description: str = "",
     status: str = "",
-    tags: str = "",
+    tags: list[str] | None = None,
 ) -> str:
-    """Update a task by ID. Provide only the fields to change. tags is a JSON array string like '["tag1", "tag2"]' (empty string = no change, '[]' = clear all tags, max 5 tags)."""
-    tags_list = json.loads(tags) if tags else ""
-    return update_task(task_id, title, description, status, tags_list)
+    """Update a task by ID. Provide only the fields to change.
+    tags: omit to leave unchanged, pass [] to clear all tags, pass list to replace (max 5)."""
+    return update_task(task_id, title, description, status, tags)
 
 
 @mcp.tool()
