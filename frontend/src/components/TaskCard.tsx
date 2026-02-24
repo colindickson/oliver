@@ -171,8 +171,8 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             </button>
           )}
 
-          {/* Continue tomorrow — deep work only */}
-          {onContinueTomorrow && task.category === 'deep_work' && (
+          {/* Continue tomorrow — deep work only, hidden when completed */}
+          {onContinueTomorrow && task.category === 'deep_work' && !isCompleted && (
             <button
               type="button"
               onClick={() => onContinueTomorrow(task)}

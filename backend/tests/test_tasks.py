@@ -5,7 +5,7 @@ Written before the implementation exists (TDD red phase).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -342,3 +342,107 @@ async def test_reorder_tasks(client: AsyncClient, day: Day) -> None:
     for expected_index, task_id in enumerate(reversed_ids):
         get_resp = await client.get(f"/api/tasks/{task_id}")
         assert get_resp.json()["order_index"] == expected_index
+
+
+# ---------------------------------------------------------------------------
+# POST /api/tasks/{task_id}/continue-tomorrow
+# ---------------------------------------------------------------------------
+
+
+async def test_continue_tomorrow_marks_original_completed(
+    client: AsyncClient, day: Day
+) -> None:
+    """continue-tomorrow sets the original task status to completed."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Deep focus block",
+        "description": "Work on the thing",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    # Verify original is now completed
+    original_resp = await client.get(f"/api/tasks/{task_id}")
+    assert original_resp.json()["status"] == STATUS_COMPLETED
+    assert original_resp.json()["completed_at"] is not None
+
+
+async def test_continue_tomorrow_creates_copy_on_next_day(
+    client: AsyncClient, day: Day
+) -> None:
+    """continue-tomorrow returns a new pending deep_work task for tomorrow."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Deep focus block",
+        "description": "Work on the thing",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] != task_id
+    assert body["title"] == "Deep focus block"
+    assert body["description"] == "Work on the thing"
+    assert body["category"] == CATEGORY_DEEP_WORK
+    assert body["status"] == STATUS_PENDING
+    assert body["completed_at"] is None
+
+    # Verify the new task is on tomorrow's day
+    tomorrow_str = str(date.today() + timedelta(days=1))
+    day_resp = await client.get(f"/api/days/{tomorrow_str}")
+    assert day_resp.status_code == 200
+    assert day_resp.json()["id"] == body["day_id"]
+
+
+async def test_continue_tomorrow_copies_tags(
+    client: AsyncClient, day: Day
+) -> None:
+    """continue-tomorrow carries tags over to the new task."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Tagged task",
+        "order_index": 0,
+        "tags": ["focus", "project-x"],
+    })
+    assert sorted(create_resp.json()["tags"]) == ["focus", "project-x"], "Precondition: tags must be persisted on create"
+    task_id = create_resp.json()["id"]
+
+    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    assert sorted(resp.json()["tags"]) == ["focus", "project-x"]
+
+
+async def test_continue_tomorrow_404_for_missing_task(
+    client: AsyncClient,
+) -> None:
+    """continue-tomorrow returns 404 when the task does not exist."""
+    resp = await client.post("/api/tasks/99999/continue-tomorrow")
+    assert resp.status_code == 404
+
+
+async def test_continue_tomorrow_rejects_non_deep_work_task(
+    client: AsyncClient, day: Day
+) -> None:
+    """continue-tomorrow returns 422 for tasks that are not deep_work."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Quick email",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 422
+    assert "deep_work" in resp.json()["detail"]

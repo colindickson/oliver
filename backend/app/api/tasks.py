@@ -305,6 +305,12 @@ async def continue_task_tomorrow(
     """
     task = await _get_task_or_404(task_id, db)
 
+    if task.category != CATEGORY_DEEP_WORK:
+        raise HTTPException(
+            status_code=422,
+            detail="Only deep_work tasks can be continued tomorrow",
+        )
+
     # Read tag names before any mutations (selectin-loaded, already available)
     tag_names = [tag.name for tag in task.tags]
 
