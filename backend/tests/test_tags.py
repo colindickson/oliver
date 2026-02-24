@@ -189,3 +189,33 @@ async def test_get_nonexistent_tag(client: AsyncClient) -> None:
     """GET /api/tags/{tag_name}/tasks returns 404 for an unknown tag."""
     response = await client.get("/api/tags/nonexistent/tasks")
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Orphaned tags (tags with 0 tasks) should not appear in list
+# ---------------------------------------------------------------------------
+
+
+async def test_orphaned_tags_not_listed(client: AsyncClient, day: Day) -> None:
+    """Tags with no associated tasks should not appear in GET /api/tags."""
+    # Create a task with tag "temporary"
+    create_resp = await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "T", "tags": ["temporary"]},
+    )
+    assert create_resp.status_code == 200
+
+    # Verify tag appears in list
+    list_resp = await client.get("/api/tags")
+    tag_names = [t["name"] for t in list_resp.json()]
+    assert "temporary" in tag_names
+
+    # Remove all tags from the task (making "temporary" orphaned)
+    task_id = create_resp.json()["id"]
+    update_resp = await client.put(f"/api/tasks/{task_id}", json={"tags": []})
+    assert update_resp.status_code == 200
+
+    # Now the orphaned tag should NOT appear in the list
+    list_resp = await client.get("/api/tags")
+    tag_names = [t["name"] for t in list_resp.json()]
+    assert "temporary" not in tag_names

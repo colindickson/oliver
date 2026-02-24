@@ -28,11 +28,12 @@ class TagService:
         return tag
 
     async def get_all_tags(self) -> list[tuple[Tag, int]]:
-        """Return all tags with their task usage counts."""
+        """Return tags that have at least one associated task, with usage counts."""
         stmt = (
             select(Tag, func.count(task_tags_table.c.task_id).label("task_count"))
-            .outerjoin(task_tags_table, Tag.id == task_tags_table.c.tag_id)
+            .join(task_tags_table, Tag.id == task_tags_table.c.tag_id)
             .group_by(Tag.id)
+            .having(func.count(task_tags_table.c.task_id) > 0)
             .order_by(Tag.name)
         )
         result = await self._db.execute(stmt)
