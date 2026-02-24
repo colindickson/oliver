@@ -30,7 +30,7 @@ class Task(Base):
 
     Attributes:
         id: Auto-increment primary key.
-        day_id: Foreign key to ``days.id`` with cascade delete.
+        day_id: Foreign key to ``days.id`` with cascade delete. Nullable — ``None`` means backlog task.
         category: One of ``deep_work``, ``short_task``, or ``maintenance``.
         title: Short human-readable title.
         description: Optional extended description.
@@ -44,10 +44,10 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    day_id: Mapped[int] = mapped_column(
+    day_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("days.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     category: Mapped[str] = mapped_column(String, nullable=False)
