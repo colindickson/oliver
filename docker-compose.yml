@@ -58,3 +58,5 @@ services:
         condition: service_healthy
     stdin_open: true
     tty: true
+    profiles:
+      - mcp

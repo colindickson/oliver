@@ -25,9 +25,6 @@ stop: ## Stop running containers without removing them
 start: ## Start stopped containers
 	$(COMPOSE) start
 
-restart: ## Restart all containers
-	$(COMPOSE) restart
-
 logs: ## Follow logs from all services (Ctrl+C to exit)
 	$(COMPOSE) logs -f
 
@@ -39,15 +36,6 @@ logs-frontend: ## Follow frontend logs
 
 ps: ## Show container status
 	$(COMPOSE) ps
-
-test: ## Run backend tests (requires Python venv with pytest)
-	/tmp/oliver-venv311/bin/pytest backend/tests/ -v
-
-test-q: ## Run backend tests (quiet)
-	/tmp/oliver-venv311/bin/pytest backend/tests/ -q
-
-mcp: ## Start MCP server (stdio mode, requires client attachment)
-	$(COMPOSE) --profile mcp up mcp-server
 
 mcp-build: ## Build MCP server image only
 	$(COMPOSE) build mcp-server
@@ -61,9 +49,6 @@ clean: ## Remove containers, networks, and volumes (full reset)
 		echo "Aborted."; \
 		exit 1; \
 	fi
-
-prune: ## Remove all unused Docker resources (images, containers, volumes)
-	docker system prune -f
 
 dev: ## Start in development mode with live logs
 	$(COMPOSE) up --build
@@ -89,4 +74,6 @@ migrate: ## Run Alembic migrations (alembic upgrade head)
 migrate-status: ## Show current Alembic migration status
 	$(COMPOSE) exec $(BACKEND) alembic current
 
-reset: clean build up ## Full reset: clean, rebuild, start fresh
+reset: down clean build build-mcp up ## Full reset: clean, rebuild, start fresh
+
+restart: down build build-mcp up

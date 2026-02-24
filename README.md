@@ -137,8 +137,7 @@ Or manually add the following to `~/.claude.json` under `mcpServers`:
         "-f", "/path/to/oliver/docker-compose.yml",
         "run", "--rm", "-i", "-T",
         "mcp-server"
-      ],
-      "cwd": "/path/to/oliver"
+      ]
     }
   }
 }
