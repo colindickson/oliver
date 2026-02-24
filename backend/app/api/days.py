@@ -33,6 +33,7 @@ async def get_today(db: AsyncSession = Depends(get_db)) -> DayResponse:
     """
     service = DayService(db)
     day = await service.get_or_create_today()
+    await db.commit()  # persist if a new Day was created
     return day
 
 
@@ -50,7 +51,9 @@ async def get_day_by_date(
         The DayResponse for the requested date.
     """
     service = DayService(db)
-    return await service.get_or_create_by_date(day_date)
+    day = await service.get_or_create_by_date(day_date)
+    await db.commit()  # persist if a new Day was created
+    return day
 
 
 @router.get("", response_model=list[DayResponse])

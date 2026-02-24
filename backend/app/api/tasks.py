@@ -6,7 +6,7 @@ All database access uses async SQLAlchemy so the routes remain non-blocking.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -21,8 +21,9 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.day_service import DayService
 from app.services.tag_service import TagService
-from oliver_shared import MAX_TAGS_PER_TASK, STATUS_COMPLETED, validate_tag_count
+from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETED, STATUS_PENDING, validate_tag_count
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -281,3 +282,63 @@ async def move_task_to_backlog(
     await db.commit()
     await db.refresh(task)
     return task
+
+
+@router.post("/{task_id}/continue-tomorrow", response_model=TaskResponse)
+async def continue_task_tomorrow(
+    task_id: int, db: AsyncSession = Depends(get_db)
+) -> TaskResponse:
+    """Mark a deep work task completed and create a copy on tomorrow's day.
+
+    The original task is stamped completed. A new pending task is created
+    for tomorrow with the same title, description, and tags.
+
+    Args:
+        task_id: Primary key of the Task to continue.
+        db: Injected async database session.
+
+    Returns:
+        The newly created TaskResponse for tomorrow.
+
+    Raises:
+        HTTPException: 404 if no Task with ``task_id`` exists.
+    """
+    task = await _get_task_or_404(task_id, db)
+
+    # Read tag names before any mutations (selectin-loaded, already available)
+    tag_names = [tag.name for tag in task.tags]
+
+    # Get or create tomorrow's Day first — DayService uses flush so we have
+    # a day_id before building the continuation task, and all three writes
+    # (day insert if new, status change, new task) commit together below.
+    tomorrow = date.today() + timedelta(days=1)
+    day_service = DayService(db)
+    tomorrow_day = await day_service.get_or_create_by_date(tomorrow)
+
+    # Mark original completed
+    task.status = STATUS_COMPLETED
+    task.completed_at = datetime.now(timezone.utc)
+
+    # Resolve tag objects for the new task
+    tag_objects = []
+    if tag_names:
+        tag_service = TagService(db)
+        for name in tag_names:
+            tag_objects.append(await tag_service.get_or_create_tag(name))
+
+    # Create continuation task
+    new_task = Task(
+        day_id=tomorrow_day.id,
+        category=CATEGORY_DEEP_WORK,
+        title=task.title,
+        description=task.description,
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    new_task.tags = tag_objects
+    db.add(new_task)
+
+    # Single commit: atomically marks original completed and creates the copy
+    await db.commit()
+    await db.refresh(new_task)
+    return new_task

@@ -51,7 +51,7 @@ class DayService:
         if day is None:
             day = Day(date=target_date, created_at=datetime.now(timezone.utc))
             self._db.add(day)
-            await self._db.commit()
+            await self._db.flush()
             await self._db.refresh(day)
         return day
 
