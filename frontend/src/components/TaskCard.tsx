@@ -11,9 +11,10 @@ interface Props {
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
   onMoveToBacklog?: (task: Task) => void
+  onContinueTomorrow?: (task: Task) => void
 }
 
-export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog }: Props) {
+export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow }: Props) {
   const isCompleted = task.status === 'completed'
   const [showReminder, setShowReminder] = useState(false)
 
@@ -166,6 +167,23 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog }: Props)
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M2 2h10v10H2z" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M5 5h4M5 7h4M5 9h2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+
+          {/* Continue tomorrow — deep work only, hidden when completed */}
+          {onContinueTomorrow && task.category === 'deep_work' && !isCompleted && (
+            <button
+              type="button"
+              onClick={() => onContinueTomorrow(task)}
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
+              aria-label="Continue tomorrow"
+              title="Continue tomorrow"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M7 2v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 7a5 5 0 1 0 5-5" strokeLinecap="round" />
+                <path d="M2 4V7h3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           )}
