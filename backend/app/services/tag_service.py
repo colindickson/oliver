@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.models.day import Day
+from oliver_shared import normalize_tag_name
 
 
 class TagService:
@@ -18,7 +19,7 @@ class TagService:
 
     async def get_or_create_tag(self, name: str) -> Tag:
         """Return the Tag for ``name`` (normalised), creating it if absent."""
-        normalised = name.strip().lower()
+        normalised = normalize_tag_name(name)
         result = await self._db.execute(select(Tag).where(Tag.name == normalised))
         tag = result.scalar_one_or_none()
         if tag is None:
@@ -45,7 +46,7 @@ class TagService:
         Returns an empty list if the tag doesn't exist.
         Groups are sorted descending by date.
         """
-        normalised = tag_name.strip().lower()
+        normalised = normalize_tag_name(tag_name)
         tag_result = await self._db.execute(select(Tag).where(Tag.name == normalised))
         tag = tag_result.scalar_one_or_none()
         if tag is None:

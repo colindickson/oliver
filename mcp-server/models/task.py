@@ -3,14 +3,14 @@ from sqlalchemy.orm import relationship
 
 from models.base import Base
 from models.tag import task_tags_table
-
-CATEGORY_DEEP_WORK = "deep_work"
-CATEGORY_SHORT_TASK = "short_task"
-CATEGORY_MAINTENANCE = "maintenance"
-
-STATUS_PENDING = "pending"
-STATUS_IN_PROGRESS = "in_progress"
-STATUS_COMPLETED = "completed"
+from oliver_shared import (
+    CATEGORY_DEEP_WORK,
+    CATEGORY_MAINTENANCE,
+    CATEGORY_SHORT_TASK,
+    STATUS_COMPLETED,
+    STATUS_IN_PROGRESS,
+    STATUS_PENDING,
+)
 
 
 class Task(Base):

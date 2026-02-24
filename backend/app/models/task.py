@@ -10,21 +10,19 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.tag import Tag, task_tags_table
+from oliver_shared import (
+    CATEGORY_DEEP_WORK,
+    CATEGORY_MAINTENANCE,
+    CATEGORY_SHORT_TASK,
+    STATUS_COMPLETED,
+    STATUS_IN_PROGRESS,
+    STATUS_PENDING,
+)
 
 if TYPE_CHECKING:
     from app.models.day import Day
     from app.models.reminder import Reminder
     from app.models.timer_session import TimerSession
-
-# Valid literals kept as module-level constants so they can be reused in
-# Pydantic schemas and validation logic without duplication.
-CATEGORY_DEEP_WORK = "deep_work"
-CATEGORY_SHORT_TASK = "short_task"
-CATEGORY_MAINTENANCE = "maintenance"
-
-STATUS_PENDING = "pending"
-STATUS_IN_PROGRESS = "in_progress"
-STATUS_COMPLETED = "completed"
 
 
 class Task(Base):

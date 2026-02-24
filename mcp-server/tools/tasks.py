@@ -4,10 +4,14 @@ import json
 from datetime import date, datetime, timezone
 
 from models.tag import Tag
-from models.task import Task, STATUS_COMPLETED
+from models.task import Task
 from tools.daily import get_session, _get_or_create_day
-
-MAX_TAGS_PER_TASK = 5
+from oliver_shared import (
+    MAX_TAGS_PER_TASK,
+    STATUS_COMPLETED,
+    normalize_tag_name,
+    validate_tag_count,
+)
 
 
 def _get_or_create_tags(session, tag_names: list[str]) -> list[Tag]:
@@ -24,7 +28,7 @@ def _get_or_create_tags(session, tag_names: list[str]) -> list[Tag]:
     """
     tags = []
     for name in tag_names:
-        normalized = name.strip().lower()
+        normalized = normalize_tag_name(name)
         if not normalized:
             continue
         tag = session.query(Tag).filter(Tag.name == normalized).first()
@@ -61,8 +65,10 @@ def create_task(
     """
     if tags is None:
         tags = []
-    if len(tags) > MAX_TAGS_PER_TASK:
-        return json.dumps({"error": f"Maximum {MAX_TAGS_PER_TASK} tags allowed per task"})
+    try:
+        validate_tag_count(tags)
+    except ValueError as e:
+        return json.dumps({"error": str(e)})
 
     target = date.fromisoformat(day_date) if day_date else date.today()
     with get_session() as session:
@@ -134,8 +140,10 @@ def update_task(
                 task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         if tags is not None:
-            if len(tags) > MAX_TAGS_PER_TASK:
-                return json.dumps({"error": f"Maximum {MAX_TAGS_PER_TASK} tags allowed per task"})
+            try:
+                validate_tag_count(tags)
+            except ValueError as e:
+                return json.dumps({"error": str(e)})
             tag_objects = _get_or_create_tags(session, tags)
             task.tags = tag_objects
 

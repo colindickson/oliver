@@ -22,6 +22,7 @@ from app.schemas.task import (
     TaskUpdate,
 )
 from app.services.tag_service import TagService
+from oliver_shared import MAX_TAGS_PER_TASK, STATUS_COMPLETED, validate_tag_count
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -96,10 +97,10 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> T
         The persisted TaskResponse.
 
     Raises:
-        HTTPException: 400 if more than 5 tags are provided.
+        HTTPException: 400 if more than MAX_TAGS_PER_TASK tags are provided.
     """
-    if len(body.tags) > 5:
-        raise HTTPException(status_code=400, detail="A task may have at most 5 tags")
+    if len(body.tags) > MAX_TAGS_PER_TASK:
+        raise HTTPException(status_code=400, detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags")
 
     # Resolve tags before creating the task so we can set them on the
     # transient object — avoids a lazy-load in async context.
@@ -180,7 +181,7 @@ async def update_task(
 
     Raises:
         HTTPException: 404 if no Task with ``task_id`` exists.
-        HTTPException: 400 if more than 5 tags are provided.
+        HTTPException: 400 if more than MAX_TAGS_PER_TASK tags are provided.
     """
     task = await _get_task_or_404(task_id, db)
     if body.title is not None:
@@ -191,8 +192,8 @@ async def update_task(
         task.order_index = body.order_index
 
     if body.tags is not None:
-        if len(body.tags) > 5:
-            raise HTTPException(status_code=400, detail="A task may have at most 5 tags")
+        if len(body.tags) > MAX_TAGS_PER_TASK:
+            raise HTTPException(status_code=400, detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags")
         new_tag_objects = []
         if body.tags:
             service = TagService(db)
@@ -249,7 +250,7 @@ async def update_task_status(
     """
     task = await _get_task_or_404(task_id, db)
     task.status = body.status
-    if body.status == "completed":
+    if body.status == STATUS_COMPLETED:
         task.completed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(task)
