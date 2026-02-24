@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tagApi } from '../api/client'
 
@@ -11,6 +11,7 @@ interface Props {
 export function TagInput({ value, onChange, maxTags = 5 }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const { data: allTags = [] } = useQuery({
@@ -23,12 +24,18 @@ export function TagInput({ value, onChange, maxTags = 5 }: Props) {
     .filter(name => !value.includes(name) && name.startsWith(input.toLowerCase()))
     .slice(0, 6)
 
+  // Reset highlight when suggestions change
+  useEffect(() => {
+    setHighlightedIndex(0)
+  }, [suggestions.length])
+
   function addTag(raw: string) {
     const tag = raw.trim().toLowerCase().replace(/^#/, '')
     if (!tag || value.includes(tag) || value.length >= maxTags) return
     onChange([...value, tag])
     setInput('')
     setOpen(false)
+    setHighlightedIndex(0)
   }
 
   function removeTag(tag: string) {
@@ -36,9 +43,24 @@ export function TagInput({ value, onChange, maxTags = 5 }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+    const hasSuggestions = open && suggestions.length > 0
+
+    if (e.key === 'ArrowDown' && hasSuggestions) {
       e.preventDefault()
-      if (input.trim()) addTag(input)
+      setHighlightedIndex(i => (i + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp' && hasSuggestions) {
+      e.preventDefault()
+      setHighlightedIndex(i => (i - 1 + suggestions.length) % suggestions.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (hasSuggestions) {
+        addTag(suggestions[highlightedIndex])
+      } else if (input.trim()) {
+        addTag(input)
+      }
+    } else if ((e.key === ',' || e.key === ' ') && input.trim()) {
+      e.preventDefault()
+      addTag(input)
     } else if (e.key === 'Backspace' && !input && value.length > 0) {
       removeTag(value[value.length - 1])
     } else if (e.key === 'Escape') {
@@ -88,13 +110,18 @@ export function TagInput({ value, onChange, maxTags = 5 }: Props) {
       {/* Autocomplete dropdown */}
       {open && suggestions.length > 0 && (
         <ul className="absolute z-20 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-md overflow-hidden dark:bg-stone-700 dark:border-stone-600">
-          {suggestions.map(name => (
+          {suggestions.map((name, index) => (
             <li key={name}>
               <button
                 type="button"
                 onMouseDown={e => e.preventDefault()} // prevent blur-before-click
                 onClick={() => addTag(name)}
-                className="w-full text-left text-xs px-3 py-2 hover:bg-stone-50 text-stone-700 dark:text-stone-200 dark:hover:bg-stone-600"
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`w-full text-left text-xs px-3 py-2 text-stone-700 dark:text-stone-200 ${
+                  index === highlightedIndex
+                    ? 'bg-terracotta-50 dark:bg-terracotta-900/30'
+                    : 'hover:bg-stone-50 dark:hover:bg-stone-600'
+                }`}
               >
                 #{name}
               </button>
