@@ -84,19 +84,21 @@ class AnalyticsService:
     # ------------------------------------------------------------------
 
     async def get_streaks(self) -> dict:
-        """Calculate current and longest consecutive all-complete day streaks.
+        """Calculate current and longest consecutive all-complete weekday streaks.
+
+        Weekends (Saturday and Sunday) are automatically skipped — a streak is
+        not broken by the Friday-to-Monday gap.
 
         A day counts toward a streak if it has at least one task and every one
         of its tasks has ``status == 'completed'``.
 
-        For the current streak, consecutive days are counted backwards from
-        today.  For the longest streak, the full history is scanned.
+        For the current streak, consecutive weekdays are counted backwards from
+        the most recent weekday.  For the longest streak, the full history is
+        scanned.
 
         Returns:
             A dict with keys ``current_streak`` and ``longest_streak``.
         """
-        # Fetch all days that have at least one task, ordered ascending.
-        # For each day, check whether all tasks are completed.
         days_result = await self._db.execute(
             select(Day).order_by(Day.date.asc())
         )
@@ -105,9 +107,11 @@ class AnalyticsService:
         if not all_days:
             return {"current_streak": 0, "longest_streak": 0}
 
-        # Build a set of "complete" dates — days where every task is done.
+        # Build a set of complete weekday dates (weekends are excluded entirely).
         complete_dates: set[date] = set()
         for day in all_days:
+            if day.date.weekday() >= 5:  # Saturday=5, Sunday=6
+                continue
             tasks = day.tasks  # loaded via selectin
             if tasks and all(t.status == STATUS_COMPLETED for t in tasks):
                 complete_dates.add(day.date)
@@ -115,13 +119,27 @@ class AnalyticsService:
         if not complete_dates:
             return {"current_streak": 0, "longest_streak": 0}
 
-        # Current streak: count backwards from today
+        def _prev_workday(d: date) -> date:
+            d -= timedelta(days=1)
+            while d.weekday() >= 5:
+                d -= timedelta(days=1)
+            return d
+
+        def _next_workday(d: date) -> date:
+            d += timedelta(days=1)
+            while d.weekday() >= 5:
+                d += timedelta(days=1)
+            return d
+
+        # Current streak: count backwards from the most recent weekday
         today = date.today()
-        current_streak = 0
         cursor = today
+        while cursor.weekday() >= 5:
+            cursor -= timedelta(days=1)
+        current_streak = 0
         while cursor in complete_dates:
             current_streak += 1
-            cursor -= timedelta(days=1)
+            cursor = _prev_workday(cursor)
 
         # Longest streak: scan all complete dates sorted ascending
         sorted_dates = sorted(complete_dates)
@@ -129,7 +147,7 @@ class AnalyticsService:
         run = 1
         for i in range(1, len(sorted_dates)):
             prev, curr = sorted_dates[i - 1], sorted_dates[i]
-            if (curr - prev).days == 1:
+            if _next_workday(prev) == curr:
                 run += 1
             else:
                 longest_streak = max(longest_streak, run)

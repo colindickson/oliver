@@ -208,12 +208,18 @@ async def test_streaks_counts_consecutive_complete_days(
 ) -> None:
     """GET /api/analytics/streaks returns correct current and longest streak.
 
-    Setup: seed the last 3 consecutive days all fully completed.
-    current_streak should be 3, longest_streak should be at minimum 3.
+    Setup: seed the last 3 consecutive workdays all fully completed.
+    Weekends are skipped, so we walk back to find 3 actual weekdays.
+    current_streak should be 3, longest_streak should be 3.
     """
-    today = date.today()
-    for offset in range(3):
-        target = today - timedelta(days=offset)
+    workdays: list[date] = []
+    cursor = date.today()
+    while len(workdays) < 3:
+        if cursor.weekday() < 5:  # Monday=0 … Friday=4
+            workdays.append(cursor)
+        cursor -= timedelta(days=1)
+
+    for target in workdays:
         await _seed_day_with_tasks(
             db_session,
             target,
