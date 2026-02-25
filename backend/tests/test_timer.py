@@ -222,3 +222,52 @@ async def test_get_timer_sessions_for_task(
     assert len(body) == 1
     assert body[0]["task_id"] == task.id
     assert body[0]["duration_seconds"] >= 0
+
+
+# ---------------------------------------------------------------------------
+# POST /api/timer/add-time
+# ---------------------------------------------------------------------------
+
+
+async def test_add_time_creates_session(
+    client: AsyncClient, task: Task, db_session: AsyncSession
+) -> None:
+    """POST /api/timer/add-time creates a TimerSession with the correct duration."""
+    from sqlalchemy import select
+
+    response = await client.post(
+        "/api/timer/add-time", json={"task_id": task.id, "seconds": 900}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task_id"] == task.id
+    assert body["duration_seconds"] == 900
+    assert body["ended_at"] is not None
+    assert "id" in body
+
+    # Confirm the session was persisted
+    result = await db_session.execute(
+        select(TimerSession).where(TimerSession.task_id == task.id)
+    )
+    sessions = list(result.scalars().all())
+    assert len(sessions) == 1
+    assert sessions[0].duration_seconds == 900
+
+
+async def test_add_time_does_not_affect_active_timer(
+    client: AsyncClient, task: Task
+) -> None:
+    """POST /api/timer/add-time leaves any active timer state unchanged."""
+    # Start a timer first
+    await client.post("/api/timer/start", json={"task_id": task.id})
+
+    # Add manual time
+    add_response = await client.post(
+        "/api/timer/add-time", json={"task_id": task.id, "seconds": 3600}
+    )
+    assert add_response.status_code == 200
+
+    # Timer is still running
+    current = await client.get("/api/timer/current")
+    assert current.json()["status"] == "running"
