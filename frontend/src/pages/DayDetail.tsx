@@ -310,13 +310,13 @@ export function DayDetail() {
         <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
           <div>
             <button
-              onClick={() => navigate('/calendar')}
+              onClick={() => navigate('/')}
               className="text-sm text-stone-400 hover:text-stone-600 mb-2 flex items-center gap-1 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M10 4L6 8L10 12" />
               </svg>
-              Back to Calendar
+              Back to Home
             </button>
             {day && (
               <>
