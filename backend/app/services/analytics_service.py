@@ -42,11 +42,12 @@ class AnalyticsService:
             A dict with keys ``period_days``, ``total_days_tracked``,
             ``total_tasks``, ``completed_tasks``, and ``completion_rate_pct``.
         """
-        cutoff = date.today() - timedelta(days=days)
+        today = date.today()
+        cutoff = today - timedelta(days=days)
 
-        # Count distinct days in window
+        # Count distinct days in window (exclude today — it's in progress)
         days_result = await self._db.execute(
-            select(func.count(Day.id)).where(Day.date >= cutoff)
+            select(func.count(Day.id)).where(Day.date >= cutoff).where(Day.date < today)
         )
         total_days_tracked: int = days_result.scalar_one() or 0
 
@@ -55,6 +56,7 @@ class AnalyticsService:
             select(func.count(Task.id))
             .join(Day, Task.day_id == Day.id)
             .where(Day.date >= cutoff)
+            .where(Day.date < today)
         )
         total_tasks: int = total_result.scalar_one() or 0
 
@@ -63,6 +65,7 @@ class AnalyticsService:
             select(func.count(Task.id))
             .join(Day, Task.day_id == Day.id)
             .where(Day.date >= cutoff)
+            .where(Day.date < today)
             .where(Task.status == STATUS_COMPLETED)
         )
         completed_tasks: int = completed_result.scalar_one() or 0
@@ -107,9 +110,13 @@ class AnalyticsService:
         if not all_days:
             return {"current_streak": 0, "longest_streak": 0}
 
-        # Build a set of complete weekday dates (weekends are excluded entirely).
+        today = date.today()
+
+        # Build a set of complete weekday dates (weekends and today are excluded).
         complete_dates: set[date] = set()
         for day in all_days:
+            if day.date >= today:  # exclude today — it's in progress
+                continue
             if day.date.weekday() >= 5:  # Saturday=5, Sunday=6
                 continue
             tasks = day.tasks  # loaded via selectin
@@ -131,9 +138,9 @@ class AnalyticsService:
                 d += timedelta(days=1)
             return d
 
-        # Current streak: count backwards from the most recent weekday
-        today = date.today()
-        cursor = today
+        # Current streak: count backwards from the most recent completed weekday
+        # (yesterday or earlier — today is excluded as it's still in progress)
+        cursor = today - timedelta(days=1)
         while cursor.weekday() >= 5:
             cursor -= timedelta(days=1)
         current_streak = 0

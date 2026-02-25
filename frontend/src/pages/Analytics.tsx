@@ -68,8 +68,9 @@ function filterDaysToWindow(days: DayResponse[], windowDays: number): DayRespons
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - windowDays)
   const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const todayStr = new Date().toISOString().slice(0, 10)
   return days
-    .filter(d => d.date >= cutoffStr)
+    .filter(d => d.date >= cutoffStr && d.date < todayStr)
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
