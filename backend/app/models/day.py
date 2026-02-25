@@ -12,6 +12,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.daily_note import DailyNote
+    from app.models.day_metadata import DayMetadata
     from app.models.day_rating import DayRating
     from app.models.roadblock import Roadblock
 
@@ -27,6 +28,7 @@ class Day(Base):
         notes: Optional free-form notes for the day.
         roadblocks: Optional roadblock notes for the day.
         rating: Optional subjective ratings for the day.
+        day_metadata: Optional environmental metadata (weather, moon phase).
     """
 
     __tablename__ = "days"
@@ -64,6 +66,14 @@ class Day(Base):
 
     rating: Mapped[Optional[DayRating]] = relationship(
         "DayRating",
+        back_populates="day",
+        uselist=False,
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+    day_metadata: Mapped[Optional[DayMetadata]] = relationship(
+        "DayMetadata",
         back_populates="day",
         uselist=False,
         lazy="selectin",

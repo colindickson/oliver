@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  LineChart, Line,
-  BarChart, Bar,
+  ComposedChart, Line, Bar,
   PieChart, Pie, Cell,
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -27,6 +26,31 @@ const PIE_COLORS: Record<string, string> = {
   deep_work: OCEAN,
   short_task: TERRACOTTA,
   maintenance: MOSS,
+}
+
+// -----------------------------------------------------------------------------
+// Environment icon maps
+// -----------------------------------------------------------------------------
+
+const WEATHER_ICONS: Record<string, string> = {
+  sunny: '☀️',
+  partly_cloudy: '⛅',
+  cloudy: '☁️',
+  rainy: '🌧️',
+  snowy: '❄️',
+  stormy: '⛈️',
+  foggy: '🌫️',
+}
+
+const MOON_ICONS: Record<string, string> = {
+  new_moon: '🌑',
+  waxing_crescent: '🌒',
+  first_quarter: '🌓',
+  waxing_gibbous: '🌔',
+  full_moon: '🌕',
+  waning_gibbous: '🌖',
+  last_quarter: '🌗',
+  waning_crescent: '🌘',
 }
 
 // -----------------------------------------------------------------------------
@@ -59,10 +83,16 @@ function xAxisInterval(dataLength: number): number {
 // Data transform types + functions
 // -----------------------------------------------------------------------------
 
-interface CompletionRatePoint { date: string; rate: number }
+interface TrendsPoint {
+  date: string
+  completionRate: number | null
+  energy: number | null
+  moonPhase: string | null
+  condition: string | null
+}
+
 interface TaskVolumePoint { date: string; deep_work: number; short_task: number; maintenance: number }
 interface DeepWorkPoint { date: string; deep_work: number }
-interface RatingPoint { date: string; focus: number | null; energy: number | null; satisfaction: number | null }
 
 function filterDaysToWindow(days: DayResponse[], windowDays: number): DayResponse[] {
   const cutoff = new Date()
@@ -74,11 +104,17 @@ function filterDaysToWindow(days: DayResponse[], windowDays: number): DayRespons
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
-function buildCompletionRateData(days: DayResponse[]): CompletionRatePoint[] {
+function buildTrendsData(days: DayResponse[]): TrendsPoint[] {
   return days.map(d => {
     const total = d.tasks.length
     const completed = d.tasks.filter(t => t.status === 'completed').length
-    return { date: formatChartDate(d.date), rate: total > 0 ? Math.round((completed / total) * 100) : 0 }
+    return {
+      date: formatChartDate(d.date),
+      completionRate: total > 0 ? Math.round((completed / total) * 100) : null,
+      energy: d.rating?.energy ?? null,
+      moonPhase: d.day_metadata?.moon_phase ?? null,
+      condition: d.day_metadata?.condition ?? null,
+    }
   })
 }
 
@@ -98,15 +134,50 @@ function buildDeepWorkData(days: DayResponse[]): DeepWorkPoint[] {
   }))
 }
 
-function buildRatingsData(days: DayResponse[]): RatingPoint[] {
-  return days
-    .filter(d => d.rating !== null)
-    .map(d => ({
-      date: formatChartDate(d.date),
-      focus: d.rating?.focus ?? null,
-      energy: d.rating?.energy ?? null,
-      satisfaction: d.rating?.satisfaction ?? null,
-    }))
+// -----------------------------------------------------------------------------
+// Custom XAxis tick — shows moon + weather icons above the date label
+// -----------------------------------------------------------------------------
+
+interface TrendsTickProps {
+  x?: number
+  y?: number
+  payload?: { value: string }
+  index?: number
+  trendsData: TrendsPoint[]
+  tickColor: string
+}
+
+function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }: TrendsTickProps) {
+  const point = trendsData[index]
+  const moon = point?.moonPhase ? MOON_ICONS[point.moonPhase] : null
+  const weather = point?.condition ? WEATHER_ICONS[point.condition] : null
+  const icons = [moon, weather].filter(Boolean).join('')
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {icons && (
+        <text
+          x={0}
+          y={0}
+          dy={-8}
+          textAnchor="middle"
+          fontSize={11}
+        >
+          {icons}
+        </text>
+      )}
+      <text
+        x={0}
+        y={0}
+        dy={12}
+        textAnchor="middle"
+        fill={tickColor}
+        fontSize={11}
+      >
+        {payload?.value}
+      </text>
+    </g>
+  )
 }
 
 // -----------------------------------------------------------------------------
@@ -179,10 +250,9 @@ export function Analytics() {
   })
 
   const windowedDays = filterDaysToWindow(allDays, periodDays)
-  const completionRateData = buildCompletionRateData(windowedDays)
+  const trendsData = buildTrendsData(windowedDays)
   const taskVolumeData = buildTaskVolumeData(windowedDays)
   const deepWorkData = buildDeepWorkData(windowedDays)
-  const ratingsData = buildRatingsData(windowedDays)
 
   const pieData = (categories?.entries ?? []).map((e: CategoryEntry) => ({
     name: humanCategory(e.category),
@@ -274,28 +344,76 @@ export function Analytics() {
           <section>
             <h2 className={sectionHeader}>Trends</h2>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Completion Rate Over Time */}
+              {/* Unified Trends Chart: completion rate (line) + energy (bar) + env icons */}
               <div className={chartCard}>
-                <h3 className={chartTitle}>Completion Rate Over Time</h3>
-                {completionRateData.length === 0 ? (
-                  <div className={`${emptyChart} h-[200px]`}>No data for this period</div>
+                <h3 className={chartTitle}>Completion Rate &amp; Energy</h3>
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: OCEAN }} />
+                    <span className="text-xs text-stone-500 dark:text-stone-400">Completion %</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm opacity-70" style={{ backgroundColor: AMBER }} />
+                    <span className="text-xs text-stone-500 dark:text-stone-400">Energy (1–5)</span>
+                  </div>
+                </div>
+                {trendsData.length === 0 ? (
+                  <div className={`${emptyChart} h-[220px]`}>No data for this period</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={completionRateData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <ComposedChart data={trendsData} margin={{ top: 24, right: 16, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
                         dataKey="date"
-                        tick={{ fill: tickColor, fontSize: 11 }}
-                        interval={xAxisInterval(completionRateData.length)}
+                        height={52}
+                        interval={xAxisInterval(trendsData.length)}
+                        tick={(props) => (
+                          <TrendsTick
+                            {...props}
+                            trendsData={trendsData}
+                            tickColor={tickColor}
+                          />
+                        )}
                       />
                       <YAxis
+                        yAxisId="left"
                         domain={[0, 100]}
                         tickFormatter={v => `${v}%`}
                         tick={{ fill: tickColor, fontSize: 11 }}
                       />
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}%`, 'Rate']} />
-                      <Line type="monotone" dataKey="rate" stroke={TERRACOTTA} strokeWidth={2} dot={false} />
-                    </LineChart>
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 5]}
+                        ticks={[1, 2, 3, 4, 5]}
+                        tick={{ fill: tickColor, fontSize: 11 }}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number, name: string) => {
+                          if (name === 'Completion %') return [`${value}%`, name]
+                          return [value, name]
+                        }}
+                      />
+                      <Bar
+                        yAxisId="right"
+                        dataKey="energy"
+                        name="Energy"
+                        fill={AMBER}
+                        opacity={0.7}
+                        radius={[3, 3, 0, 0]}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="completionRate"
+                        name="Completion %"
+                        stroke={OCEAN}
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                      />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 )}
               </div>
@@ -307,19 +425,19 @@ export function Analytics() {
                   <div className={`${emptyChart} h-[220px]`}>No data for this period</div>
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={taskVolumeData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <ComposedChart data={taskVolumeData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
                         dataKey="date"
                         tick={{ fill: tickColor, fontSize: 11 }}
                         interval={xAxisInterval(taskVolumeData.length)}
                       />
-                      <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
+                      <YAxis yAxisId="left" allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="deep_work" name="Deep Work" stackId="a" fill={OCEAN} />
-                      <Bar dataKey="short_task" name="Short Task" stackId="a" fill={TERRACOTTA} />
-                      <Bar dataKey="maintenance" name="Maintenance" stackId="a" fill={MOSS} radius={[3, 3, 0, 0]} />
-                    </BarChart>
+                      <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={OCEAN} />
+                      <Bar yAxisId="left" dataKey="short_task" name="Short Task" stackId="a" fill={TERRACOTTA} />
+                      <Bar yAxisId="left" dataKey="maintenance" name="Maintenance" stackId="a" fill={MOSS} radius={[3, 3, 0, 0]} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 )}
               </div>
@@ -427,57 +545,6 @@ export function Analytics() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
-              )}
-            </div>
-          </section>
-
-          {/* Section: Daily Ratings */}
-          <section>
-            <h2 className={sectionHeader}>Daily Ratings</h2>
-            <div className={chartCard}>
-              {ratingsData.length === 0 ? (
-                <div className="h-[200px] flex flex-col items-center justify-center gap-2 text-stone-400">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 15s1.5 2 4 2 4-2 4-2" />
-                    <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2" />
-                    <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2" />
-                  </svg>
-                  <p className="text-sm">No ratings in this period</p>
-                  <p className="text-xs opacity-70">Rate your days from the day view to see trends</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: TERRACOTTA }} />
-                      <span className="text-xs text-stone-500 dark:text-stone-400">Focus</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: AMBER }} />
-                      <span className="text-xs text-stone-500 dark:text-stone-400">Energy</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: MOSS }} />
-                      <span className="text-xs text-stone-500 dark:text-stone-400">Satisfaction</span>
-                    </div>
-                  </div>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={ratingsData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: tickColor, fontSize: 11 }}
-                        interval={xAxisInterval(ratingsData.length)}
-                      />
-                      <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fill: tickColor, fontSize: 11 }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Line type="monotone" dataKey="focus" name="Focus" stroke={TERRACOTTA} strokeWidth={2} dot={false} connectNulls />
-                      <Line type="monotone" dataKey="energy" name="Energy" stroke={AMBER} strokeWidth={2} dot={false} connectNulls />
-                      <Line type="monotone" dataKey="satisfaction" name="Satisfaction" stroke={MOSS} strokeWidth={2} dot={false} connectNulls />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </>
               )}
             </div>
           </section>

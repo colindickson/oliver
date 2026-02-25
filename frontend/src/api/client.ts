@@ -48,6 +48,19 @@ export interface DayRating {
   satisfaction: number | null
 }
 
+export type WeatherCondition = 'sunny' | 'partly_cloudy' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' | 'foggy'
+export type MoonPhase =
+  | 'new_moon' | 'waxing_crescent' | 'first_quarter' | 'waxing_gibbous'
+  | 'full_moon' | 'waning_gibbous' | 'last_quarter' | 'waning_crescent'
+
+export interface DayMetadata {
+  id: number
+  day_id: number
+  temperature_c: number | null
+  condition: WeatherCondition | null
+  moon_phase: MoonPhase | null
+}
+
 export interface DayResponse {
   id: number
   date: string
@@ -56,6 +69,7 @@ export interface DayResponse {
   notes: DailyNote | null
   roadblocks: Roadblock | null
   rating: DayRating | null
+  day_metadata: DayMetadata | null
 }
 
 export interface CreateTaskPayload {
@@ -77,6 +91,8 @@ export const dayApi = {
     api.put<Roadblock>(`/days/${day_id}/roadblocks`, { content }).then(r => r.data),
   upsertRating: (day_id: number, rating: Partial<Omit<DayRating, 'id' | 'day_id'>>) =>
     api.put<DayRating>(`/days/${day_id}/rating`, rating).then(r => r.data),
+  upsertMetadata: (day_id: number, meta: Omit<DayMetadata, 'id' | 'day_id'>) =>
+    api.put<DayMetadata>(`/days/${day_id}/metadata`, meta).then(r => r.data),
 }
 
 export const taskApi = {

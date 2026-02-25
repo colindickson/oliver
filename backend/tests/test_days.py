@@ -153,3 +153,115 @@ async def test_list_days_returns_all_days_ordered_desc(
     assert len(payload) == 3
     returned_dates = [item["date"] for item in payload]
     assert returned_dates == ["2025-03-01", "2025-02-01", "2025-01-01"]
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/days/{day_id}/metadata
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_metadata_creates_when_absent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/metadata creates a new record and returns correct fields."""
+    day = Day(date=date(2025, 6, 15), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/metadata",
+        json={"temperature_c": 22.5, "condition": "sunny", "moon_phase": "full_moon"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["day_id"] == day.id
+    assert payload["temperature_c"] == 22.5
+    assert payload["condition"] == "sunny"
+    assert payload["moon_phase"] == "full_moon"
+    assert "id" in payload
+
+
+async def test_upsert_metadata_updates_when_present(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/metadata overwrites existing record."""
+    day = Day(date=date(2025, 6, 16), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/metadata",
+        json={"temperature_c": 10.0, "condition": "cloudy", "moon_phase": "new_moon"},
+    )
+    response = await client.put(
+        f"/api/days/{day.id}/metadata",
+        json={"temperature_c": 18.0, "condition": "rainy", "moon_phase": "waxing_crescent"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["temperature_c"] == 18.0
+    assert payload["condition"] == "rainy"
+    assert payload["moon_phase"] == "waxing_crescent"
+
+
+async def test_get_day_includes_metadata_when_set(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /days/{date} includes day_metadata field when metadata has been set."""
+    day = Day(date=date(2025, 7, 1), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/metadata",
+        json={"temperature_c": 25.0, "condition": "partly_cloudy", "moon_phase": "waxing_gibbous"},
+    )
+
+    # Expire cached Day so the next query re-loads relationships (including day_metadata)
+    # from the database rather than returning the identity-map entry with day_metadata=None.
+    db_session.expire(day)
+
+    response = await client.get("/api/days/2025-07-01")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["day_metadata"] is not None
+    assert payload["day_metadata"]["condition"] == "partly_cloudy"
+    assert payload["day_metadata"]["moon_phase"] == "waxing_gibbous"
+    assert payload["day_metadata"]["temperature_c"] == 25.0
+
+
+async def test_get_day_returns_null_metadata_when_absent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /days/{date} returns day_metadata: null when no metadata has been set."""
+    day = Day(date=date(2025, 8, 1), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+
+    response = await client.get("/api/days/2025-08-01")
+
+    assert response.status_code == 200
+    assert response.json()["day_metadata"] is None
+
+
+async def test_upsert_metadata_rejects_invalid_condition(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/metadata returns 422 for an invalid condition value."""
+    day = Day(date=date(2025, 9, 1), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/metadata",
+        json={"condition": "hailstorm"},
+    )
+
+    assert response.status_code == 422

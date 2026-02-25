@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.daily_note import DailyNote
 from app.models.day import Day
+from app.models.day_metadata import DayMetadata
 from app.models.day_rating import DayRating
 from app.models.roadblock import Roadblock
 
@@ -166,3 +167,40 @@ class DayService:
         await self._db.flush()
         await self._db.refresh(rating)
         return rating
+
+    async def upsert_metadata(
+        self,
+        day_id: int,
+        temperature_c: Optional[float],
+        condition: Optional[str],
+        moon_phase: Optional[str],
+    ) -> DayMetadata:
+        """Create or update the environmental metadata for the given day.
+
+        Args:
+            day_id: Primary key of the parent Day.
+            temperature_c: Temperature in Celsius, or None.
+            condition: Weather condition string, or None.
+            moon_phase: Moon phase string, or None.
+
+        Returns:
+            The persisted DayMetadata instance.
+        """
+        meta = await self._db.scalar(
+            select(DayMetadata).where(DayMetadata.day_id == day_id)
+        )
+        if meta:
+            meta.temperature_c = temperature_c
+            meta.condition = condition
+            meta.moon_phase = moon_phase
+        else:
+            meta = DayMetadata(
+                day_id=day_id,
+                temperature_c=temperature_c,
+                condition=condition,
+                moon_phase=moon_phase,
+            )
+            self._db.add(meta)
+        await self._db.flush()
+        await self._db.refresh(meta)
+        return meta
