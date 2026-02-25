@@ -172,7 +172,7 @@ export function Sidebar() {
           Home
         </NavLink>
         <NavLink
-          to="/calendar"
+          to="/analytics"
           className={({ isActive }) =>
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
@@ -182,11 +182,9 @@ export function Sidebar() {
           }
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="1" y="2" width="12" height="11" rx="1.5" />
-            <path d="M1 6h12" />
-            <path d="M4 1v2M10 1v2" />
+            <polyline points="1,10 4,6 7,8 10,3 13,5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Calendar
+          Analytics
         </NavLink>
         <NavLink
           to="/tags"
