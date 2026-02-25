@@ -271,3 +271,29 @@ async def test_add_time_does_not_affect_active_timer(
     # Timer is still running
     current = await client.get("/api/timer/current")
     assert current.json()["status"] == "running"
+
+
+async def test_add_time_rejects_zero_seconds(client: AsyncClient, task: Task) -> None:
+    """POST /api/timer/add-time with seconds=0 returns 422 Unprocessable Entity."""
+    response = await client.post(
+        "/api/timer/add-time", json={"task_id": task.id, "seconds": 0}
+    )
+    assert response.status_code == 422
+
+
+async def test_add_time_rejects_negative_seconds(
+    client: AsyncClient, task: Task
+) -> None:
+    """POST /api/timer/add-time with negative seconds returns 422 Unprocessable Entity."""
+    response = await client.post(
+        "/api/timer/add-time", json={"task_id": task.id, "seconds": -60}
+    )
+    assert response.status_code == 422
+
+
+async def test_add_time_invalid_task_returns_404(client: AsyncClient) -> None:
+    """POST /api/timer/add-time with a non-existent task_id returns 404."""
+    response = await client.post(
+        "/api/timer/add-time", json={"task_id": 999999, "seconds": 900}
+    )
+    assert response.status_code == 404

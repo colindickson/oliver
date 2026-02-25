@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TimerStart(BaseModel):
@@ -26,7 +26,7 @@ class TimerAddTime(BaseModel):
     """
 
     task_id: int
-    seconds: int
+    seconds: int = Field(gt=0)
 
 
 class TimerState(BaseModel):

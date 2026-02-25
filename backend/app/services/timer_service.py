@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.setting import Setting
+from app.models.task import Task
 from app.models.timer_session import TimerSession
 
 TIMER_KEY = "active_timer"
@@ -248,7 +249,14 @@ class TimerService:
 
         Returns:
             The newly created and persisted ``TimerSession`` ORM instance.
+
+        Raises:
+            ValueError: If ``task_id`` does not reference an existing Task.
         """
+        task_result = await self._db.execute(select(Task).where(Task.id == task_id))
+        if task_result.scalar_one_or_none() is None:
+            raise ValueError(f"Task {task_id} not found")
+
         now = datetime.now(timezone.utc)
         session = TimerSession(
             task_id=task_id,
