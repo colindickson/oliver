@@ -43,4 +43,4 @@ backups/
 *.swo
 .DS_Store
 
-docs/plans/
+docs/plans/*

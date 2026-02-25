@@ -125,7 +125,7 @@ export function Sidebar() {
   const todayStr = today.toISOString().slice(0, 10)
 
   return (
-    <aside className="w-72 min-h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
+    <aside className="w-72 h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
       {/* Header */}
       <div className="px-5 py-5 border-b border-stone-700/50">
         <div className="flex items-center justify-between">
@@ -151,6 +151,9 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
 
       {/* Nav */}
       <nav className="px-3 py-2 border-b border-stone-700/50">
@@ -337,10 +340,9 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      </div>{/* end scrollable content */}
 
-      {/* Timer - sticky at bottom */}
+      {/* Timer - always visible at bottom */}
       <SidebarTimer />
     </aside>
   )

@@ -10,7 +10,7 @@ export function Tags() {
   })
 
   return (
-    <div className="flex min-h-screen bg-stone-25 dark:bg-stone-800">
+    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-800">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -19,7 +19,7 @@ export function Tags() {
           <p className="text-sm text-stone-400 mt-0.5">All tags used across your tasks</p>
         </header>
 
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 overflow-auto">
           {isLoading && (
             <div className="flex items-center justify-center h-48 text-stone-400 text-sm">
               Loading...
