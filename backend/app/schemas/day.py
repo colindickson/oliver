@@ -8,6 +8,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.daily_note import DailyNoteResponse
+from app.schemas.day_metadata import DayMetadataResponse
 from app.schemas.day_rating import DayRatingResponse
 from app.schemas.roadblock import RoadblockResponse
 from app.schemas.task import TaskResponse
@@ -24,6 +25,7 @@ class DayResponse(BaseModel):
         notes: Optional free-form notes for the day.
         roadblocks: Optional roadblock notes for the day.
         rating: Optional subjective ratings for the day.
+        day_metadata: Optional environmental metadata (weather, moon phase).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -35,3 +37,4 @@ class DayResponse(BaseModel):
     notes: Optional[DailyNoteResponse] = None
     roadblocks: Optional[RoadblockResponse] = None
     rating: Optional[DayRatingResponse] = None
+    day_metadata: Optional[DayMetadataResponse] = None

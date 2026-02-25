@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.daily_note import DailyNoteResponse, DailyNoteUpsert
 from app.schemas.day import DayResponse
+from app.schemas.day_metadata import DayMetadataResponse, DayMetadataUpsert
 from app.schemas.day_rating import DayRatingResponse, DayRatingUpsert
 from app.schemas.roadblock import RoadblockResponse, RoadblockUpsert
 from app.services.day_service import DayService
@@ -136,3 +137,27 @@ async def upsert_rating(
     )
     await db.commit()
     return rating
+
+
+@router.put("/{day_id}/metadata", response_model=DayMetadataResponse)
+async def upsert_metadata(
+    day_id: int,
+    payload: DayMetadataUpsert,
+    db: AsyncSession = Depends(get_db),
+) -> DayMetadataResponse:
+    """Create or update the environmental metadata for a day.
+
+    Args:
+        day_id: Primary key of the target Day.
+        payload: Metadata values to save.
+        db: Injected async database session.
+
+    Returns:
+        The saved DayMetadataResponse.
+    """
+    service = DayService(db)
+    meta = await service.upsert_metadata(
+        day_id, payload.temperature_c, payload.condition, payload.moon_phase
+    )
+    await db.commit()
+    return meta

@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 
 from tools.analytics import get_analytics
 from tools.daily import get_daily_plan, set_daily_plan
+from tools.metadata import set_day_metadata
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
 
@@ -84,6 +85,22 @@ def stop_timer_tool(task_id: int) -> str:
 def get_analytics_tool(days: int = 30) -> str:
     """Get productivity analytics for the past N days."""
     return get_analytics(days)
+
+
+@mcp.tool()
+def set_day_metadata_tool(
+    date: str,
+    temperature_c: float | None = None,
+    condition: str | None = None,
+    moon_phase: str | None = None,
+) -> str:
+    """Set weather/moon phase metadata for a day (YYYY-MM-DD).
+
+    condition: sunny | partly_cloudy | cloudy | rainy | snowy | stormy | foggy
+    moon_phase: new_moon | waxing_crescent | first_quarter | waxing_gibbous |
+                full_moon | waning_gibbous | last_quarter | waning_crescent
+    """
+    return set_day_metadata(date, temperature_c, condition, moon_phase)
 
 
 if __name__ == "__main__":
