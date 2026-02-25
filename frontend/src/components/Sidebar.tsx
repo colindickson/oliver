@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, NavLink } from 'react-router-dom'
+import { useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { dayApi, analyticsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
@@ -88,6 +88,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
 
 export function Sidebar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [viewDate, setViewDate] = useState(new Date())
   const { theme, toggleTheme } = useTheme()
 
@@ -123,6 +124,10 @@ export function Sidebar() {
 
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
+
+  const selectedDateStr = location.pathname.startsWith('/day/')
+    ? location.pathname.slice(5)
+    : null
 
   return (
     <aside className="w-72 h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
@@ -265,6 +270,7 @@ export function Sidebar() {
             const dayData = dayMap.get(dateStr)
             const tasks = dayData?.tasks ?? []
             const isToday = dateStr === todayStr
+            const isSelected = dateStr === selectedDateStr
             const hasTasks = tasks.length > 0
             const completed = tasks.filter(t => t.status === 'completed').length
             const rate = hasTasks ? completed / tasks.length : 0
@@ -285,7 +291,7 @@ export function Sidebar() {
                   aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium
                   transition-all duration-150 cursor-pointer hover:bg-stone-600/70
                   ${bgClass}
-                  ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-1 ring-offset-stone-850' : ''}
+                  ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-1 ring-offset-stone-850' : isSelected ? 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-stone-850' : ''}
                 `}
               >
                 <span>{cellDate.getDate()}</span>
