@@ -277,14 +277,12 @@ export function Sidebar() {
             return (
               <button
                 key={dateStr}
-                onClick={() => hasTasks && navigate(`/day/${dateStr}`)}
-                disabled={!hasTasks}
+                onClick={() => navigate(`/day/${dateStr}`)}
                 className={`
                   aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium
-                  transition-all duration-150
+                  transition-all duration-150 cursor-pointer hover:bg-stone-600/70
                   ${bgClass}
                   ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-1 ring-offset-stone-850' : ''}
-                  ${hasTasks ? 'hover:bg-stone-600/70 cursor-pointer' : 'cursor-default'}
                 `}
               >
                 <span>{cellDate.getDate()}</span>
