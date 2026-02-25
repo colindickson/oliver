@@ -133,6 +133,8 @@ export const timerApi = {
   pause: () => api.post<TimerState>('/timer/pause').then(r => r.data),
   stop: () => api.post<TimerSession>('/timer/stop').then(r => r.data),
   getSessions: (task_id: number) => api.get<TimerSession[]>(`/timer/sessions/${task_id}`).then(r => r.data),
+  addTime: (task_id: number, seconds: number) =>
+    api.post<TimerSession>('/timer/add-time', { task_id, seconds }).then(r => r.data),
 }
 
 export interface AnalyticsSummary {

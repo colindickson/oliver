@@ -54,6 +54,15 @@ export function SidebarTimer() {
     },
   })
 
+  const addTime = useMutation({
+    mutationFn: ({ task_id, seconds }: { task_id: number; seconds: number }) =>
+      timerApi.addTime(task_id, seconds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+      qc.invalidateQueries({ queryKey: ['analytics'] })
+    },
+  })
+
   const status = timer?.status ?? 'idle'
   const elapsed = timer?.elapsed_seconds ?? 0
 
@@ -65,6 +74,9 @@ export function SidebarTimer() {
   const activeTask = day?.tasks.find(
     t => t.category === 'deep_work' && t.status !== 'completed'
   )
+
+  // Task ID to use for manual time addition: prefer active timer task, fall back to first deep work task
+  const addTimeTaskId = timer?.task_id ?? activeTask?.id
 
   function handleStart() {
     const taskId = activeTask?.id ?? timer?.task_id
@@ -146,6 +158,28 @@ export function SidebarTimer() {
 
       {/* Deep work progress */}
       <DeepWorkProgress className="mb-3" />
+
+      {/* Manual time addition */}
+      {addTimeTaskId && (
+        <div className="flex gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => addTime.mutate({ task_id: addTimeTaskId, seconds: 900 })}
+            disabled={addTime.isPending}
+            className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-stone-700/60 text-stone-400 hover:bg-stone-700 hover:text-stone-300 transition-colors"
+          >
+            +15m
+          </button>
+          <button
+            type="button"
+            onClick={() => addTime.mutate({ task_id: addTimeTaskId, seconds: 3600 })}
+            disabled={addTime.isPending}
+            className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-stone-700/60 text-stone-400 hover:bg-stone-700 hover:text-stone-300 transition-colors"
+          >
+            +1h
+          </button>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex gap-2">
