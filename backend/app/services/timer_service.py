@@ -11,7 +11,7 @@ State machine:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -236,3 +236,27 @@ class TimerService:
             .order_by(TimerSession.started_at.desc())
         )
         return list(result.scalars().all())
+
+    async def add_time(self, task_id: int, seconds: int) -> TimerSession:
+        """Create a TimerSession record crediting manual time to a task.
+
+        Does not interact with any active timer state.
+
+        Args:
+            task_id: Primary key of the Task to credit.
+            seconds: Number of seconds to add.
+
+        Returns:
+            The newly created and persisted ``TimerSession`` ORM instance.
+        """
+        now = datetime.now(timezone.utc)
+        session = TimerSession(
+            task_id=task_id,
+            started_at=now - timedelta(seconds=seconds),
+            ended_at=now,
+            duration_seconds=seconds,
+        )
+        self._db.add(session)
+        await self._db.commit()
+        await self._db.refresh(session)
+        return session

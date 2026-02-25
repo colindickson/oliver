@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.timer import TimerSessionResponse, TimerStart, TimerState
+from app.schemas.timer import TimerAddTime, TimerSessionResponse, TimerStart, TimerState
 from app.services.timer_service import TimerService
 
 router = APIRouter(prefix="/api/timer", tags=["timer"])
@@ -111,3 +111,22 @@ async def get_timer_sessions(
         Ordered list of ``TimerSessionResponse`` objects.
     """
     return await TimerService(db).get_sessions_for_task(task_id)
+
+
+@router.post("/add-time", response_model=TimerSessionResponse)
+async def add_time(
+    body: TimerAddTime, db: AsyncSession = Depends(get_db)
+) -> TimerSessionResponse:
+    """Manually credit time to a task by creating a TimerSession record.
+
+    Does not interact with any active timer state machine.
+
+    Args:
+        body: Contains ``task_id`` and ``seconds`` to credit.
+        db: Injected async database session.
+
+    Returns:
+        The newly created ``TimerSessionResponse``.
+    """
+    session = await TimerService(db).add_time(body.task_id, body.seconds)
+    return session

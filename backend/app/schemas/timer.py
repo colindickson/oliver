@@ -17,6 +17,18 @@ class TimerStart(BaseModel):
     task_id: int
 
 
+class TimerAddTime(BaseModel):
+    """Payload for manually adding time to a task.
+
+    Attributes:
+        task_id: The primary key of the Task to credit time to.
+        seconds: Number of seconds to add (must be positive).
+    """
+
+    task_id: int
+    seconds: int
+
+
 class TimerState(BaseModel):
     """Current timer state returned by GET /api/timer/current.
 
