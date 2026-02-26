@@ -211,6 +211,24 @@ export function Sidebar() {
           Tags
         </NavLink>
         <NavLink
+          to="/goals"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-stone-700 text-white'
+                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+            }`
+          }
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="7" cy="7" r="6" />
+            <circle cx="7" cy="7" r="2.5" />
+            <circle cx="7" cy="7" r="0.75" fill="currentColor" stroke="none" />
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13" strokeLinecap="round" />
+          </svg>
+          Goals
+        </NavLink>
+        <NavLink
           to="/backlog"
           className={({ isActive }) =>
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

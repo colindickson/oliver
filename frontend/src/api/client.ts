@@ -205,6 +205,50 @@ export const tagApi = {
     api.get<TagTaskGroup[]>(`/tags/${encodeURIComponent(name)}/tasks`).then(r => r.data),
 }
 
+export interface Goal {
+  id: number
+  title: string
+  description: string | null
+  target_date: string | null
+  status: 'active' | 'completed'
+  completed_at: string | null
+  created_at: string
+  tags: string[]
+  total_tasks: number
+  completed_tasks: number
+  progress_pct: number
+}
+
+export interface GoalDetail extends Goal {
+  tasks: Task[]
+}
+
+export interface GoalCreate {
+  title: string
+  description?: string | null
+  target_date?: string | null
+  tag_names?: string[]
+  task_ids?: number[]
+}
+
+export interface GoalUpdate {
+  title?: string | null
+  description?: string | null
+  target_date?: string | null  // ISO date or "CLEAR"
+  tag_names?: string[] | null
+  task_ids?: number[] | null
+}
+
+export const goalApi = {
+  getAll: () => api.get<Goal[]>('/goals').then(r => r.data),
+  getOne: (id: number) => api.get<GoalDetail>(`/goals/${id}`).then(r => r.data),
+  create: (payload: GoalCreate) => api.post<Goal>('/goals', payload).then(r => r.data),
+  update: (id: number, payload: GoalUpdate) => api.put<Goal>(`/goals/${id}`, payload).then(r => r.data),
+  setStatus: (id: number, status: 'active' | 'completed') =>
+    api.patch<Goal>(`/goals/${id}/status`, { status }).then(r => r.data),
+  delete: (id: number) => api.delete(`/goals/${id}`),
+}
+
 export const backlogApi = {
   list: (params?: { tag?: string; search?: string }) => {
     const query = new URLSearchParams()

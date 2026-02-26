@@ -5,6 +5,7 @@ import { DayDetail } from './pages/DayDetail'
 import { Tags } from './pages/Tags'
 import { TagDetail } from './pages/TagDetail'
 import { Backlog } from './pages/Backlog'
+import { Goals } from './pages/Goals'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
       <Route path="/tags" element={<Tags />} />
       <Route path="/tags/:tagName" element={<TagDetail />} />
       <Route path="/backlog" element={<Backlog />} />
+      <Route path="/goals" element={<Goals />} />
     </Routes>
   )
 }

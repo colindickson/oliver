@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
+from app.api import goals as goals_router
 from app.api import reminders as reminders_router
 from app.api import tags as tags_router
 from app.api import tasks as tasks_router
@@ -48,6 +49,7 @@ app.add_middleware(
 app.include_router(analytics_router.router)
 app.include_router(backlog_router.router)
 app.include_router(days_router.router)
+app.include_router(goals_router.router)
 app.include_router(reminders_router.router)
 app.include_router(tags_router.router)
 app.include_router(tasks_router.router)
