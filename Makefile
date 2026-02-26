@@ -1,8 +1,9 @@
-.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status db-backup db-restore
+.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status db-backup db-restore update
 
 COMPOSE := docker compose
 BACKEND := backend
 FRONTEND := frontend
+MCP_SERVER := mcp-server
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -109,4 +110,16 @@ migrate-status: ## Show current Alembic migration status
 
 reset: down clean build mcp-build up ## Full reset: clean, rebuild, start fresh
 
-restart: down build mcp-build up
+restart:
+	$(MAKE) db-backup
+	$(COMPOSE) build $(BACKEND) $(FRONTEND) $(MCP_SERVER)
+	$(COMPOSE) down $(BACKEND) $(FRONTEND)
+	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
+
+update: ## Pull latest code, backup DB, migrate, rebuild frontend/backend
+	git pull
+	$(MAKE) db-backup
+	$(MAKE) migrate
+	$(COMPOSE) build $(BACKEND) $(FRONTEND) $(MCP_SERVER)
+	$(COMPOSE) down $(BACKEND) $(FRONTEND)
+	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
