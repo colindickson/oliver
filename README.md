@@ -20,12 +20,16 @@ Each day is structured into intentional items across three categories:
 
 ## Features
 
-- **Daily planning board** — a clean three-column layout for the day's items
-- **Calendar view** — track progress across days, weeks, and months
-- **Built-in timer** — stay focused during deep work sessions
-- **Task management** — add, edit, delete, and reorder tasks with drag-and-drop
-- **Progress tracking** — visual indicators as you complete each item
-- **Analytics** — insights into how you spend your time over time
+- **Daily planning board** — three-column layout (deep work, urgent tasks, maintenance) for the day
+- **Backlog** — unscheduled task queue with full-text search and tag filtering
+- **Goals** — long-term objectives with linked tasks and progress tracking
+- **Calendar view** — navigate and edit any past or future day
+- **Tags** — tag-based task organization with browsable tag pages
+- **Built-in timer** — start, pause, and stop timers during deep work sessions
+- **Task management** — add, edit, delete, reorder (drag-and-drop), and move tasks between days
+- **Day reflections** — daily notes, roadblocks, and energy ratings per day
+- **Progress tracking** — visual completion rings and per-category stats
+- **Analytics** — completion trends, streaks, and category breakdowns over time
 - **MCP server** — expose Oliver's task data to AI coding agents via the Model Context Protocol
 
 ---
