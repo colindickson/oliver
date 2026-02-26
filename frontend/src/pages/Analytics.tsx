@@ -2,13 +2,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ComposedChart, Line, Bar,
-  PieChart, Pie, Cell,
-  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer,
 } from 'recharts'
 import { analyticsApi, dayApi } from '../api/client'
-import type { CategoryEntry, DayResponse } from '../api/client'
+import type { DayResponse } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ExportModal } from '../components/ExportModal'
 import { useTheme } from '../contexts/ThemeContext'
@@ -21,12 +19,6 @@ const TERRACOTTA = '#e86b3a'
 const OCEAN = '#0c87eb'
 const MOSS = '#4a8a4a'
 const AMBER = '#f59e0b'
-
-const PIE_COLORS: Record<string, string> = {
-  deep_work: OCEAN,
-  short_task: TERRACOTTA,
-  maintenance: MOSS,
-}
 
 // -----------------------------------------------------------------------------
 // Environment icon maps
@@ -57,20 +49,6 @@ const MOON_ICONS: Record<string, string> = {
 // Helpers
 // -----------------------------------------------------------------------------
 
-function formatSeconds(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
-
-function humanCategory(category: string): string {
-  return category
-    .split('_')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-}
-
 function formatChartDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -92,7 +70,6 @@ interface TrendsPoint {
 }
 
 interface TaskVolumePoint { date: string; deep_work: number; short_task: number; maintenance: number }
-interface DeepWorkPoint { date: string; deep_work: number }
 
 function filterDaysToWindow(days: DayResponse[], windowDays: number): DayResponse[] {
   const cutoff = new Date()
@@ -124,13 +101,6 @@ function buildTaskVolumeData(days: DayResponse[]): TaskVolumePoint[] {
     deep_work: d.tasks.filter(t => t.category === 'deep_work').length,
     short_task: d.tasks.filter(t => t.category === 'short_task').length,
     maintenance: d.tasks.filter(t => t.category === 'maintenance').length,
-  }))
-}
-
-function buildDeepWorkData(days: DayResponse[]): DeepWorkPoint[] {
-  return days.map(d => ({
-    date: formatChartDate(d.date),
-    deep_work: d.tasks.filter(t => t.category === 'deep_work').length,
   }))
 }
 
@@ -239,11 +209,6 @@ export function Analytics() {
     queryFn: analyticsApi.getStreaks,
   })
 
-  const { data: categories } = useQuery({
-    queryKey: ['analytics', 'categories'],
-    queryFn: analyticsApi.getCategories,
-  })
-
   const { data: allDays = [] } = useQuery({
     queryKey: ['days', 'all'],
     queryFn: dayApi.getAll,
@@ -252,13 +217,6 @@ export function Analytics() {
   const windowedDays = filterDaysToWindow(allDays, periodDays)
   const trendsData = buildTrendsData(windowedDays)
   const taskVolumeData = buildTaskVolumeData(windowedDays)
-  const deepWorkData = buildDeepWorkData(windowedDays)
-
-  const pieData = (categories?.entries ?? []).map((e: CategoryEntry) => ({
-    name: humanCategory(e.category),
-    value: e.total_seconds,
-    category: e.category,
-  }))
 
   const chartCard = 'bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-soft'
   const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'
@@ -444,110 +402,6 @@ export function Analytics() {
             </div>
           </section>
 
-          {/* Section: Time Breakdown */}
-          <section>
-            <h2 className={sectionHeader}>Time Breakdown</h2>
-            <div className={`${chartCard} max-w-lg`}>
-              {pieData.length === 0 ? (
-                <p className="text-sm text-stone-400">No timer sessions recorded yet.</p>
-              ) : (
-                <div className="flex items-center gap-6">
-                  <div className="flex-shrink-0">
-                    <PieChart width={200} height={200}>
-                      <Pie
-                        data={pieData}
-                        cx={100}
-                        cy={100}
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={PIE_COLORS[entry.category] ?? '#78716c'}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        formatter={(v: number) => [formatSeconds(v), '']}
-                      />
-                    </PieChart>
-                  </div>
-                  <div className="space-y-3 flex-1 min-w-0">
-                    {(categories?.entries ?? []).map((entry: CategoryEntry) => (
-                      <div key={entry.category} className="flex items-start gap-2">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full mt-0.5 flex-shrink-0"
-                          style={{ backgroundColor: PIE_COLORS[entry.category] ?? '#78716c' }}
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-stone-700 dark:text-stone-200 truncate">
-                              {humanCategory(entry.category)}
-                            </span>
-                            <span className="text-xs text-stone-400 flex-shrink-0">
-                              {formatSeconds(entry.total_seconds)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-stone-400">
-                            {entry.task_count} task{entry.task_count !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Section: Deep Work */}
-          <section>
-            <h2 className={sectionHeader}>Deep Work</h2>
-            <div className={chartCard}>
-              <h3 className={chartTitle}>Deep Work Sessions per Day</h3>
-              {deepWorkData.length === 0 ? (
-                <div className={`${emptyChart} h-[200px]`}>No data for this period</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={deepWorkData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="deepWorkGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={OCEAN} stopOpacity={0.2} />
-                        <stop offset="95%" stopColor={OCEAN} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fill: tickColor, fontSize: 11 }}
-                      interval={xAxisInterval(deepWorkData.length)}
-                    />
-                    <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <ReferenceLine
-                      y={1}
-                      stroke={tickColor}
-                      strokeDasharray="4 4"
-                      label={{ value: 'Goal', fill: tickColor, fontSize: 10 }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="deep_work"
-                      name="Deep Work"
-                      stroke={OCEAN}
-                      strokeWidth={2}
-                      fill="url(#deepWorkGrad)"
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </section>
         </main>
       </div>
 

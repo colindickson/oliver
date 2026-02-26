@@ -34,7 +34,6 @@ export function TagInput({ value, onChange, maxTags = 5 }: Props) {
     if (!tag || value.includes(tag) || value.length >= maxTags) return
     onChange([...value, tag])
     setInput('')
-    setOpen(false)
     setHighlightedIndex(0)
   }
 
