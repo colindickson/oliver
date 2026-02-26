@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, NavLink, useLocation } from 'react-router-dom'
-import { dayApi, analyticsApi, type DayResponse, type Task } from '../api/client'
+import { dayApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -60,29 +60,6 @@ function MiniDay({ date, tasks, isToday, onClick }: MiniDayProps) {
 }
 
 // -----------------------------------------------------------------------------
-// Stat Card
-// -----------------------------------------------------------------------------
-
-interface StatProps {
-  label: string
-  value: string | number
-  sub?: string
-  accent?: boolean
-}
-
-function Stat({ label, value, sub, accent }: StatProps) {
-  return (
-    <div className="flex-1 text-center py-3">
-      <p className={`text-2xl font-semibold tabular-nums ${accent ? 'text-terracotta-400' : 'text-stone-100'}`}>
-        {value}
-      </p>
-      <p className="text-[11px] text-stone-300 mt-0.5">{label}</p>
-      {sub && <p className="text-[10px] text-stone-300">{sub}</p>}
-    </div>
-  )
-}
-
-// -----------------------------------------------------------------------------
 // Sidebar
 // -----------------------------------------------------------------------------
 
@@ -95,16 +72,6 @@ export function Sidebar() {
   const { data: days = [] } = useQuery({
     queryKey: ['days', 'all'],
     queryFn: dayApi.getAll,
-  })
-
-  const { data: streaks } = useQuery({
-    queryKey: ['analytics', 'streaks'],
-    queryFn: analyticsApi.getStreaks,
-  })
-
-  const { data: summary } = useQuery({
-    queryKey: ['analytics', 'summary'],
-    queryFn: () => analyticsApi.getSummary(7),
   })
 
   // Build day map
@@ -338,31 +305,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="px-4 py-4 border-b border-stone-700/50">
-        <h3 className="text-xs font-medium text-stone-300 uppercase tracking-wider mb-2 px-1">
-          This Week
-        </h3>
-        <div className="bg-stone-800/50 rounded-xl overflow-hidden">
-          <div className="flex divide-x divide-stone-700/50">
-            <Stat
-              label="Streak"
-              value={streaks?.current_streak ?? 0}
-              sub={streaks?.current_streak === streaks?.longest_streak ? 'best!' : `best: ${streaks?.longest_streak ?? 0}`}
-              accent
-            />
-            <Stat
-              label="Done"
-              value={summary?.completed_tasks ?? 0}
-              sub={`of ${summary?.total_tasks ?? 0}`}
-            />
-            <Stat
-              label="Rate"
-              value={`${summary?.completion_rate_pct ?? 0}%`}
-            />
-          </div>
-        </div>
-      </div>
 
       </div>{/* end scrollable content */}
 
