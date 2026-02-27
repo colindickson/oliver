@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 
-const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const LABELS: Record<string, string> = {
   sunday: 'Sun',
   monday: 'Mon',
