@@ -144,10 +144,12 @@ export function Sidebar() {
           >
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor"
                  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="7.5" cy="7.5" r="2" />
-              <path d="M7.5 1v1.2M7.5 12.8V14M1 7.5h1.2M12.8 7.5H14
-                       M2.99 2.99l.85.85M11.16 11.16l.85.85
-                       M2.99 12.01l.85-.85M11.16 3.84l.85-.85" />
+              <line x1="1" y1="3.5" x2="14" y2="3.5" />
+              <circle cx="5" cy="3.5" r="1.5" fill="currentColor" stroke="none" />
+              <line x1="1" y1="7.5" x2="14" y2="7.5" />
+              <circle cx="10" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+              <line x1="1" y1="11.5" x2="14" y2="11.5" />
+              <circle cx="5" cy="11.5" r="1.5" fill="currentColor" stroke="none" />
             </svg>
           </Link>
           <button
