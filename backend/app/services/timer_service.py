@@ -241,7 +241,8 @@ class TimerService:
     async def add_time(self, task_id: int, seconds: int) -> TimerSession:
         """Create a TimerSession record crediting manual time to a task.
 
-        Does not interact with any active timer state.
+        If an active timer exists for the same task (running or paused), also
+        increments its ``accumulated_seconds`` so the live timer display updates.
 
         Args:
             task_id: Primary key of the Task to credit.
@@ -256,6 +257,13 @@ class TimerService:
         task_result = await self._db.execute(select(Task).where(Task.id == task_id))
         if task_result.scalar_one_or_none() is None:
             raise ValueError(f"Task {task_id} not found")
+
+        # If the active timer belongs to this task, bump its accumulated_seconds
+        # so the live timer display reflects the manually added time.
+        state = await self._get_state()
+        if state is not None and state.get("task_id") == task_id:
+            state["accumulated_seconds"] = state.get("accumulated_seconds", 0) + seconds
+            await self._set_state(state)
 
         now = datetime.now(timezone.utc)
         session = TimerSession(

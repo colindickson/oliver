@@ -58,6 +58,7 @@ export function SidebarTimer() {
     mutationFn: ({ task_id, seconds }: { task_id: number; seconds: number }) =>
       timerApi.addTime(task_id, seconds),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['timer'] })
       qc.invalidateQueries({ queryKey: ['sessions'] })
       qc.invalidateQueries({ queryKey: ['analytics'] })
     },

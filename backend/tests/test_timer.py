@@ -255,12 +255,15 @@ async def test_add_time_creates_session(
     assert sessions[0].duration_seconds == 900
 
 
-async def test_add_time_does_not_affect_active_timer(
+async def test_add_time_updates_active_timer_elapsed(
     client: AsyncClient, task: Task
 ) -> None:
-    """POST /api/timer/add-time leaves any active timer state unchanged."""
+    """POST /api/timer/add-time increments elapsed_seconds of the active timer."""
     # Start a timer first
     await client.post("/api/timer/start", json={"task_id": task.id})
+
+    before = await client.get("/api/timer/current")
+    elapsed_before = before.json()["elapsed_seconds"]
 
     # Add manual time
     add_response = await client.post(
@@ -268,9 +271,11 @@ async def test_add_time_does_not_affect_active_timer(
     )
     assert add_response.status_code == 200
 
-    # Timer is still running
+    # Timer is still running and elapsed increased by at least 3600
     current = await client.get("/api/timer/current")
-    assert current.json()["status"] == "running"
+    data = current.json()
+    assert data["status"] == "running"
+    assert data["elapsed_seconds"] >= elapsed_before + 3600
 
 
 async def test_add_time_rejects_zero_seconds(client: AsyncClient, task: Task) -> None:
