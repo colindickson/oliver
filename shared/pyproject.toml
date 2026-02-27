@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "oliver-shared"
 version = "0.1.0"
 description = "Shared constants and validation logic for Oliver services"
+license = {text = "GPL-3.0-or-later"}
 requires-python = ">=3.12"
 
 [tool.setuptools.packages.find]

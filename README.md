@@ -212,4 +212,4 @@ Contributions are welcome! Please open an issue or submit a pull request with im
 
 ## License
 
-None
+This project is licensed under the [GNU General Public License v3.0](LICENSE) or later.
