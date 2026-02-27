@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dayApi, taskApi, backlogApi } from '../api/client'
-import type { Task } from '../api/client'
+import { dayApi, taskApi, backlogApi, templatesApi } from '../api/client'
+import type { Task, TaskTemplate } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
 import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
@@ -99,6 +99,12 @@ export function Today() {
     },
   })
 
+  const instantiateTemplate = useMutation({
+    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) =>
+      templatesApi.instantiate(template.id, day!.id, category),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
   // Keyboard shortcut: 'n' opens the first column's Add task form
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -156,6 +162,10 @@ export function Today() {
 
   function handleScheduleFromBacklog(task: Task, category: NonNullable<Task['category']>) {
     scheduleFromBacklog.mutate({ taskId: task.id, category })
+  }
+
+  function handleInstantiateFromTemplate(template: TaskTemplate, category: NonNullable<Task['category']>) {
+    instantiateTemplate.mutate({ template, category })
   }
 
   if (isLoading || !day) {
@@ -242,6 +252,7 @@ export function Today() {
                 onMoveToBacklog={handleMoveToBacklog}
                 onContinueTomorrow={handleContinueTomorrow}
                 onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
+                onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, col.category)}
               />
             ))}
           </div>

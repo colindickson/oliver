@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useQuery } from '@tanstack/react-query'
-import { backlogApi, type Task } from '../api/client'
+import { backlogApi, templatesApi, type Task, type TaskTemplate } from '../api/client'
 import { TaskCard } from './TaskCard'
 import { TagInput } from './TagInput'
 
@@ -33,6 +33,7 @@ interface Props {
   onMoveToBacklog?: (task: Task) => void
   onContinueTomorrow?: (task: Task) => void
   onScheduleFromBacklog?: (task: Task) => void
+  onInstantiateFromTemplate?: (template: TaskTemplate) => void
 }
 
 const headerColors: Record<ColorKey, string> = {
@@ -103,10 +104,12 @@ export function TaskColumn({
   onMoveToBacklog,
   onContinueTomorrow,
   onScheduleFromBacklog,
+  onInstantiateFromTemplate,
 }: Props) {
   const [adding, setAdding] = useState(false)
-  const [addMode, setAddMode] = useState<'new' | 'backlog'>('new')
+  const [addMode, setAddMode] = useState<'new' | 'backlog' | 'template'>('new')
   const [backlogSearch, setBacklogSearch] = useState('')
+  const [templateSearch, setTemplateSearch] = useState('')
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newTags, setNewTags] = useState<string[]>([])
@@ -116,6 +119,12 @@ export function TaskColumn({
     queryKey: ['backlog'],
     queryFn: () => backlogApi.list(),
     enabled: adding && addMode === 'backlog',
+  })
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['templates', templateSearch],
+    queryFn: () => templatesApi.list(templateSearch || undefined),
+    enabled: adding && addMode === 'template',
   })
 
   // Maintain local ordered list
@@ -181,6 +190,7 @@ export function TaskColumn({
     setAdding(false)
     setAddMode('new')
     setBacklogSearch('')
+    setTemplateSearch('')
     setNewTitle('')
     setNewDesc('')
     setNewTags([])
@@ -226,8 +236,8 @@ export function TaskColumn({
       {/* Add task area */}
       {adding ? (
         <div className="mt-4 space-y-2 animate-fade-in">
-          {/* Mode toggle — only shown when backlog feature is available */}
-          {onScheduleFromBacklog && (
+          {/* Mode toggle — shown when backlog or template features are available */}
+          {(onScheduleFromBacklog || onInstantiateFromTemplate) && (
             <div className="flex gap-1 p-0.5 bg-stone-100 rounded-lg dark:bg-stone-600">
               <button
                 type="button"
@@ -240,17 +250,32 @@ export function TaskColumn({
               >
                 New task
               </button>
-              <button
-                type="button"
-                onClick={() => setAddMode('backlog')}
-                className={`flex-1 text-xs py-1 rounded-md transition-all ${
-                  addMode === 'backlog'
-                    ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-700 dark:text-stone-100'
-                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
-                }`}
-              >
-                From backlog
-              </button>
+              {onScheduleFromBacklog && (
+                <button
+                  type="button"
+                  onClick={() => setAddMode('backlog')}
+                  className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                    addMode === 'backlog'
+                      ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-700 dark:text-stone-100'
+                      : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                  }`}
+                >
+                  From backlog
+                </button>
+              )}
+              {onInstantiateFromTemplate && (
+                <button
+                  type="button"
+                  onClick={() => setAddMode('template')}
+                  className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                    addMode === 'template'
+                      ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-700 dark:text-stone-100'
+                      : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                  }`}
+                >
+                  From template
+                </button>
+              )}
             </div>
           )}
 
@@ -294,7 +319,7 @@ export function TaskColumn({
                 </button>
               </div>
             </>
-          ) : (
+          ) : addMode === 'backlog' ? (
             <>
               <input
                 autoFocus
@@ -331,6 +356,48 @@ export function TaskColumn({
                         )}
                       </button>
                     ))
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                autoFocus
+                type="text"
+                value={templateSearch}
+                onChange={e => setTemplateSearch(e.target.value)}
+                placeholder="Search templates…"
+                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+              />
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {templates.length === 0 ? (
+                  <p className="text-xs text-stone-400 text-center py-4 dark:text-stone-500">
+                    No templates found
+                  </p>
+                ) : (
+                  templates.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        onInstantiateFromTemplate?.(t)
+                        handleCancel()
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
+                    >
+                      <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                      {t.description && (
+                        <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
+                      )}
+                    </button>
+                  ))
                 )}
               </div>
               <button

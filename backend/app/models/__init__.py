@@ -15,6 +15,7 @@ from app.models.roadblock import Roadblock
 from app.models.setting import Setting
 from app.models.tag import Tag
 from app.models.task import Task
+from app.models.task_template import TaskTemplate
 from app.models.timer_session import TimerSession
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "Setting",
     "Tag",
     "Task",
+    "TaskTemplate",
     "TimerSession",
 ]

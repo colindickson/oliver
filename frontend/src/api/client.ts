@@ -283,3 +283,42 @@ export const backlogApi = {
   moveToDay: (id: number, payload: MoveToDayPayload) =>
     api.post<Task>(`/backlog/${id}/move-to-day`, payload).then(r => r.data),
 }
+
+export interface TaskTemplate {
+  id: number
+  title: string
+  description: string | null
+  category: 'deep_work' | 'short_task' | 'maintenance' | null
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateCreate {
+  title: string
+  description?: string | null
+  category?: 'deep_work' | 'short_task' | 'maintenance' | null
+  tags?: string[]
+}
+
+export interface TemplateUpdate {
+  title?: string | null
+  description?: string | null
+  category?: 'deep_work' | 'short_task' | 'maintenance' | null
+  tags?: string[] | null
+}
+
+export const templatesApi = {
+  list: (search?: string) =>
+    api.get<TaskTemplate[]>('/templates', { params: search ? { search } : undefined }).then(r => r.data),
+  create: (payload: TemplateCreate) =>
+    api.post<TaskTemplate>('/templates', payload).then(r => r.data),
+  get: (id: number) =>
+    api.get<TaskTemplate>(`/templates/${id}`).then(r => r.data),
+  update: (id: number, payload: TemplateUpdate) =>
+    api.put<TaskTemplate>(`/templates/${id}`, payload).then(r => r.data),
+  delete: (id: number) =>
+    api.delete(`/templates/${id}`).then(r => r.data),
+  instantiate: (id: number, day_id: number, category?: string) =>
+    api.post<Task>(`/templates/${id}/instantiate`, { day_id, category }).then(r => r.data),
+}

@@ -1,0 +1,124 @@
+"""Service layer for TaskTemplate domain logic."""
+
+from __future__ import annotations
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.tag import Tag
+from app.models.task import Task
+from app.models.task_template import TaskTemplate
+from app.services.tag_service import TagService
+from oliver_shared import STATUS_PENDING, normalize_tag_name
+
+
+class TemplateService:
+    """Encapsulates all TaskTemplate queries and write operations."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self._db = db
+
+    async def list_templates(self, search: str | None = None) -> list[TaskTemplate]:
+        """Return all templates, optionally filtered by title substring."""
+        stmt = select(TaskTemplate).order_by(TaskTemplate.title)
+        if search:
+            stmt = stmt.where(TaskTemplate.title.ilike(f"%{search}%"))
+        result = await self._db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_template(self, template_id: int) -> TaskTemplate | None:
+        """Return a single template by ID, or None if not found."""
+        result = await self._db.execute(
+            select(TaskTemplate).where(TaskTemplate.id == template_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_template(
+        self,
+        title: str,
+        description: str | None,
+        category: str | None,
+        tag_names: list[str],
+    ) -> TaskTemplate:
+        """Create and persist a new TaskTemplate."""
+        tag_service = TagService(self._db)
+        tag_objects = [await tag_service.get_or_create_tag(name) for name in tag_names]
+
+        template = TaskTemplate(
+            title=title,
+            description=description,
+            category=category,
+        )
+        template.tags = tag_objects
+        self._db.add(template)
+        await self._db.commit()
+        await self._db.refresh(template)
+        return template
+
+    async def update_template(
+        self,
+        template: TaskTemplate,
+        title: str | None,
+        description: str | None,
+        category: str | None,
+        tag_names: list[str] | None,
+    ) -> TaskTemplate:
+        """Apply partial updates to an existing template."""
+        if title is not None:
+            template.title = title
+        if description is not None:
+            template.description = description
+        if category is not None:
+            template.category = category
+        if tag_names is not None:
+            tag_service = TagService(self._db)
+            template.tags = [await tag_service.get_or_create_tag(n) for n in tag_names]
+
+        await self._db.commit()
+        await self._db.refresh(template)
+        return template
+
+    async def delete_template(self, template: TaskTemplate) -> None:
+        """Delete a template."""
+        await self._db.delete(template)
+        await self._db.commit()
+
+    async def instantiate(
+        self,
+        template: TaskTemplate,
+        day_id: int,
+        category_override: str | None,
+    ) -> Task:
+        """Create a Task from a template.
+
+        Uses category_override if provided, else template.category.
+        Raises ValueError if no category is available.
+        Places the task at the end of its category column.
+        """
+        category = category_override if category_override is not None else template.category
+        if category is None:
+            raise ValueError("category is required: provide it in the request or set one on the template")
+
+        # Compute order_index = count of tasks in this day+category
+        count_result = await self._db.execute(
+            select(func.count()).where(Task.day_id == day_id, Task.category == category)
+        )
+        order_index = count_result.scalar_one()
+
+        # Copy tag objects from template
+        tag_service = TagService(self._db)
+        tag_objects = [await tag_service.get_or_create_tag(tag.name) for tag in template.tags]
+
+        task = Task(
+            day_id=day_id,
+            category=category,
+            title=template.title,
+            description=template.description,
+            status=STATUS_PENDING,
+            order_index=order_index,
+        )
+        task.tags = tag_objects
+        self._db.add(task)
+        await self._db.commit()
+        await self._db.refresh(task)
+        return task
