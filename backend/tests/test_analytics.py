@@ -130,7 +130,7 @@ async def test_summary_counts_are_correct(
 ) -> None:
     """GET /api/analytics/summary aggregates tasks accurately."""
     today = date.today()
-    # Day 1: 3 tasks, 2 completed
+    # Day 1: 3 tasks, 2 completed (excluded from tracking - today is in progress)
     await _seed_day_with_tasks(
         db_session,
         today,
@@ -150,10 +150,11 @@ async def test_summary_counts_are_correct(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["total_days_tracked"] == 2
-    assert payload["total_tasks"] == 6
-    assert payload["completed_tasks"] == 3
-    assert payload["completion_rate_pct"] == 50.0
+    # Today is excluded (in progress), so only yesterday counts
+    assert payload["total_days_tracked"] == 1
+    assert payload["total_tasks"] == 3
+    assert payload["completed_tasks"] == 1
+    assert payload["completion_rate_pct"] == 33.33
     assert payload["period_days"] == 30
 
 
@@ -162,10 +163,11 @@ async def test_summary_respects_days_query_param(
 ) -> None:
     """GET /api/analytics/summary?days=7 excludes days older than 7 days."""
     today = date.today()
-    # Within window
+    # Within window (yesterday - will be counted)
+    yesterday = today - timedelta(days=1)
     await _seed_day_with_tasks(
         db_session,
-        today,
+        yesterday,
         categories=["deep_work"],
         completed_count=1,
     )
@@ -183,9 +185,37 @@ async def test_summary_respects_days_query_param(
     assert response.status_code == 200
     payload = response.json()
     assert payload["period_days"] == 7
-    assert payload["total_days_tracked"] == 1
+    assert payload["total_days_tracked"] == 1  # only yesterday
     assert payload["total_tasks"] == 1
     assert payload["completed_tasks"] == 1
+
+
+async def test_summary_excludes_empty_days(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Days with no tasks AND no notes are not counted as tracked days."""
+    today = date.today()
+    # Day with tasks - should be counted
+    yesterday = today - timedelta(days=1)
+    await _seed_day_with_tasks(
+        db_session,
+        yesterday,
+        categories=["deep_work"],
+        completed_count=1,
+    )
+    # Empty day (no tasks, no notes) - should NOT be counted
+    two_days_ago = today - timedelta(days=2)
+    empty_day = Day(date=two_days_ago, created_at=datetime.now(timezone.utc))
+    db_session.add(empty_day)
+
+    await db_session.commit()
+
+    response = await client.get("/api/analytics/summary")
+
+    assert response.status_code == 200
+    payload = response.json()
+    # Only yesterday counts (two_days_ago is empty, today is excluded)
+    assert payload["total_days_tracked"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +240,8 @@ async def test_streaks_counts_consecutive_complete_days(
 
     Setup: seed the last 3 consecutive workdays all fully completed.
     Weekends are skipped, so we walk back to find 3 actual weekdays.
-    current_streak should be 3, longest_streak should be 3.
+    Today is excluded (in progress), so streak counts from yesterday backwards.
+    current_streak and longest_streak should be 2 (yesterday and day before).
     """
     workdays: list[date] = []
     cursor = date.today()
@@ -231,8 +262,9 @@ async def test_streaks_counts_consecutive_complete_days(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["current_streak"] == 3
-    assert payload["longest_streak"] == 3
+    # Today is excluded, so only yesterday and day before count
+    assert payload["current_streak"] == 2
+    assert payload["longest_streak"] == 2
 
 
 async def test_streaks_breaks_on_incomplete_day(
@@ -240,7 +272,7 @@ async def test_streaks_breaks_on_incomplete_day(
 ) -> None:
     """A day with incomplete tasks breaks the current streak."""
     today = date.today()
-    # Today: all complete -> streak day
+    # Today: all complete -> excluded (in progress)
     await _seed_day_with_tasks(
         db_session,
         today,
@@ -268,9 +300,9 @@ async def test_streaks_breaks_on_incomplete_day(
 
     assert response.status_code == 200
     payload = response.json()
-    # current streak only counts today (yesterday broke it)
-    assert payload["current_streak"] == 1
-    # longest streak is 1 (today) or 1 (two_days_ago), both single-day runs
+    # current streak is 0 (yesterday broke it, today excluded)
+    assert payload["current_streak"] == 0
+    # longest streak is 1 (two_days_ago)
     assert payload["longest_streak"] == 1
 
 

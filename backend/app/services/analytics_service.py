@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_off import DayOff
 from app.models.task import Task, STATUS_COMPLETED
@@ -49,12 +50,17 @@ class AnalyticsService:
         # Subquery for day IDs that are marked as off — excluded from all metrics
         off_day_ids_subq = select(DayOff.day_id)
 
-        # Count distinct days in window (exclude today and off days)
+        # EXISTS subqueries for days with content (tasks or notes)
+        has_tasks = select(1).where(Task.day_id == Day.id).exists()
+        has_notes = select(1).where(DailyNote.day_id == Day.id).exists()
+
+        # Count distinct days in window (exclude today, off days, and empty days)
         days_result = await self._db.execute(
             select(func.count(Day.id))
             .where(Day.date >= cutoff)
             .where(Day.date < today)
             .where(Day.id.not_in(off_day_ids_subq))
+            .where(or_(has_tasks, has_notes))
         )
         total_days_tracked: int = days_result.scalar_one() or 0
 
