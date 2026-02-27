@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, NavLink, useLocation } from 'react-router-dom'
+import { useNavigate, NavLink, useLocation, Link } from 'react-router-dom'
 import { dayApi, settingsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
@@ -132,6 +132,24 @@ export function Sidebar() {
             <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Oliver</h1>
             <p className="text-xs text-stone-300 mt-0.5">3-3-3 Technique</p>
           </div>
+          <div className="flex items-center gap-1">
+          <Link
+            to="/settings"
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0
+              ${location.pathname === '/settings'
+                ? 'text-stone-200 bg-stone-700'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-700'
+              }`}
+            aria-label="Settings"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor"
+                 strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="7.5" cy="7.5" r="2" />
+              <path d="M7.5 1v1.2M7.5 12.8V14M1 7.5h1.2M12.8 7.5H14
+                       M2.99 2.99l.85.85M11.16 11.16l.85.85
+                       M2.99 12.01l.85-.85M11.16 3.84l.85-.85" />
+            </svg>
+          </Link>
           <button
             onClick={toggleTheme}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-700 transition-colors flex-shrink-0"
@@ -148,6 +166,7 @@ export function Sidebar() {
               </svg>
             )}
           </button>
+          </div>
         </div>
       </div>
 
