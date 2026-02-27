@@ -42,7 +42,7 @@ export function Settings() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-800">
+    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto">

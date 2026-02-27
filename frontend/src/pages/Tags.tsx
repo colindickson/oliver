@@ -10,11 +10,11 @@ export function Tags() {
   })
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-800">
+    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Tags</h1>
           <p className="text-sm text-stone-400 mt-0.5">All tags used across your tasks</p>
         </header>

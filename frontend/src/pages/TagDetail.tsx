@@ -16,11 +16,11 @@ export function TagDetail() {
   const totalTasks = groups.reduce((sum, g) => sum + g.tasks.length, 0)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-800">
+    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <Link
             to="/tags"
             className="text-sm text-stone-400 hover:text-stone-600 mb-2 flex items-center gap-1 transition-colors"

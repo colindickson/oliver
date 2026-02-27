@@ -46,7 +46,7 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
         onChange={e => handleChange(e.target.value)}
         placeholder={`Add ${label.toLowerCase()}…`}
         rows={3}
-        className="w-full text-sm px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-stone-800 placeholder-stone-300 resize-none focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500"
+        className="w-full text-sm px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-stone-800 placeholder-stone-300 resize-none focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow dark:bg-stone-700 dark:border-stone-600/50 dark:text-stone-100 dark:placeholder-stone-500"
       />
     </div>
   )

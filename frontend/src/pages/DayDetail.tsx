@@ -324,12 +324,12 @@ export function DayDetail() {
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-800">
+    <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-800/90 dark:border-stone-700/50">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <div>
             <button
               onClick={() => navigate('/')}
