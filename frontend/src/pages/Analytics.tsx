@@ -79,6 +79,8 @@ function filterDaysToWindow(days: DayResponse[], windowDays: number): DayRespons
   const todayStr = new Date().toISOString().slice(0, 10)
   return days
     .filter(d => d.date >= cutoffStr && d.date < todayStr)
+    .filter(d => !d.day_off)                      // exclude days marked as off
+    .filter(d => d.tasks.length > 0 || d.notes)   // exclude empty days (no tasks AND no note)
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
