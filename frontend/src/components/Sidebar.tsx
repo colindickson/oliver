@@ -163,8 +163,8 @@ export function Sidebar() {
                 <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M3.05 3.05l1.06 1.06M10.9 10.9l1.06 1.06M3.05 11.95l1.06-1.06M10.9 4.1l1.06-1.06" />
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 9.5A6 6 0 015.5 2a6 6 0 100 10A6 6 0 0012 9.5z" />
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 8A5.6 5.6 0 1 1 7 1.9 4.4 4.4 0 0 0 13 8z" />
               </svg>
             )}
           </button>
