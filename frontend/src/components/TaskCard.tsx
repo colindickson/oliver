@@ -134,7 +134,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
           <button
             type="button"
             onClick={openEdit}
-            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
+            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
             aria-label="Edit task"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -160,7 +160,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             <button
               type="button"
               onClick={() => onMoveToBacklog(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-ocean-400 hover:bg-ocean-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-ocean-300 dark:hover:bg-stone-700"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-ocean-400 hover:bg-ocean-50 rounded transition-colors dark:text-stone-600 dark:hover:text-ocean-300 dark:hover:bg-stone-700"
               aria-label="Send to backlog"
               title="Send to backlog"
             >
@@ -176,7 +176,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             <button
               type="button"
               onClick={() => onContinueTomorrow(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
               aria-label="Continue tomorrow"
               title="Continue tomorrow"
             >
