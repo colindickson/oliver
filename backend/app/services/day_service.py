@@ -8,7 +8,7 @@ the service itself remains independently testable.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -292,3 +292,28 @@ class DayService:
             self._db.add(setting)
         await self._db.flush()
         return days
+
+    async def get_next_working_day(self, from_date: date | None = None) -> date:
+        """Return the next working day after from_date, skipping recurring and individual days off.
+
+        Args:
+            from_date: Starting date; defaults to today if None.
+
+        Returns:
+            The first date after from_date that is not a recurring day off and
+            has no individual DayOff record.
+        """
+        if from_date is None:
+            from_date = date.today()
+        recurring_off = await self.get_recurring_days_off()
+        candidate = from_date + timedelta(days=1)
+        for _ in range(60):  # safety cap
+            if candidate.strftime("%A").lower() not in recurring_off:
+                # Check individual day-off (only if a Day row already exists)
+                day_off_exists = await self._db.scalar(
+                    select(DayOff).join(Day).where(Day.date == candidate)
+                )
+                if not day_off_exists:
+                    return candidate
+            candidate += timedelta(days=1)
+        return from_date + timedelta(days=1)  # unreachable fallback

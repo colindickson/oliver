@@ -6,6 +6,7 @@ Written before the implementation exists (TDD red phase).
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -21,6 +22,7 @@ from app.models.task import (
     STATUS_IN_PROGRESS,
     STATUS_COMPLETED,
 )
+from app.services.day_service import DayService
 
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
@@ -446,3 +448,93 @@ async def test_continue_tomorrow_rejects_non_deep_work_task(
 
     assert resp.status_code == 422
     assert "deep_work" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# POST /api/tasks/{task_id}/continue-tomorrow — next working day logic
+# ---------------------------------------------------------------------------
+
+
+async def test_continue_tomorrow_skips_weekend_with_recurring_days_off(
+    client: AsyncClient, day: Day, db_session: AsyncSession
+) -> None:
+    """Friday + weekends recurring off → task lands on Monday."""
+    friday = date(2025, 6, 6)  # Known Friday
+
+    day_service = DayService(db_session)
+    await day_service.set_recurring_days_off(["saturday", "sunday"])
+    await db_session.commit()
+
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Friday deep work",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    with patch("app.services.day_service.date") as mock_date:
+        mock_date.today.return_value = friday
+        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    monday = date(2025, 6, 9)
+    day_resp = await client.get(f"/api/days/{monday}")
+    assert day_resp.status_code == 200
+    assert day_resp.json()["id"] == resp.json()["day_id"]
+
+
+async def test_continue_tomorrow_lands_on_saturday_without_recurring_days_off(
+    client: AsyncClient, day: Day
+) -> None:
+    """Friday + no recurring days off → task lands on Saturday."""
+    friday = date(2025, 6, 6)  # Known Friday
+
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Friday deep work",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    with patch("app.services.day_service.date") as mock_date:
+        mock_date.today.return_value = friday
+        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    saturday = date(2025, 6, 7)
+    day_resp = await client.get(f"/api/days/{saturday}")
+    assert day_resp.status_code == 200
+    assert day_resp.json()["id"] == resp.json()["day_id"]
+
+
+async def test_continue_tomorrow_skips_individual_day_off(
+    client: AsyncClient, day: Day, db_session: AsyncSession
+) -> None:
+    """Tomorrow individually marked as day off → task skips to the day after."""
+    today = date(2025, 6, 2)  # Monday
+    tomorrow = date(2025, 6, 3)  # Tuesday — will be marked as day off
+
+    day_service = DayService(db_session)
+    tomorrow_day = await day_service.get_or_create_by_date(tomorrow)
+    await day_service.upsert_day_off(tomorrow_day.id, "sick", None)
+    await db_session.commit()
+
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Monday deep work",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    with patch("app.services.day_service.date") as mock_date:
+        mock_date.today.return_value = today
+        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert resp.status_code == 200
+    wednesday = date(2025, 6, 4)
+    day_resp = await client.get(f"/api/days/{wednesday}")
+    assert day_resp.status_code == 200
+    assert day_resp.json()["id"] == resp.json()["day_id"]

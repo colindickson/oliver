@@ -6,7 +6,7 @@ All database access uses async SQLAlchemy so the routes remain non-blocking.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -314,12 +314,12 @@ async def continue_task_tomorrow(
     # Read tag names before any mutations (selectin-loaded, already available)
     tag_names = [tag.name for tag in task.tags]
 
-    # Get or create tomorrow's Day first — DayService uses flush so we have
-    # a day_id before building the continuation task, and all three writes
+    # Get or create the next working day first — DayService uses flush so we
+    # have a day_id before building the continuation task, and all three writes
     # (day insert if new, status change, new task) commit together below.
-    tomorrow = date.today() + timedelta(days=1)
     day_service = DayService(db)
-    tomorrow_day = await day_service.get_or_create_by_date(tomorrow)
+    next_day = await day_service.get_next_working_day()
+    tomorrow_day = await day_service.get_or_create_by_date(next_day)
 
     # Mark original completed
     task.status = STATUS_COMPLETED
