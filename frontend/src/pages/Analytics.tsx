@@ -67,6 +67,7 @@ interface TrendsPoint {
   energy: number | null
   moonPhase: string | null
   condition: string | null
+  temperature: number | null
 }
 
 interface TaskVolumePoint { date: string; deep_work: number; short_task: number; maintenance: number }
@@ -91,6 +92,7 @@ function buildTrendsData(days: DayResponse[]): TrendsPoint[] {
       energy: d.rating?.energy ?? null,
       moonPhase: d.day_metadata?.moon_phase ?? null,
       condition: d.day_metadata?.condition ?? null,
+      temperature: d.day_metadata?.temperature_c ?? null,
     }
   })
 }
@@ -105,7 +107,7 @@ function buildTaskVolumeData(days: DayResponse[]): TaskVolumePoint[] {
 }
 
 // -----------------------------------------------------------------------------
-// Custom XAxis tick — shows moon + weather icons above the date label
+// Custom XAxis tick — shows moon + weather icons below the date label
 // -----------------------------------------------------------------------------
 
 interface TrendsTickProps {
@@ -125,17 +127,6 @@ function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }:
 
   return (
     <g transform={`translate(${x},${y})`}>
-      {icons && (
-        <text
-          x={0}
-          y={0}
-          dy={-8}
-          textAnchor="middle"
-          fontSize={11}
-        >
-          {icons}
-        </text>
-      )}
       <text
         x={0}
         y={0}
@@ -146,7 +137,120 @@ function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }:
       >
         {payload?.value}
       </text>
+      {icons && (
+        <text
+          x={0}
+          y={0}
+          dy={26}
+          textAnchor="middle"
+          fontSize={10}
+        >
+          {icons}
+        </text>
+      )}
     </g>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Custom Tooltip — includes metadata (weather, moon phase, temperature)
+// -----------------------------------------------------------------------------
+
+interface TrendsTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    name: string
+    value: number
+    color: string
+  }>
+  label?: string
+  trendsData: TrendsPoint[]
+  isDark: boolean
+}
+
+function TrendsTooltip({ active, payload, label, trendsData, isDark }: TrendsTooltipProps) {
+  if (!active || !payload || !label) return null
+
+  const point = trendsData.find(p => p.date === label)
+
+  const containerStyle: React.CSSProperties = {
+    backgroundColor: isDark ? '#1c1917' : '#ffffff',
+    border: `1px solid ${isDark ? '#44403c' : '#e7e5e4'}`,
+    borderRadius: '10px',
+    padding: '12px 14px',
+    fontSize: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+  }
+
+  const hasMetadata = point?.moonPhase || point?.condition || point?.temperature
+
+  return (
+    <div style={containerStyle}>
+      <div style={{
+        color: isDark ? '#a8a29e' : '#78716c',
+        fontSize: '11px',
+        fontWeight: 500,
+        marginBottom: 8,
+        paddingBottom: 8,
+        borderBottom: `1px solid ${isDark ? '#292524' : '#e7e5e4'}`,
+      }}>
+        {label}
+      </div>
+      {payload.map((entry, idx) => (
+        <div
+          key={idx}
+          style={{
+            color: isDark ? '#e7e5e4' : '#292524',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+            marginBottom: 4,
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 8,
+              height: entry.name === 'Energy' ? 8 : 2,
+              borderRadius: entry.name === 'Energy' ? 2 : 1,
+              backgroundColor: entry.color,
+              display: 'inline-block',
+            }} />
+            {entry.name}
+          </span>
+          <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            {entry.name === 'Completion %' ? `${entry.value}%` : entry.value}
+          </span>
+        </div>
+      ))}
+      {hasMetadata && (
+        <div style={{
+          marginTop: 8,
+          paddingTop: 8,
+          borderTop: `1px solid ${isDark ? '#292524' : '#e7e5e4'}`,
+          color: isDark ? '#a8a29e' : '#78716c',
+          fontSize: '11px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {point?.condition && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span>{WEATHER_ICONS[point.condition]}</span>
+                <span style={{ textTransform: 'capitalize' }}>{point.condition.replace('_', ' ')}</span>
+              </span>
+            )}
+            {point?.moonPhase && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span>{MOON_ICONS[point.moonPhase]}</span>
+                <span style={{ textTransform: 'capitalize' }}>{point.moonPhase.replace('_', ' ')}</span>
+              </span>
+            )}
+            {point?.temperature !== null && point?.temperature !== undefined && (
+              <span>{Math.round(point.temperature)}°C</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -318,12 +422,12 @@ export function Analytics() {
                 {trendsData.length === 0 ? (
                   <div className={`${emptyChart} h-[220px]`}>No data for this period</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={240}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <ComposedChart data={trendsData} margin={{ top: 24, right: 16, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
                         dataKey="date"
-                        height={52}
+                        height={60}
                         interval={xAxisInterval(trendsData.length)}
                         tick={(props) => (
                           <TrendsTick
@@ -347,11 +451,7 @@ export function Analytics() {
                         tick={{ fill: tickColor, fontSize: 11 }}
                       />
                       <Tooltip
-                        contentStyle={tooltipStyle}
-                        formatter={(value: number, name: string) => {
-                          if (name === 'Completion %') return [`${value}%`, name]
-                          return [value, name]
-                        }}
+                        content={<TrendsTooltip trendsData={trendsData} isDark={isDark} />}
                       />
                       <Bar
                         yAxisId="right"
