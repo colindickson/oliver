@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi } from '../api/client'
-import type { Task } from '../api/client'
+import type { Task, DayOffReason } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ConfirmableDelete } from '../components/ConfirmableDelete'
 import { TagInput } from '../components/TagInput'
@@ -280,6 +280,28 @@ export function DayDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', date] }),
   })
 
+  const [dayOffReason, setDayOffReason] = useState<DayOffReason>('personal_day')
+  const [dayOffNote, setDayOffNote] = useState('')
+  const [showDayOffForm, setShowDayOffForm] = useState(false)
+
+  const upsertDayOff = useMutation({
+    mutationFn: ({ reason, note }: { reason: DayOffReason; note?: string }) =>
+      dayApi.upsertDayOff(day!.id, reason, note),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+      setShowDayOffForm(false)
+    },
+  })
+
+  const removeDayOff = useMutation({
+    mutationFn: () => dayApi.removeDayOff(day!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+    },
+  })
+
   function handleAddTask(category: Task['category']) {
     if (!newTaskTitle.trim() || !day) return
     createTask.mutate(category)
@@ -488,6 +510,86 @@ export function DayDetail() {
                     upsertRating.mutateAsync({ dayId, rating })
                   }
                 />
+
+                {/* Day Off Toggle */}
+                <div className="rounded-2xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/50 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Day Off</h3>
+                    {day.day_off && (
+                      <button
+                        onClick={() => removeDayOff.mutate()}
+                        disabled={removeDayOff.isPending}
+                        className="text-xs text-stone-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {day.day_off ? (
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-stone-700 dark:text-stone-200">
+                          <span className="font-medium capitalize">{day.day_off.reason.replace('_', ' ')}</span>
+                          {' '}— this day is marked as off
+                        </p>
+                        {day.day_off.note && (
+                          <p className="text-xs text-stone-400 mt-1">{day.day_off.note}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : showDayOffForm ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {(['weekend', 'personal_day', 'vacation', 'holiday', 'sick_day'] as DayOffReason[]).map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setDayOffReason(r)}
+                            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                              dayOffReason === r
+                                ? 'bg-stone-700 border-stone-600 text-white dark:bg-stone-600'
+                                : 'border-stone-200 text-stone-500 hover:border-stone-400 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500'
+                            }`}
+                          >
+                            {r.replace('_', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={dayOffNote}
+                        onChange={e => setDayOffNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => upsertDayOff.mutate({ reason: dayOffReason, note: dayOffNote || undefined })}
+                          disabled={upsertDayOff.isPending}
+                          className="text-xs bg-stone-700 text-white rounded-lg px-3 py-1.5 hover:bg-stone-600 disabled:opacity-50 transition-colors dark:bg-stone-600 dark:hover:bg-stone-500"
+                        >
+                          Mark as off
+                        </button>
+                        <button
+                          onClick={() => { setShowDayOffForm(false); setDayOffNote('') }}
+                          className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowDayOffForm(true)}
+                      className="text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 flex items-center gap-1.5 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6.5 2v9M2 6.5h9" strokeLinecap="round" />
+                      </svg>
+                      Mark this day as off
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

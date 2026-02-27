@@ -7,6 +7,7 @@ the service itself remains independently testable.
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -16,8 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_metadata import DayMetadata
+from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.roadblock import Roadblock
+from app.models.setting import Setting
+
+RECURRING_DAYS_OFF_KEY = "recurring_days_off"
 
 
 class DayService:
@@ -204,3 +209,86 @@ class DayService:
         await self._db.flush()
         await self._db.refresh(meta)
         return meta
+
+    async def upsert_day_off(
+        self, day_id: int, reason: str, note: Optional[str]
+    ) -> DayOff:
+        """Create or update the day-off record for the given day.
+
+        Args:
+            day_id: Primary key of the parent Day.
+            reason: Why the day is off (one of the valid DayOffReason literals).
+            note: Optional free-text context, or None.
+
+        Returns:
+            The persisted DayOff instance.
+        """
+        day_off = await self._db.scalar(
+            select(DayOff).where(DayOff.day_id == day_id)
+        )
+        if day_off:
+            day_off.reason = reason
+            day_off.note = note
+        else:
+            day_off = DayOff(day_id=day_id, reason=reason, note=note)
+            self._db.add(day_off)
+        await self._db.flush()
+        await self._db.refresh(day_off)
+        return day_off
+
+    async def remove_day_off(self, day_id: int) -> None:
+        """Delete the day-off record for the given day, if it exists.
+
+        Args:
+            day_id: Primary key of the parent Day.
+        """
+        day_off = await self._db.scalar(
+            select(DayOff).where(DayOff.day_id == day_id)
+        )
+        if day_off:
+            await self._db.delete(day_off)
+            await self._db.flush()
+
+    async def get_all_day_offs(self) -> list[DayOff]:
+        """Return all DayOff records ordered by day_id descending.
+
+        Returns:
+            A list of DayOff instances.
+        """
+        result = await self._db.execute(
+            select(DayOff).order_by(DayOff.day_id.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_recurring_days_off(self) -> list[str]:
+        """Return the list of recurring off weekday names from settings.
+
+        Returns:
+            A list of lowercase weekday names, or empty list if not set.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
+        )
+        if setting is None:
+            return []
+        return json.loads(setting.value)
+
+    async def set_recurring_days_off(self, days: list[str]) -> list[str]:
+        """Save the recurring off weekday names to settings.
+
+        Args:
+            days: List of lowercase weekday names to store.
+
+        Returns:
+            The saved list of weekday names.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
+        )
+        if setting:
+            setting.value = json.dumps(days)
+        else:
+            setting = Setting(key=RECURRING_DAYS_OFF_KEY, value=json.dumps(days))
+            self._db.add(setting)
+        await self._db.flush()
+        return days

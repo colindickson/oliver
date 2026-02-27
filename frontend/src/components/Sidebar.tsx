@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, NavLink, useLocation } from 'react-router-dom'
-import { dayApi, type DayResponse, type Task } from '../api/client'
+import { dayApi, settingsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -17,6 +17,26 @@ function getCompletionRate(tasks: Task[]): number {
   if (tasks.length === 0) return 0
   const completed = tasks.filter(t => t.status === 'completed').length
   return completed / tasks.length
+}
+
+// -----------------------------------------------------------------------------
+// Day-off style map
+// -----------------------------------------------------------------------------
+
+const DAY_OFF_STYLES: Record<string, string> = {
+  weekend:      'text-stone-500',
+  personal_day: 'bg-purple-500/15 text-purple-300',
+  vacation:     'bg-sky-500/15 text-sky-300',
+  holiday:      'bg-amber-500/15 text-amber-300',
+  sick_day:     'bg-rose-500/15 text-rose-300',
+}
+
+const DAY_OFF_LABELS: Record<string, string> = {
+  weekend:      'off',
+  personal_day: 'personal',
+  vacation:     'vacation',
+  holiday:      'holiday',
+  sick_day:     'sick',
 }
 
 // -----------------------------------------------------------------------------
@@ -73,6 +93,13 @@ export function Sidebar() {
     queryKey: ['days', 'all'],
     queryFn: dayApi.getAll,
   })
+
+  const { data: recurringConfig } = useQuery({
+    queryKey: ['settings', 'recurring-days-off'],
+    queryFn: settingsApi.getRecurringDaysOff,
+    staleTime: 5 * 60 * 1000,
+  })
+  const recurringOffDays = new Set(recurringConfig?.days ?? [])
 
   // Build day map
   const dayMap = new Map<string, DayResponse>(days.map(d => [d.date, d]))
@@ -260,8 +287,16 @@ export function Sidebar() {
             const completed = tasks.filter(t => t.status === 'completed').length
             const rate = hasTasks ? completed / tasks.length : 0
 
+            const dayOff = dayData?.day_off ?? null
+            const weekdayName = cellDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+            const isRecurringOff = recurringOffDays.has(weekdayName)
+            const isOff = !!dayOff || isRecurringOff
+            const offReason = dayOff?.reason ?? (isRecurringOff ? 'weekend' : null)
+
             let bgClass = 'text-stone-400'
-            if (hasTasks) {
+            if (isOff && offReason) {
+              bgClass = DAY_OFF_STYLES[offReason] ?? 'text-stone-500'
+            } else if (hasTasks) {
               if (rate >= 1) bgClass = 'bg-moss-600/30 text-moss-300'
               else if (rate >= 0.67) bgClass = 'bg-amber-500/20 text-amber-300'
               else if (rate >= 0.33) bgClass = 'bg-stone-600/50 text-stone-300'
@@ -280,9 +315,11 @@ export function Sidebar() {
                 `}
               >
                 <span>{cellDate.getDate()}</span>
-                {hasTasks && (
+                {isOff && offReason ? (
+                  <span className="text-[8px] opacity-60">{DAY_OFF_LABELS[offReason]}</span>
+                ) : hasTasks ? (
                   <span className="text-[8px] opacity-60">{completed}/{tasks.length}</span>
-                )}
+                ) : null}
               </button>
             )
           })}

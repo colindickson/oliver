@@ -61,6 +61,15 @@ export interface DayMetadata {
   moon_phase: MoonPhase | null
 }
 
+export type DayOffReason = 'weekend' | 'personal_day' | 'vacation' | 'holiday' | 'sick_day'
+
+export interface DayOff {
+  id: number
+  day_id: number
+  reason: DayOffReason
+  note: string | null
+}
+
 export interface DayResponse {
   id: number
   date: string
@@ -70,6 +79,7 @@ export interface DayResponse {
   roadblocks: Roadblock | null
   rating: DayRating | null
   day_metadata: DayMetadata | null
+  day_off: DayOff | null
 }
 
 export interface CreateTaskPayload {
@@ -93,6 +103,17 @@ export const dayApi = {
     api.put<DayRating>(`/days/${day_id}/rating`, rating).then(r => r.data),
   upsertMetadata: (day_id: number, meta: Omit<DayMetadata, 'id' | 'day_id'>) =>
     api.put<DayMetadata>(`/days/${day_id}/metadata`, meta).then(r => r.data),
+  upsertDayOff: (day_id: number, reason: DayOffReason, note?: string) =>
+    api.put<DayOff>(`/days/${day_id}/day-off`, { reason, note }).then(r => r.data),
+  removeDayOff: (day_id: number) =>
+    api.delete(`/days/${day_id}/day-off`).then(r => r.data),
+}
+
+export const settingsApi = {
+  getRecurringDaysOff: () =>
+    api.get<{ days: string[] }>('/settings/recurring-days-off').then(r => r.data),
+  setRecurringDaysOff: (days: string[]) =>
+    api.put<{ days: string[] }>('/settings/recurring-days-off', { days }).then(r => r.data),
 }
 
 export const taskApi = {

@@ -4,6 +4,7 @@ import json
 from datetime import date, timedelta
 
 from models.day import Day
+from models.day_off import DayOff
 from models.task import Task
 from models.timer_session import TimerSession
 from tools.daily import get_session
@@ -31,7 +32,9 @@ def get_analytics(days: int = 30) -> str:
     """
     cutoff = date.today() - timedelta(days=days)
     with get_session() as session:
+        off_day_ids = {row.day_id for row in session.query(DayOff).all()}
         day_rows = session.query(Day).filter(Day.date >= cutoff).all()
+        day_rows = [d for d in day_rows if d.id not in off_day_ids]
         total_days = len(day_rows)
         completed_tasks = 0
         total_tasks = 0

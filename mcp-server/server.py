@@ -12,6 +12,13 @@ from mcp.server.fastmcp import FastMCP
 
 from tools.analytics import get_analytics
 from tools.daily import get_daily_plan, set_daily_plan
+from tools.days_off import (
+    get_recurring_days_off,
+    list_days_off,
+    mark_day_off,
+    set_recurring_days_off,
+    unmark_day_off,
+)
 from tools.metadata import set_day_metadata
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
@@ -101,6 +108,43 @@ def set_day_metadata_tool(
                 full_moon | waning_gibbous | last_quarter | waning_crescent
     """
     return set_day_metadata(date, temperature_c, condition, moon_phase)
+
+
+@mcp.tool()
+def mark_day_off_tool(date: str, reason: str, note: str = "") -> str:
+    """Mark a day as off (YYYY-MM-DD).
+
+    reason: weekend | personal_day | vacation | holiday | sick_day
+    note: optional free-text context
+    """
+    return mark_day_off(date, reason, note)
+
+
+@mcp.tool()
+def unmark_day_off_tool(date: str) -> str:
+    """Remove the off-day designation for a date (YYYY-MM-DD). Idempotent."""
+    return unmark_day_off(date)
+
+
+@mcp.tool()
+def list_days_off_tool() -> str:
+    """List all days marked as off, ordered newest first."""
+    return list_days_off()
+
+
+@mcp.tool()
+def get_recurring_days_off_tool() -> str:
+    """Get the configured recurring off weekdays (e.g. saturday, sunday)."""
+    return get_recurring_days_off()
+
+
+@mcp.tool()
+def set_recurring_days_off_tool(days: list[str]) -> str:
+    """Set recurring off weekdays. Pass an empty list to clear.
+
+    Valid values: monday, tuesday, wednesday, thursday, friday, saturday, sunday
+    """
+    return set_recurring_days_off(days)
 
 
 if __name__ == "__main__":

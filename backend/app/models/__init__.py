@@ -7,6 +7,7 @@ All models must be imported here before ``Base.metadata`` is used for
 from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_metadata import DayMetadata
+from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.goal import Goal
 from app.models.reminder import Reminder
@@ -20,6 +21,7 @@ __all__ = [
     "DailyNote",
     "Day",
     "DayMetadata",
+    "DayOff",
     "DayRating",
     "Goal",
     "Reminder",

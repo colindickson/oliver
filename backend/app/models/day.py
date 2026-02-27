@@ -13,6 +13,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.daily_note import DailyNote
     from app.models.day_metadata import DayMetadata
+    from app.models.day_off import DayOff
     from app.models.day_rating import DayRating
     from app.models.roadblock import Roadblock
 
@@ -74,6 +75,14 @@ class Day(Base):
 
     day_metadata: Mapped[Optional[DayMetadata]] = relationship(
         "DayMetadata",
+        back_populates="day",
+        uselist=False,
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+    day_off: Mapped[Optional[DayOff]] = relationship(
+        "DayOff",
         back_populates="day",
         uselist=False,
         lazy="selectin",

@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.day import Day
+from app.models.day_off import DayOff
 from app.models.task import Task, STATUS_COMPLETED
 from app.models.timer_session import TimerSession
 
@@ -45,28 +46,36 @@ class AnalyticsService:
         today = date.today()
         cutoff = today - timedelta(days=days)
 
-        # Count distinct days in window (exclude today — it's in progress)
+        # Subquery for day IDs that are marked as off — excluded from all metrics
+        off_day_ids_subq = select(DayOff.day_id)
+
+        # Count distinct days in window (exclude today and off days)
         days_result = await self._db.execute(
-            select(func.count(Day.id)).where(Day.date >= cutoff).where(Day.date < today)
+            select(func.count(Day.id))
+            .where(Day.date >= cutoff)
+            .where(Day.date < today)
+            .where(Day.id.not_in(off_day_ids_subq))
         )
         total_days_tracked: int = days_result.scalar_one() or 0
 
-        # Count all tasks whose day is within the window
+        # Count all tasks whose day is within the window (excluding off days)
         total_result = await self._db.execute(
             select(func.count(Task.id))
             .join(Day, Task.day_id == Day.id)
             .where(Day.date >= cutoff)
             .where(Day.date < today)
+            .where(Day.id.not_in(off_day_ids_subq))
         )
         total_tasks: int = total_result.scalar_one() or 0
 
-        # Count completed tasks within the window
+        # Count completed tasks within the window (excluding off days)
         completed_result = await self._db.execute(
             select(func.count(Task.id))
             .join(Day, Task.day_id == Day.id)
             .where(Day.date >= cutoff)
             .where(Day.date < today)
             .where(Task.status == STATUS_COMPLETED)
+            .where(Day.id.not_in(off_day_ids_subq))
         )
         completed_tasks: int = completed_result.scalar_one() or 0
 
@@ -112,12 +121,14 @@ class AnalyticsService:
 
         today = date.today()
 
-        # Build a set of complete weekday dates (weekends and today are excluded).
+        # Build a set of complete weekday dates (weekends, today, and off days excluded).
         complete_dates: set[date] = set()
         for day in all_days:
             if day.date >= today:  # exclude today — it's in progress
                 continue
             if day.date.weekday() >= 5:  # Saturday=5, Sunday=6
+                continue
+            if day.day_off is not None:  # exclude explicit off days
                 continue
             tasks = day.tasks  # loaded via selectin
             if tasks and all(t.status == STATUS_COMPLETED for t in tasks):
@@ -180,6 +191,8 @@ class AnalyticsService:
             A dict with key ``entries``, whose value is a list of dicts each
             containing ``category``, ``total_seconds``, and ``task_count``.
         """
+        off_day_ids_subq = select(DayOff.day_id)
+
         result = await self._db.execute(
             select(
                 Task.category,
@@ -187,7 +200,9 @@ class AnalyticsService:
                 func.count(func.distinct(Task.id)).label("task_count"),
             )
             .join(TimerSession, TimerSession.task_id == Task.id)
+            .join(Day, Task.day_id == Day.id)
             .where(TimerSession.duration_seconds.is_not(None))
+            .where(Day.id.not_in(off_day_ids_subq))
             .group_by(Task.category)
             .order_by(Task.category)
         )

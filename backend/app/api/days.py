@@ -8,18 +8,37 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.daily_note import DailyNoteResponse, DailyNoteUpsert
 from app.schemas.day import DayResponse
 from app.schemas.day_metadata import DayMetadataResponse, DayMetadataUpsert
+from app.schemas.day_off import DayOffResponse, DayOffUpsert
 from app.schemas.day_rating import DayRatingResponse, DayRatingUpsert
 from app.schemas.roadblock import RoadblockResponse, RoadblockUpsert
 from app.services.day_service import DayService
 
 router = APIRouter(prefix="/api/days", tags=["days"])
+
+
+# NOTE: GET /api/days/off must be registered BEFORE GET /api/days/{day_date}
+# to prevent FastAPI from trying to parse "off" as a date.
+
+
+@router.get("/off", response_model=list[DayOffResponse])
+async def list_days_off(db: AsyncSession = Depends(get_db)) -> list[DayOffResponse]:
+    """Return all day-off records ordered by day_id descending.
+
+    Args:
+        db: Injected async database session.
+
+    Returns:
+        A list of DayOffResponse objects.
+    """
+    service = DayService(db)
+    return await service.get_all_day_offs()
 
 
 @router.get("/today", response_model=DayResponse)
@@ -161,3 +180,42 @@ async def upsert_metadata(
     )
     await db.commit()
     return meta
+
+
+@router.put("/{day_id}/day-off", response_model=DayOffResponse)
+async def upsert_day_off(
+    day_id: int,
+    payload: DayOffUpsert,
+    db: AsyncSession = Depends(get_db),
+) -> DayOffResponse:
+    """Create or update the day-off record for a day.
+
+    Args:
+        day_id: Primary key of the target Day.
+        payload: Reason and optional note.
+        db: Injected async database session.
+
+    Returns:
+        The saved DayOffResponse.
+    """
+    service = DayService(db)
+    day_off = await service.upsert_day_off(day_id, payload.reason, payload.note)
+    await db.commit()
+    return day_off
+
+
+@router.delete("/{day_id}/day-off", status_code=204, response_class=Response)
+async def remove_day_off(
+    day_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Remove the day-off record for a day (idempotent).
+
+    Args:
+        day_id: Primary key of the target Day.
+        db: Injected async database session.
+    """
+    service = DayService(db)
+    await service.remove_day_off(day_id)
+    await db.commit()
+    return Response(status_code=204)
