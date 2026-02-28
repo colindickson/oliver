@@ -15,17 +15,27 @@ from app.services.tag_service import TagService
 from oliver_shared import STATUS_PENDING, normalize_tag_name
 
 
-def compute_next_run(current: date_type, recurrence: str) -> date_type:
-    """Return the next occurrence date given the current date and recurrence type."""
+def compute_next_run(current: date_type, recurrence: str, anchor_day: int = 0) -> date_type:
+    """Return the next occurrence date given the current date and recurrence type.
+
+    Args:
+        current: The current next_run_date to advance from.
+        recurrence: One of "weekly", "bi_weekly", "monthly".
+        anchor_day: For monthly recurrence, the target day-of-month from the original
+            anchor_date. Prevents drift when advancing through short months (e.g. a
+            Jan 31 schedule lands on Feb 28, but should advance to Mar 31 not Mar 28).
+            When 0 (default), falls back to current.day.
+    """
     if recurrence == "weekly":
         return current + timedelta(days=7)
     if recurrence == "bi_weekly":
         return current + timedelta(days=14)
-    # monthly: same day next month, clamped to last day of month
+    # monthly: target the anchor day-of-month, clamped to last day of the next month
     month = current.month % 12 + 1
     year = current.year + (current.month // 12)
     max_day = monthrange(year, month)[1]
-    return date_type(year, month, min(current.day, max_day))
+    target_day = anchor_day if anchor_day > 0 else current.day
+    return date_type(year, month, min(target_day, max_day))
 
 
 class TemplateService:

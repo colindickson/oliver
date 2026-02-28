@@ -354,6 +354,12 @@ def test_compute_next_run_monthly_normal():
     assert compute_next_run(_date(2026, 3, 15), "monthly") == _date(2026, 4, 15)
 
 
+def test_compute_next_run_monthly_no_drift():
+    """Monthly schedule with anchor_day=31 should not drift after short months."""
+    # Feb 28 (clamped from Jan 31) → should return Mar 31, not Mar 28
+    assert compute_next_run(_date(2026, 2, 28), "monthly", anchor_day=31) == _date(2026, 3, 31)
+
+
 # ---------------------------------------------------------------------------
 # Schedule CRUD API endpoints
 # ---------------------------------------------------------------------------

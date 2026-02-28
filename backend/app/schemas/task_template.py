@@ -63,7 +63,7 @@ class ScheduleResponse(BaseModel):
 
     id: int
     template_id: int
-    recurrence: str
+    recurrence: RecurrenceType
     anchor_date: date_type
     next_run_date: date_type
     created_at: datetime

@@ -347,6 +347,9 @@ class DayService:
             if schedule.next_run_date == target_date and not is_day_off:
                 template = await self._db.get(TaskTemplate, schedule.template_id)
                 if template and template.category:
+                    # Templates with no category are silently skipped — the cursor
+                    # still advances. To avoid lost occurrences, always set a category
+                    # on templates before scheduling them.
                     await template_service.instantiate(
                         template=template,
                         day_id=day.id,
@@ -354,10 +357,11 @@ class DayService:
                         flush_only=True,
                     )
 
-            # Advance next_run_date until it is strictly past target_date
+            # Advance next_run_date until it is strictly past target_date.
+            # Pass anchor_date.day so monthly schedules don't drift after short months.
             while schedule.next_run_date <= target_date:
                 schedule.next_run_date = compute_next_run(
-                    schedule.next_run_date, schedule.recurrence
+                    schedule.next_run_date, schedule.recurrence, schedule.anchor_date.day
                 )
 
         await self._db.flush()  # commit is handled by the route handler (days.py)
