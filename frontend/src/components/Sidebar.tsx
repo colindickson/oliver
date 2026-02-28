@@ -4,6 +4,7 @@ import { useNavigate, NavLink, useLocation, Link } from 'react-router-dom'
 import { dayApi, settingsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
+import { useMobile } from '../contexts/MobileContext'
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -84,6 +85,9 @@ function MiniDay({ date, tasks, isToday, onClick }: MiniDayProps) {
 // -----------------------------------------------------------------------------
 
 export function Sidebar() {
+  const isMobile = useMobile()
+  if (isMobile) return null
+
   const navigate = useNavigate()
   const location = useLocation()
   const [viewDate, setViewDate] = useState(new Date())
