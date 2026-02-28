@@ -35,6 +35,7 @@ export function ScheduleModal({ template, onClose }: Props) {
       templatesApi.createSchedule(template.id, { recurrence, anchor_date: anchorDate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules', template.id] })
+      qc.invalidateQueries({ queryKey: ['schedule-counts'] })
       qc.invalidateQueries({ queryKey: ['templates'] })
       setError('')
     },
@@ -46,6 +47,7 @@ export function ScheduleModal({ template, onClose }: Props) {
       templatesApi.deleteSchedule(template.id, scheduleId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules', template.id] })
+      qc.invalidateQueries({ queryKey: ['schedule-counts'] })
       qc.invalidateQueries({ queryKey: ['templates'] })
     },
   })
