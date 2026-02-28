@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
+from datetime import date as date_type, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +13,19 @@ from app.models.task import Task
 from app.models.task_template import TaskTemplate
 from app.services.tag_service import TagService
 from oliver_shared import STATUS_PENDING, normalize_tag_name
+
+
+def compute_next_run(current: date_type, recurrence: str) -> date_type:
+    """Return the next occurrence date given the current date and recurrence type."""
+    if recurrence == "weekly":
+        return current + timedelta(days=7)
+    if recurrence == "bi_weekly":
+        return current + timedelta(days=14)
+    # monthly: same day next month, clamped to last day of month
+    month = current.month % 12 + 1
+    year = current.year + (current.month // 12)
+    max_day = monthrange(year, month)[1]
+    return date_type(year, month, min(current.day, max_day))
 
 
 class TemplateService:

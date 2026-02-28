@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, date as _date, datetime, timezone
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -12,6 +12,7 @@ from app.main import app
 from app.database import Base, get_db
 from app.models import Day, Task  # noqa: F401 — register all tables
 from app.models.task_template import TaskTemplate  # noqa: F401
+from app.services.template_service import compute_next_run
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -330,3 +331,24 @@ async def test_schedule_model_fields(db_session: AsyncSession) -> None:
     assert schedule.recurrence == "weekly"
     assert schedule.anchor_date == date(2026, 3, 3)
     assert schedule.next_run_date == date(2026, 3, 3)
+
+
+# ---------------------------------------------------------------------------
+# compute_next_run utility
+# ---------------------------------------------------------------------------
+
+
+def test_compute_next_run_weekly():
+    assert compute_next_run(_date(2026, 3, 2), "weekly") == _date(2026, 3, 9)
+
+
+def test_compute_next_run_bi_weekly():
+    assert compute_next_run(_date(2026, 3, 2), "bi_weekly") == _date(2026, 3, 16)
+
+
+def test_compute_next_run_monthly():
+    assert compute_next_run(_date(2026, 1, 31), "monthly") == _date(2026, 2, 28)
+
+
+def test_compute_next_run_monthly_normal():
+    assert compute_next_run(_date(2026, 3, 15), "monthly") == _date(2026, 4, 15)
