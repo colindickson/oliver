@@ -15,6 +15,7 @@ import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { NotificationBanner } from '../components/NotificationBanner'
+import { useTimerDisplay } from '../hooks/useTimerDisplay'
 
 interface TaskItemProps {
   task: Task
@@ -290,6 +291,7 @@ export function DayDetail() {
   const [showDayOffForm, setShowDayOffForm] = useState(false)
 
   const isMobile = useMobile()
+  const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<typeof categories[number]['key']>('deep_work')
 
   const upsertDayOff = useMutation({
@@ -519,7 +521,7 @@ export function DayDetail() {
           )}
         </div>
 
-        <MobileTimerStrip />
+        {showTimer && <MobileTimerStrip />}
         <NotificationBanner />
         <BottomTabBar />
       </div>

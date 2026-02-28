@@ -5,6 +5,7 @@ import { dayApi, settingsApi, type DayResponse, type Task } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
 import { useMobile } from '../contexts/MobileContext'
+import { useTimerDisplay } from '../hooks/useTimerDisplay'
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -90,6 +91,7 @@ export function Sidebar() {
   const [viewDate, setViewDate] = useState(new Date())
   const { theme, toggleTheme } = useTheme()
   const isMobile = useMobile()
+  const { showTimer } = useTimerDisplay()
 
   const { data: days = [] } = useQuery({
     queryKey: ['days', 'all'],
@@ -372,8 +374,8 @@ export function Sidebar() {
 
       </div>{/* end scrollable content */}
 
-      {/* Timer - always visible at bottom */}
-      <SidebarTimer />
+      {/* Timer - conditionally visible at bottom */}
+      {showTimer && <SidebarTimer />}
     </aside>
   )
 }

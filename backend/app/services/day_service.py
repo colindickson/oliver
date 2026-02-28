@@ -25,6 +25,7 @@ from app.models.task_template import TaskTemplate, TemplateSchedule
 from app.services.template_service import compute_next_run, TemplateService
 
 RECURRING_DAYS_OFF_KEY = "recurring_days_off"
+TIMER_DISPLAY_KEY = "timer_display"
 
 
 class DayService:
@@ -264,6 +265,39 @@ class DayService:
             select(DayOff).order_by(DayOff.day_id.desc())
         )
         return list(result.scalars().all())
+
+    async def get_timer_display(self) -> bool:
+        """Return whether the focus timer should be displayed.
+
+        Returns:
+            True (default) if the timer should be shown, False if hidden.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
+        )
+        if setting is None:
+            return True
+        return json.loads(setting.value)
+
+    async def set_timer_display(self, enabled: bool) -> bool:
+        """Save the timer display preference to settings.
+
+        Args:
+            enabled: Whether the timer should be displayed.
+
+        Returns:
+            The saved boolean value.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
+        )
+        if setting:
+            setting.value = json.dumps(enabled)
+        else:
+            setting = Setting(key=TIMER_DISPLAY_KEY, value=json.dumps(enabled))
+            self._db.add(setting)
+        await self._db.flush()
+        return enabled
 
     async def get_recurring_days_off(self) -> list[str]:
         """Return the list of recurring off weekday names from settings.

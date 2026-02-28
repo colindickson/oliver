@@ -114,6 +114,10 @@ export const settingsApi = {
     api.get<{ days: string[] }>('/settings/recurring-days-off').then(r => r.data),
   setRecurringDaysOff: (days: string[]) =>
     api.put<{ days: string[] }>('/settings/recurring-days-off', { days }).then(r => r.data),
+  getTimerDisplay: () =>
+    api.get<{ enabled: boolean }>('/settings/timer-display').then(r => r.data),
+  setTimerDisplay: (enabled: boolean) =>
+    api.put<{ enabled: boolean }>('/settings/timer-display', { enabled }).then(r => r.data),
 }
 
 export const taskApi = {

@@ -12,6 +12,7 @@ import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
+import { useTimerDisplay } from '../hooks/useTimerDisplay'
 
 interface ColumnConfig {
   title: string
@@ -37,6 +38,7 @@ export function Today() {
   const qc = useQueryClient()
   const { theme } = useTheme()
   const isMobile = useMobile()
+  const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
 
   const { data: day, isLoading } = useQuery({
@@ -293,7 +295,7 @@ export function Today() {
           </div>
         </div>
 
-        <MobileTimerStrip />
+        {showTimer && <MobileTimerStrip />}
         <BottomTabBar />
         <NotificationBanner />
       </div>

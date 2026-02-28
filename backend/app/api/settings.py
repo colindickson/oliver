@@ -40,6 +40,54 @@ class RecurringDaysOffUpsert(BaseModel):
         return v
 
 
+class TimerDisplayResponse(BaseModel):
+    """Response schema for timer display setting."""
+
+    enabled: bool
+
+
+class TimerDisplayUpdate(BaseModel):
+    """Request schema for updating timer display setting."""
+
+    enabled: bool
+
+
+@router.get("/timer-display", response_model=TimerDisplayResponse)
+async def get_timer_display(
+    db: AsyncSession = Depends(get_db),
+) -> TimerDisplayResponse:
+    """Return whether the focus timer should be displayed.
+
+    Args:
+        db: Injected async database session.
+
+    Returns:
+        A TimerDisplayResponse with the enabled boolean.
+    """
+    service = DayService(db)
+    return TimerDisplayResponse(enabled=await service.get_timer_display())
+
+
+@router.put("/timer-display", response_model=TimerDisplayResponse)
+async def set_timer_display(
+    payload: TimerDisplayUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> TimerDisplayResponse:
+    """Save the timer display preference.
+
+    Args:
+        payload: The enabled boolean to store.
+        db: Injected async database session.
+
+    Returns:
+        A TimerDisplayResponse with the saved boolean.
+    """
+    service = DayService(db)
+    enabled = await service.set_timer_display(payload.enabled)
+    await db.commit()
+    return TimerDisplayResponse(enabled=enabled)
+
+
 @router.get("/recurring-days-off", response_model=RecurringDaysOffResponse)
 async def get_recurring_days_off(
     db: AsyncSession = Depends(get_db),

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, templatesApi, dayApi, type TaskTemplate } from '../api/client'
+import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { Sidebar } from '../components/Sidebar'
 import { TemplateModal } from '../components/TemplateModal'
 import { ScheduleModal } from '../components/ScheduleModal'
@@ -95,6 +96,8 @@ export function Settings() {
       setTimeout(() => setSaved(false), 1500)
     },
   })
+
+  const { showTimer, toggle: toggleTimer } = useTimerDisplay()
 
   function toggle(day: string) {
     const next = new Set(recurringDays)
@@ -284,6 +287,27 @@ export function Settings() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Focus Timer card */}
+            <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">
+              <h2 className="text-base font-semibold text-stone-200 mb-1">
+                Display Focus Timer?
+              </h2>
+              <p className="text-sm text-stone-500 mb-4">
+                Show or hide the focus timer in the sidebar and mobile strip.
+              </p>
+              <button
+                type="button"
+                onClick={() => toggleTimer.mutate(!showTimer)}
+                className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150
+                  ${showTimer
+                    ? 'bg-terracotta-500 text-white shadow-glow'
+                    : 'bg-stone-700/60 text-stone-400 hover:bg-stone-700'
+                  }`}
+              >
+                {showTimer ? 'On' : 'Off'}
+              </button>
             </div>
           </div>
 
@@ -567,6 +591,27 @@ export function Settings() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Focus Timer card */}
+          <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6 mt-6">
+            <h2 className="text-base font-semibold text-stone-700 dark:text-stone-200 mb-1">
+              Display Focus Timer?
+            </h2>
+            <p className="text-sm text-stone-400 dark:text-stone-500 mb-4">
+              Show or hide the focus timer in the sidebar and mobile strip.
+            </p>
+            <button
+              type="button"
+              onClick={() => toggleTimer.mutate(!showTimer)}
+              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150
+                ${showTimer
+                  ? 'bg-terracotta-500 text-white shadow-glow'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-700/60 dark:text-stone-400 dark:hover:bg-stone-700'
+                }`}
+            >
+              {showTimer ? 'On' : 'Off'}
+            </button>
           </div>
         </div>
       </main>
