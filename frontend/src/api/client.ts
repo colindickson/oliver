@@ -308,6 +308,17 @@ export interface TemplateUpdate {
   tags?: string[] | null
 }
 
+export type RecurrenceType = 'weekly' | 'bi_weekly' | 'monthly'
+
+export interface TemplateSchedule {
+  id: number
+  template_id: number
+  recurrence: RecurrenceType
+  anchor_date: string   // ISO date string YYYY-MM-DD
+  next_run_date: string // ISO date string YYYY-MM-DD
+  created_at: string
+}
+
 export const templatesApi = {
   list: (search?: string) =>
     api.get<TaskTemplate[]>('/templates', { params: search ? { search } : undefined }).then(r => r.data),
@@ -321,4 +332,10 @@ export const templatesApi = {
     api.delete(`/templates/${id}`).then(r => r.data),
   instantiate: (id: number, day_id: number, category?: string) =>
     api.post<Task>(`/templates/${id}/instantiate`, { day_id, category }).then(r => r.data),
+  listSchedules: (templateId: number) =>
+    api.get<TemplateSchedule[]>(`/templates/${templateId}/schedules`).then(r => r.data),
+  createSchedule: (templateId: number, payload: { recurrence: RecurrenceType; anchor_date: string }) =>
+    api.post<TemplateSchedule>(`/templates/${templateId}/schedules`, payload).then(r => r.data),
+  deleteSchedule: (templateId: number, scheduleId: number) =>
+    api.delete(`/templates/${templateId}/schedules/${scheduleId}`).then(r => r.data),
 }
