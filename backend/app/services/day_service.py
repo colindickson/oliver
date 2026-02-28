@@ -351,6 +351,7 @@ class DayService:
                         template=template,
                         day_id=day.id,
                         category_override=None,
+                        flush_only=True,
                     )
 
             # Advance next_run_date until it is strictly past target_date
@@ -359,4 +360,4 @@ class DayService:
                     schedule.next_run_date, schedule.recurrence
                 )
 
-        await self._db.commit()
+        await self._db.flush()  # commit is handled by the route handler (days.py)

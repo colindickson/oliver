@@ -104,12 +104,18 @@ class TemplateService:
         template: TaskTemplate,
         day_id: int,
         category_override: str | None,
+        *,
+        flush_only: bool = False,
     ) -> Task:
         """Create a Task from a template.
 
         Uses category_override if provided, else template.category.
         Raises ValueError if no category is available.
         Places the task at the end of its category column.
+
+        Args:
+            flush_only: If True, flush instead of commit (for callers that manage
+                their own transaction, e.g. apply_due_schedules).
         """
         category = category_override if category_override is not None else template.category
         if category is None:
@@ -135,8 +141,11 @@ class TemplateService:
         )
         task.tags = tag_objects
         self._db.add(task)
-        await self._db.commit()
-        await self._db.refresh(task)
+        if flush_only:
+            await self._db.flush()
+        else:
+            await self._db.commit()
+            await self._db.refresh(task)
         return task
 
     async def list_schedules(self, template_id: int) -> "list[TemplateSchedule]":
