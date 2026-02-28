@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.task import TaskResponse
-from app.schemas.task_template import InstantiatePayload, TemplateCreate, TemplateResponse, TemplateUpdate
+from app.schemas.task_template import InstantiatePayload, ScheduleCreate, ScheduleResponse, TemplateCreate, TemplateResponse, TemplateUpdate
 from app.services.template_service import TemplateService
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
@@ -104,3 +104,45 @@ async def instantiate_template(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return task
+
+
+@router.get("/{template_id}/schedules", response_model=list[ScheduleResponse])
+async def list_schedules(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[ScheduleResponse]:
+    """List all recurrence schedules for a template."""
+    service = TemplateService(db)
+    await _get_template_or_404(template_id, service)
+    return await service.list_schedules(template_id)
+
+
+@router.post("/{template_id}/schedules", response_model=ScheduleResponse, status_code=201)
+async def create_schedule(
+    template_id: int,
+    body: ScheduleCreate,
+    db: AsyncSession = Depends(get_db),
+) -> ScheduleResponse:
+    """Create a new recurrence schedule for a template."""
+    service = TemplateService(db)
+    await _get_template_or_404(template_id, service)
+    return await service.create_schedule(
+        template_id=template_id,
+        recurrence=body.recurrence,
+        anchor_date=body.anchor_date,
+    )
+
+
+@router.delete("/{template_id}/schedules/{schedule_id}")
+async def delete_schedule(
+    template_id: int,
+    schedule_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Delete a recurrence schedule."""
+    service = TemplateService(db)
+    await _get_template_or_404(template_id, service)
+    deleted = await service.delete_schedule(template_id, schedule_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return {"deleted": True}

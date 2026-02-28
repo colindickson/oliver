@@ -352,3 +352,94 @@ def test_compute_next_run_monthly():
 
 def test_compute_next_run_monthly_normal():
     assert compute_next_run(_date(2026, 3, 15), "monthly") == _date(2026, 4, 15)
+
+
+# ---------------------------------------------------------------------------
+# Schedule CRUD API endpoints
+# ---------------------------------------------------------------------------
+
+
+async def test_create_schedule(client: AsyncClient) -> None:
+    """POST /api/templates/{id}/schedules creates a schedule."""
+    template = (await client.post("/api/templates", json={"title": "Yoga"})).json()
+
+    response = await client.post(
+        f"/api/templates/{template['id']}/schedules",
+        json={"recurrence": "weekly", "anchor_date": "2026-03-03"},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["recurrence"] == "weekly"
+    assert body["anchor_date"] == "2026-03-03"
+    assert body["next_run_date"] == "2026-03-03"
+    assert body["template_id"] == template["id"]
+    assert "id" in body
+
+
+async def test_create_schedule_invalid_recurrence(client: AsyncClient) -> None:
+    """POST /api/templates/{id}/schedules with bad recurrence returns 422."""
+    template = (await client.post("/api/templates", json={"title": "Yoga"})).json()
+
+    response = await client.post(
+        f"/api/templates/{template['id']}/schedules",
+        json={"recurrence": "daily", "anchor_date": "2026-03-03"},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_list_schedules(client: AsyncClient) -> None:
+    """GET /api/templates/{id}/schedules lists all schedules for a template."""
+    template = (await client.post("/api/templates", json={"title": "Yoga"})).json()
+    await client.post(
+        f"/api/templates/{template['id']}/schedules",
+        json={"recurrence": "weekly", "anchor_date": "2026-03-03"},
+    )
+    await client.post(
+        f"/api/templates/{template['id']}/schedules",
+        json={"recurrence": "monthly", "anchor_date": "2026-03-03"},
+    )
+
+    response = await client.get(f"/api/templates/{template['id']}/schedules")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+async def test_list_schedules_empty(client: AsyncClient) -> None:
+    """GET /api/templates/{id}/schedules returns [] when none exist."""
+    template = (await client.post("/api/templates", json={"title": "Empty"})).json()
+
+    response = await client.get(f"/api/templates/{template['id']}/schedules")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_delete_schedule(client: AsyncClient) -> None:
+    """DELETE /api/templates/{id}/schedules/{sid} removes the schedule."""
+    template = (await client.post("/api/templates", json={"title": "Yoga"})).json()
+    schedule = (await client.post(
+        f"/api/templates/{template['id']}/schedules",
+        json={"recurrence": "weekly", "anchor_date": "2026-03-03"},
+    )).json()
+
+    del_resp = await client.delete(
+        f"/api/templates/{template['id']}/schedules/{schedule['id']}"
+    )
+    assert del_resp.status_code == 200
+    assert del_resp.json()["deleted"] is True
+
+    list_resp = await client.get(f"/api/templates/{template['id']}/schedules")
+    assert list_resp.json() == []
+
+
+async def test_delete_schedule_not_found(client: AsyncClient) -> None:
+    """DELETE /api/templates/1/schedules/9999 returns 404."""
+    template = (await client.post("/api/templates", json={"title": "Yoga"})).json()
+
+    response = await client.delete(
+        f"/api/templates/{template['id']}/schedules/9999"
+    )
+    assert response.status_code == 404
