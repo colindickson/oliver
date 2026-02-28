@@ -120,7 +120,7 @@ export function Settings() {
       <>
       <div className="flex flex-col h-screen bg-stone-900">
         <MobileHeader title="Settings" />
-        <div className="flex-1 overflow-y-auto pb-[56px]">
+        <div className="flex-1 overflow-y-auto pb-14">
           <div className="px-4 py-4 space-y-8">
             {/* Task Templates card */}
             <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">

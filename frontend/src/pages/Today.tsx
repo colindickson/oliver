@@ -175,9 +175,20 @@ export function Today() {
   }
 
   if (isLoading || !day) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col h-screen bg-stone-900">
+          <MobileHeader title="Today" />
+          <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
+            Loading...
+          </div>
+          <BottomTabBar />
+        </div>
+      )
+    }
     return (
       <div className="flex h-screen overflow-hidden">
-        {!isMobile && <Sidebar />}
+        <Sidebar />
         <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
           Loading...
         </div>

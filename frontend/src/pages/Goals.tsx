@@ -77,7 +77,7 @@ export function Goals() {
     return (
       <div className="flex flex-col h-screen bg-stone-900">
         <MobileHeader title="Goals" />
-        <div className="flex-1 overflow-y-auto pb-[56px]">
+        <div className="flex-1 overflow-y-auto pb-14">
           <div className="px-4 py-3 space-y-1.5">
             <div className="flex items-center justify-between py-2">
               <h1 className="text-base font-semibold text-stone-800 dark:text-stone-100">Goals</h1>

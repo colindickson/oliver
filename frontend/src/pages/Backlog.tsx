@@ -445,7 +445,7 @@ export function Backlog() {
     return (
       <div className="flex flex-col h-screen bg-stone-900">
         <MobileHeader title="Backlog" />
-        <div className="flex-1 overflow-y-auto pb-[56px]">
+        <div className="flex-1 overflow-y-auto pb-14">
           <div className="px-4 py-4">
             <div className="max-w-2xl space-y-6">
               {/* Search and filters */}

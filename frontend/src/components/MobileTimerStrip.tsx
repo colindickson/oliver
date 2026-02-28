@@ -84,7 +84,7 @@ export function MobileTimerStrip() {
     : activeTask?.title
 
   return (
-    <div className="fixed bottom-[56px] left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-sm border-t border-stone-700/50 px-4 py-2 flex items-center gap-3">
+    <div className="fixed bottom-14 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-sm border-t border-stone-700/50 px-4 py-2 flex items-center gap-3">
       {/* Status dot */}
       <div
         className={`w-2 h-2 rounded-full flex-shrink-0 ${

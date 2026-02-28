@@ -14,6 +14,7 @@ import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
+import { NotificationBanner } from '../components/NotificationBanner'
 
 interface TaskItemProps {
   task: Task
@@ -344,15 +345,19 @@ export function DayDetail() {
 
         {/* Back button + progress */}
         <div className="px-4 py-2 flex items-center justify-between border-b border-stone-700/50 flex-shrink-0">
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-stone-400 hover:text-stone-200 flex items-center gap-1 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 4L6 8L10 12" />
-            </svg>
-            Back
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/')} className="text-sm text-stone-400 hover:text-stone-200 flex items-center gap-1 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 4L6 8L10 12" />
+              </svg>
+              Back
+            </button>
+            {isFuture && (
+              <span className="text-xs font-medium text-ocean-300 bg-ocean-900/20 px-2 py-0.5 rounded-full">
+                Planning
+              </span>
+            )}
+          </div>
           {day && totalCount > 0 && (
             <span className="text-sm text-stone-400 tabular-nums">
               {completedCount}/{totalCount} done
@@ -435,12 +440,87 @@ export function DayDetail() {
                 <DayRating key={`rating-${day.id}`} dayId={day.id} initialRating={day.rating}
                   onSave={(dayId, rating) => upsertRating.mutateAsync({ dayId, rating })}
                 />
+
+                {/* Day Off */}
+                <div className="rounded-2xl border border-stone-700/50 bg-stone-800/50 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wide">Day Off</h3>
+                    {day.day_off && (
+                      <button
+                        onClick={() => removeDayOff.mutate()}
+                        disabled={removeDayOff.isPending}
+                        className="text-xs text-stone-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {day.day_off ? (
+                    <p className="text-sm text-stone-200">
+                      <span className="font-medium capitalize">{day.day_off.reason.replace('_', ' ')}</span>
+                      {' '}— this day is marked as off
+                      {day.day_off.note && <span className="text-xs text-stone-400 block mt-1">{day.day_off.note}</span>}
+                    </p>
+                  ) : showDayOffForm ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {(['weekend', 'personal_day', 'vacation', 'holiday', 'sick_day'] as DayOffReason[]).map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setDayOffReason(r)}
+                            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                              dayOffReason === r
+                                ? 'bg-stone-600 border-stone-500 text-white'
+                                : 'border-stone-600 text-stone-400 hover:border-stone-500'
+                            }`}
+                          >
+                            {r.replace('_', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={dayOffNote}
+                        onChange={e => setDayOffNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        className="w-full text-sm border border-stone-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-stone-400 bg-stone-700 text-stone-100 placeholder-stone-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => upsertDayOff.mutate({ reason: dayOffReason, note: dayOffNote || undefined })}
+                          disabled={upsertDayOff.isPending}
+                          className="text-xs bg-stone-600 text-white rounded-lg px-3 py-1.5 hover:bg-stone-500 disabled:opacity-50 transition-colors"
+                        >
+                          Mark as off
+                        </button>
+                        <button
+                          onClick={() => { setShowDayOffForm(false); setDayOffNote('') }}
+                          className="text-xs text-stone-400 hover:text-stone-200 transition-colors px-2"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowDayOffForm(true)}
+                      className="text-sm text-stone-500 hover:text-stone-300 flex items-center gap-1.5 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6.5 2v9M2 6.5h9" strokeLinecap="round" />
+                      </svg>
+                      Mark this day as off
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}
         </div>
 
         <MobileTimerStrip />
+        <NotificationBanner />
         <BottomTabBar />
       </div>
     )

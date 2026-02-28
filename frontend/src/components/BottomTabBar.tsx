@@ -61,7 +61,7 @@ const tabs = [
 
 export function BottomTabBar() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-700/50 flex items-stretch">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 h-14 bg-stone-900 border-t border-stone-700/50 flex items-stretch">
       {tabs.map(tab => (
         <NavLink
           key={tab.to}

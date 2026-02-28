@@ -337,7 +337,7 @@ export function Analytics() {
     return (
       <div className="flex flex-col h-screen bg-stone-900">
         <MobileHeader title="Analytics" />
-        <div className="flex-1 overflow-y-auto pb-[56px]">
+        <div className="flex-1 overflow-y-auto pb-14">
           <div className="px-4 py-4 space-y-10">
             {/* Section: Overview */}
             <section>

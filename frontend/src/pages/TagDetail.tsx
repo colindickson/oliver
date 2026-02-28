@@ -22,8 +22,8 @@ export function TagDetail() {
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen bg-stone-900">
-        <MobileHeader title={tagName ?? 'Tag'} />
-        <div className="flex-1 overflow-y-auto pb-[56px]">
+        <MobileHeader title={decoded ? `#${decoded}` : 'Tag'} />
+        <div className="flex-1 overflow-y-auto pb-14">
           <div className="px-4 py-4">
             {isLoading && (
               <div className="flex items-center justify-center h-48 text-stone-400 text-sm">
