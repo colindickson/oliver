@@ -301,3 +301,32 @@ async def test_instantiate_places_task_at_end(client: AsyncClient, day: Day) -> 
 
     assert r1.json()["order_index"] == 0
     assert r2.json()["order_index"] == 1
+
+
+# ---------------------------------------------------------------------------
+# TemplateSchedule model existence
+# ---------------------------------------------------------------------------
+
+async def test_schedule_model_fields(db_session: AsyncSession) -> None:
+    """TemplateSchedule can be created with required fields."""
+    from app.models.task_template import TemplateSchedule
+    from datetime import date
+
+    template = TaskTemplate(title="Yoga")
+    db_session.add(template)
+    await db_session.flush()
+
+    schedule = TemplateSchedule(
+        template_id=template.id,
+        recurrence="weekly",
+        anchor_date=date(2026, 3, 3),
+        next_run_date=date(2026, 3, 3),
+    )
+    db_session.add(schedule)
+    await db_session.commit()
+    await db_session.refresh(schedule)
+
+    assert schedule.id is not None
+    assert schedule.recurrence == "weekly"
+    assert schedule.anchor_date == date(2026, 3, 3)
+    assert schedule.next_run_date == date(2026, 3, 3)
