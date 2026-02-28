@@ -139,7 +139,7 @@ class TemplateService:
         await self._db.refresh(task)
         return task
 
-    async def list_schedules(self, template_id: int) -> list:
+    async def list_schedules(self, template_id: int) -> "list[TemplateSchedule]":
         """Return all schedules for a template."""
         from app.models.task_template import TemplateSchedule
         result = await self._db.execute(
