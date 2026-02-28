@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dayApi, taskApi, backlogApi, templatesApi } from '../api/client'
 import type { Task, TaskTemplate } from '../api/client'
@@ -8,6 +8,10 @@ import { NotificationBanner } from '../components/NotificationBanner'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
 import { useTheme } from '../contexts/ThemeContext'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
+import { MobileTimerStrip } from '../components/MobileTimerStrip'
 
 interface ColumnConfig {
   title: string
@@ -32,6 +36,8 @@ function formatDate(date: Date): string {
 export function Today() {
   const qc = useQueryClient()
   const { theme } = useTheme()
+  const isMobile = useMobile()
+  const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
 
   const { data: day, isLoading } = useQuery({
     queryKey: ['day', 'today'],
@@ -171,7 +177,7 @@ export function Today() {
   if (isLoading || !day) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <Sidebar />
+        {!isMobile && <Sidebar />}
         <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
           Loading...
         </div>
@@ -183,6 +189,105 @@ export function Today() {
   const totalTasks = day.tasks.length
   const completedTasks = day.tasks.filter(t => t.status === 'completed').length
   const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+  // Mobile layout
+  if (isMobile) {
+    const activeColumn = columns.find(c => c.category === activeTab)!
+    return (
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title="Today" />
+
+        {/* Date + progress */}
+        <div className="px-4 py-3 flex items-center justify-between border-b border-stone-700/50 flex-shrink-0">
+          <p className="text-sm text-stone-400">{formatDate(new Date())}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-stone-200 tabular-nums">
+              {completedTasks}<span className="text-stone-500">/{totalTasks}</span>
+            </span>
+            <div className="relative w-8 h-8">
+              <svg className="w-8 h-8 -rotate-90" viewBox="0 0 48 48">
+                <circle cx="24" cy="24" r="20" fill="none" stroke="#44403c" strokeWidth="5" />
+                <circle
+                  cx="24" cy="24" r="20" fill="none"
+                  stroke={progressPct === 100 ? '#4a8a4a' : '#e86b3a'}
+                  strokeWidth="5" strokeLinecap="round"
+                  strokeDasharray={`${progressPct * 1.256} 125.6`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-stone-300">
+                {progressPct}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab strip */}
+        <div className="flex border-b border-stone-700/50 flex-shrink-0">
+          {columns.map(col => (
+            <button
+              key={col.category}
+              onClick={() => setActiveTab(col.category)}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                activeTab === col.category
+                  ? col.color === 'blue'
+                    ? 'text-ocean-400 border-b-2 border-ocean-400'
+                    : col.color === 'amber'
+                      ? 'text-terracotta-400 border-b-2 border-terracotta-400'
+                      : 'text-moss-400 border-b-2 border-moss-400'
+                  : 'text-stone-500'
+              }`}
+            >
+              {col.title}
+            </button>
+          ))}
+        </div>
+
+        {/* Active column — scrollable */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[120px]">
+          <TaskColumn
+            title={activeColumn.title}
+            category={activeColumn.category}
+            tasks={day.tasks}
+            colorClass={activeColumn.color}
+            onAddTask={(title, desc, tags) => handleAddTask(activeColumn.category, title, desc, tags)}
+            onComplete={handleComplete}
+            onDelete={handleDelete}
+            onReorder={handleReorder}
+            onMoveToBacklog={handleMoveToBacklog}
+            onContinueTomorrow={handleContinueTomorrow}
+            onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeColumn.category)}
+            onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeColumn.category)}
+          />
+
+          {/* Notes + Rating always below tabs */}
+          <div className="mt-8 space-y-6">
+            <DayNotes
+              label="Notes"
+              dayId={day.id}
+              initialContent={day.notes?.content ?? ''}
+              onSave={(dayId, content) => upsertNotes.mutateAsync({ dayId, content })}
+            />
+            <DayNotes
+              label="Roadblocks"
+              dayId={day.id}
+              initialContent={day.roadblocks?.content ?? ''}
+              onSave={(dayId, content) => upsertRoadblocks.mutateAsync({ dayId, content })}
+            />
+            <DayRating
+              dayId={day.id}
+              initialRating={day.rating}
+              onSave={(dayId, rating) => upsertRating.mutateAsync({ dayId, rating })}
+            />
+          </div>
+        </div>
+
+        <MobileTimerStrip />
+        <BottomTabBar />
+        <NotificationBanner />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
