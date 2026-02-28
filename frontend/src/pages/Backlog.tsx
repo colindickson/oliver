@@ -5,6 +5,9 @@ import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { TagInput } from '../components/TagInput'
 import { ConfirmableDelete } from '../components/ConfirmableDelete'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
 
 // Category badge colors
 const categoryColors: Record<string, string> = {
@@ -367,6 +370,7 @@ export function Backlog() {
   const [search, setSearch] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [moveTask, setMoveTask] = useState<Task | null>(null)
+  const isMobile = useMobile()
 
   // Fetch backlog tasks
   const { data: tasks = [], isLoading } = useQuery({
@@ -436,6 +440,126 @@ export function Backlog() {
   // Filter tags to only show those that are used in backlog
   const backlogTagSet = new Set(tasks.flatMap(t => t.tags))
   const relevantTags = allTags.filter(t => backlogTagSet.has(t.name))
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title="Backlog" />
+        <div className="flex-1 overflow-y-auto pb-[56px]">
+          <div className="px-4 py-4">
+            <div className="max-w-2xl space-y-6">
+              {/* Search and filters */}
+              <div className="space-y-3">
+                {/* Search input */}
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <circle cx="6" cy="6" r="4" />
+                    <path d="M10 10L13 13" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search backlog..."
+                    className="w-full text-sm border border-stone-200 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-400"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M2 2L10 10M10 2L2 10" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Tag filter chips */}
+                {relevantTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTag(null)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                        selectedTag === null
+                          ? 'bg-terracotta-50 border-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/30 dark:border-terracotta-700/30 dark:text-terracotta-300'
+                          : 'border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {relevantTags.map(tag => (
+                      <button
+                        key={tag.name}
+                        type="button"
+                        onClick={() => setSelectedTag(selectedTag === tag.name ? null : tag.name)}
+                        className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                          selectedTag === tag.name
+                            ? 'bg-terracotta-50 border-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/30 dark:border-terracotta-700/30 dark:text-terracotta-300'
+                            : 'border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700'
+                        }`}
+                      >
+                        #{tag.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add task form */}
+              <AddTaskForm onAdd={handleAddTask} isLoading={createTask.isPending} />
+
+              {/* Task list */}
+              {isLoading ? (
+                <div className="text-center py-8 text-stone-400 text-sm">Loading...</div>
+              ) : tasks.length === 0 ? (
+                <div className="text-center py-8 text-stone-400 text-sm">
+                  {search || selectedTag
+                    ? 'No tasks match your filters'
+                    : 'Your backlog is empty. Add tasks above.'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tasks.map(task => (
+                    <BacklogTaskCard
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onMoveToDay={setMoveTask}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <BottomTabBar />
+
+        {/* Move to Day Modal */}
+        {moveTask && (
+          <MoveToDayModal
+            task={moveTask}
+            onClose={() => setMoveTask(null)}
+            onMove={handleMoveToDay}
+          />
+        )}
+
+        {/* Notification banner */}
+        <NotificationBanner />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">

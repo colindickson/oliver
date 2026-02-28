@@ -10,6 +10,9 @@ import type { DayResponse } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ExportModal } from '../components/ExportModal'
 import { useTheme } from '../contexts/ThemeContext'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
 
 // -----------------------------------------------------------------------------
 // Chart color palette
@@ -297,6 +300,7 @@ export function Analytics() {
   const [periodDays, setPeriodDays] = useState<7 | 30 | 90>(7)
   const [showExportModal, setShowExportModal] = useState(false)
   const { theme } = useTheme()
+  const isMobile = useMobile()
 
   const isDark = theme === 'dark'
   const gridColor = isDark ? '#292524' : '#e7e5e4'
@@ -328,6 +332,168 @@ export function Analytics() {
   const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'
   const chartTitle = 'text-sm font-medium text-stone-600 dark:text-stone-300 mb-4'
   const emptyChart = 'text-sm text-stone-400 flex items-center justify-center'
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title="Analytics" />
+        <div className="flex-1 overflow-y-auto pb-[56px]">
+          <div className="px-4 py-4 space-y-10">
+            {/* Section: Overview */}
+            <section>
+              <h2 className={sectionHeader}>Overview</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <SummaryCard
+                  label="Completion rate"
+                  value={`${summary?.completion_rate_pct ?? 0}%`}
+                  sub={`${summary?.completed_tasks ?? 0} of ${summary?.total_tasks ?? 0} tasks`}
+                  accent
+                />
+                <SummaryCard
+                  label="Days tracked"
+                  value={summary?.total_days_tracked ?? 0}
+                  sub={`in last ${periodDays} days`}
+                />
+                <SummaryCard
+                  label="Current streak"
+                  value={streaks?.current_streak ?? 0}
+                  sub={
+                    streaks?.current_streak === streaks?.longest_streak && (streaks?.current_streak ?? 0) > 0
+                      ? 'Personal best!'
+                      : `best: ${streaks?.longest_streak ?? 0}`
+                  }
+                />
+                <SummaryCard
+                  label="Longest streak"
+                  value={streaks?.longest_streak ?? 0}
+                  sub="days"
+                />
+              </div>
+            </section>
+
+            {/* Period selector */}
+            <div className="flex items-center bg-stone-100 dark:bg-stone-700 rounded-xl p-1 gap-0.5">
+              {PERIODS.map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setPeriodDays(value)}
+                  className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    periodDays === value
+                      ? 'bg-white dark:bg-stone-600 text-stone-800 dark:text-stone-100 shadow-soft'
+                      : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Section: Trends */}
+            <section>
+              <h2 className={sectionHeader}>Trends</h2>
+              <div className="space-y-6">
+                {/* Unified Trends Chart: completion rate (line) + energy (bar) + env icons */}
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>Completion Rate &amp; Energy</h3>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: OCEAN }} />
+                      <span className="text-xs text-stone-500 dark:text-stone-400">Completion %</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-sm opacity-70" style={{ backgroundColor: AMBER }} />
+                      <span className="text-xs text-stone-500 dark:text-stone-400">Energy (1–5)</span>
+                    </div>
+                  </div>
+                  {trendsData.length === 0 ? (
+                    <div className={`${emptyChart} h-[220px]`}>No data for this period</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <ComposedChart data={trendsData} margin={{ top: 24, right: 16, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                        <XAxis
+                          dataKey="date"
+                          height={60}
+                          interval={xAxisInterval(trendsData.length)}
+                          tick={(props) => (
+                            <TrendsTick
+                              {...props}
+                              trendsData={trendsData}
+                              tickColor={tickColor}
+                            />
+                          )}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          domain={[0, 100]}
+                          tickFormatter={v => `${v}%`}
+                          tick={{ fill: tickColor, fontSize: 11 }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          domain={[0, 5]}
+                          ticks={[1, 2, 3, 4, 5]}
+                          tick={{ fill: tickColor, fontSize: 11 }}
+                        />
+                        <Tooltip
+                          content={<TrendsTooltip trendsData={trendsData} isDark={isDark} />}
+                        />
+                        <Bar
+                          yAxisId="right"
+                          dataKey="energy"
+                          name="Energy"
+                          fill={AMBER}
+                          opacity={0.7}
+                          radius={[3, 3, 0, 0]}
+                        />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="completionRate"
+                          name="Completion %"
+                          stroke={OCEAN}
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls={false}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                {/* Task Volume by Category */}
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>Task Volume by Category</h3>
+                  {taskVolumeData.length === 0 ? (
+                    <div className={`${emptyChart} h-[220px]`}>No data for this period</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <ComposedChart data={taskVolumeData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fill: tickColor, fontSize: 11 }}
+                          interval={xAxisInterval(taskVolumeData.length)}
+                        />
+                        <YAxis yAxisId="left" allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={OCEAN} />
+                        <Bar yAxisId="left" dataKey="short_task" name="Short Task" stackId="a" fill={TERRACOTTA} />
+                        <Bar yAxisId="left" dataKey="maintenance" name="Maintenance" stackId="a" fill={MOSS} radius={[3, 3, 0, 0]} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+        <BottomTabBar />
+        {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">

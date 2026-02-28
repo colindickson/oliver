@@ -85,13 +85,11 @@ function MiniDay({ date, tasks, isToday, onClick }: MiniDayProps) {
 // -----------------------------------------------------------------------------
 
 export function Sidebar() {
-  const isMobile = useMobile()
-  if (isMobile) return null
-
   const navigate = useNavigate()
   const location = useLocation()
   const [viewDate, setViewDate] = useState(new Date())
   const { theme, toggleTheme } = useTheme()
+  const isMobile = useMobile()
 
   const { data: days = [] } = useQuery({
     queryKey: ['days', 'all'],
@@ -103,6 +101,10 @@ export function Sidebar() {
     queryFn: settingsApi.getRecurringDaysOff,
     staleTime: 5 * 60 * 1000,
   })
+
+  // All hooks called above — safe to early return now
+  if (isMobile) return null
+
   const recurringOffDays = new Set(recurringConfig?.days ?? [])
 
   // Build day map

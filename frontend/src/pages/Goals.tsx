@@ -3,6 +3,9 @@ import { Sidebar } from '../components/Sidebar'
 import { GoalCard } from '../components/GoalCard'
 import { GoalDetail } from '../components/GoalDetail'
 import { useGoals } from '../hooks/useGoals'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
 
 function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void; onCancel: () => void }) {
   const [title, setTitle] = useState('')
@@ -48,6 +51,7 @@ export function Goals() {
   const { goals, createGoal, deleteGoal } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
+  const isMobile = useMobile()
 
   const activeGoals = goals.filter(g => g.status === 'active')
   const completedGoals = goals.filter(g => g.status === 'completed')
@@ -67,6 +71,91 @@ export function Goals() {
         onSuccess: () => setSelectedGoalId(null),
       })
     }
+  }
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title="Goals" />
+        <div className="flex-1 overflow-y-auto pb-[56px]">
+          <div className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center justify-between py-2">
+              <h1 className="text-base font-semibold text-stone-800 dark:text-stone-100">Goals</h1>
+              <button
+                onClick={() => { setShowNewForm(true) }}
+                className="flex items-center gap-1 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+                </svg>
+                New Goal
+              </button>
+            </div>
+
+            {showNewForm && (
+              <NewGoalForm onCreate={handleCreate} onCancel={() => setShowNewForm(false)} />
+            )}
+
+            {goals.length === 0 && !showNewForm && (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <p className="text-sm text-stone-400 dark:text-stone-500">No goals yet.</p>
+                <button
+                  onClick={() => setShowNewForm(true)}
+                  className="mt-2 text-xs text-terracotta-500 dark:text-terracotta-400 hover:underline"
+                >
+                  Create your first goal
+                </button>
+              </div>
+            )}
+
+            {/* Active */}
+            {activeGoals.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+                  Active
+                </p>
+                {activeGoals.map(goal => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    isSelected={selectedGoalId === goal.id}
+                    onClick={() => setSelectedGoalId(goal.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Completed */}
+            {completedGoals.length > 0 && (
+              <div className="space-y-1.5 mt-3">
+                <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+                  Completed
+                </p>
+                {completedGoals.map(goal => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    isSelected={selectedGoalId === goal.id}
+                    onClick={() => setSelectedGoalId(goal.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {selectedGoalId !== null && (
+              <div className="mt-4">
+                <GoalDetail
+                  key={selectedGoalId}
+                  goalId={selectedGoalId}
+                  onDeleted={handleDeleted}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <BottomTabBar />
+      </div>
+    )
   }
 
   return (
