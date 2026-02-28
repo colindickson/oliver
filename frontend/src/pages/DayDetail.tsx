@@ -10,6 +10,10 @@ import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTaskEdit } from '../hooks/useTaskEdit'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
+import { MobileTimerStrip } from '../components/MobileTimerStrip'
 
 interface TaskItemProps {
   task: Task
@@ -284,6 +288,9 @@ export function DayDetail() {
   const [dayOffNote, setDayOffNote] = useState('')
   const [showDayOffForm, setShowDayOffForm] = useState(false)
 
+  const isMobile = useMobile()
+  const [activeTab, setActiveTab] = useState<typeof categories[number]['key']>('deep_work')
+
   const upsertDayOff = useMutation({
     mutationFn: ({ reason, note }: { reason: DayOffReason; note?: string }) =>
       dayApi.upsertDayOff(day!.id, reason, note),
@@ -323,6 +330,123 @@ export function DayDetail() {
   const totalCount = day?.tasks.length ?? 0
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
+  // Mobile layout
+  if (isMobile) {
+    const activeCat = categories.find(c => c.key === activeTab)!
+    const catTasks = day?.tasks.filter(t => t.category === activeTab) ?? []
+
+    return (
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title={day
+          ? new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Day'
+        } />
+
+        {/* Back button + progress */}
+        <div className="px-4 py-2 flex items-center justify-between border-b border-stone-700/50 flex-shrink-0">
+          <button
+            onClick={() => navigate('/')}
+            className="text-sm text-stone-400 hover:text-stone-200 flex items-center gap-1 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 4L6 8L10 12" />
+            </svg>
+            Back
+          </button>
+          {day && totalCount > 0 && (
+            <span className="text-sm text-stone-400 tabular-nums">
+              {completedCount}/{totalCount} done
+            </span>
+          )}
+        </div>
+
+        {/* Tab strip */}
+        <div className="flex border-b border-stone-700/50 flex-shrink-0">
+          {categories.map(cat => (
+            <button
+              key={cat.key}
+              onClick={() => setActiveTab(cat.key)}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                activeTab === cat.key ? `${cat.color} border-b-2 border-current` : 'text-stone-500'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Task list + notes */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[120px]">
+          {isLoading && <p className="text-stone-400 text-sm">Loading...</p>}
+          {isError && <p className="text-terracotta-400 text-sm">Could not load this day.</p>}
+
+          {day && (
+            <>
+              <div className={`rounded-2xl border ${activeCat.border} ${activeCat.bg} p-4 space-y-2`}>
+                {catTasks.length === 0 ? (
+                  <AddTaskForm
+                    category={activeCat.key}
+                    isOpen={addingCategory === activeCat.key}
+                    title={newTaskTitle}
+                    tags={newTaskTags}
+                    onOpen={() => openAdd(activeCat.key)}
+                    onTitleChange={setNewTaskTitle}
+                    onTagsChange={setNewTaskTags}
+                    onSubmit={() => handleAddTask(activeCat.key)}
+                    onCancel={cancelAdd}
+                  />
+                ) : (
+                  <>
+                    {catTasks.map(task => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        isFuture={isFuture}
+                        onToggleStatus={(t) => toggleStatus.mutate(t)}
+                        onDelete={(id) => deleteTask.mutate(id)}
+                      />
+                    ))}
+                    <AddTaskForm
+                      category={activeCat.key}
+                      isOpen={addingCategory === activeCat.key}
+                      title={newTaskTitle}
+                      tags={newTaskTags}
+                      onOpen={() => openAdd(activeCat.key)}
+                      onTitleChange={setNewTaskTitle}
+                      onTagsChange={setNewTaskTags}
+                      onSubmit={() => handleAddTask(activeCat.key)}
+                      onCancel={cancelAdd}
+                      mt
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Notes + Rating always below tabs */}
+              <div className="mt-8 space-y-6">
+                <DayNotes key={`notes-${day.id}`} label="Notes" dayId={day.id}
+                  initialContent={day.notes?.content ?? ''}
+                  onSave={(dayId, content) => upsertNotes.mutateAsync({ dayId, content })}
+                />
+                <DayNotes key={`roadblocks-${day.id}`} label="Roadblocks" dayId={day.id}
+                  initialContent={day.roadblocks?.content ?? ''}
+                  onSave={(dayId, content) => upsertRoadblocks.mutateAsync({ dayId, content })}
+                />
+                <DayRating key={`rating-${day.id}`} dayId={day.id} initialRating={day.rating}
+                  onSave={(dayId, rating) => upsertRating.mutateAsync({ dayId, rating })}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <MobileTimerStrip />
+        <BottomTabBar />
+      </div>
+    )
+  }
+
+  // Desktop return follows (existing — do NOT modify)
   return (
     <div className="flex h-screen overflow-hidden bg-stone-25 dark:bg-stone-900">
       <Sidebar />
