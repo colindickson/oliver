@@ -21,6 +21,8 @@ from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.roadblock import Roadblock
 from app.models.setting import Setting
+from app.models.task_template import TaskTemplate, TemplateSchedule
+from app.services.template_service import compute_next_run, TemplateService
 
 RECURRING_DAYS_OFF_KEY = "recurring_days_off"
 
@@ -59,6 +61,9 @@ class DayService:
             self._db.add(day)
             await self._db.flush()
             await self._db.refresh(day)
+
+        await self.apply_due_schedules(day, target_date)
+        await self._db.refresh(day)
         return day
 
     async def get_by_date(self, target_date: date) -> Day | None:
@@ -317,3 +322,41 @@ class DayService:
                     return candidate
             candidate += timedelta(days=1)
         return from_date + timedelta(days=1)  # unreachable fallback
+
+    async def apply_due_schedules(self, day: Day, target_date: date) -> None:
+        """Instantiate tasks for any schedules due on or before target_date.
+
+        For each schedule with next_run_date <= target_date:
+        - Creates a task if next_run_date == target_date AND day is not a day off
+        - Always advances next_run_date past target_date (catches missed occurrences)
+        Idempotent: once next_run_date advances past target_date, it won't re-match.
+        """
+        is_day_off = day.day_off is not None
+
+        result = await self._db.execute(
+            select(TemplateSchedule).where(TemplateSchedule.next_run_date <= target_date)
+        )
+        schedules = list(result.scalars().all())
+
+        if not schedules:
+            return
+
+        template_service = TemplateService(self._db)
+
+        for schedule in schedules:
+            if schedule.next_run_date == target_date and not is_day_off:
+                template = await self._db.get(TaskTemplate, schedule.template_id)
+                if template and template.category:
+                    await template_service.instantiate(
+                        template=template,
+                        day_id=day.id,
+                        category_override=None,
+                    )
+
+            # Advance next_run_date until it is strictly past target_date
+            while schedule.next_run_date <= target_date:
+                schedule.next_run_date = compute_next_run(
+                    schedule.next_run_date, schedule.recurrence
+                )
+
+        await self._db.commit()
