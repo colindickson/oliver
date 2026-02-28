@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, templatesApi, type TaskTemplate } from '../api/client'
+import { settingsApi, templatesApi, dayApi, type TaskTemplate } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { TemplateModal } from '../components/TemplateModal'
 import { ScheduleModal } from '../components/ScheduleModal'
+import { useMobile } from '../contexts/MobileContext'
+import { MobileHeader } from '../components/MobileHeader'
+import { BottomTabBar } from '../components/BottomTabBar'
 
 const CATEGORY_LABELS: Record<string, string> = {
   deep_work: 'Deep Work',
@@ -31,8 +34,15 @@ const LABELS: Record<string, string> = {
 
 export function Settings() {
   const navigate = useNavigate()
+  const isMobile = useMobile()
   const qc = useQueryClient()
   const [saved, setSaved] = useState(false)
+  const [calViewDate, setCalViewDate] = useState(new Date())
+
+  const { data: days = [] } = useQuery({
+    queryKey: ['days', 'all'],
+    queryFn: dayApi.getAll,
+  })
 
   // Template state
   const [templateSearch, setTemplateSearch] = useState('')
@@ -90,6 +100,286 @@ export function Settings() {
     const next = new Set(recurringDays)
     next.has(day) ? next.delete(day) : next.add(day)
     save.mutate([...next])
+  }
+
+  if (isMobile) {
+    const year = calViewDate.getFullYear()
+    const month = calViewDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startOffset = (firstDay.getDay() + 6) % 7
+    const cells: Array<Date | null> = [
+      ...Array(startOffset).fill(null),
+      ...Array.from({ length: lastDay.getDate() }, (_, i) => new Date(year, month, i + 1)),
+    ]
+    while (cells.length % 7 !== 0) cells.push(null)
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const dayMap = new Map(days.map(d => [d.date, d]))
+
+    return (
+      <>
+      <div className="flex flex-col h-screen bg-stone-900">
+        <MobileHeader title="Settings" />
+        <div className="flex-1 overflow-y-auto pb-[56px]">
+          <div className="px-4 py-4 space-y-8">
+            {/* Task Templates card */}
+            <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-base font-semibold text-stone-200">
+                  Task Templates
+                </h2>
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-700 transition-colors"
+                  aria-label="Add template"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                    <path d="M7 2v10M2 7h10" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-stone-500 mb-4">
+                Reusable task blueprints you can quickly add to your day.
+              </p>
+
+              {/* Search */}
+              <input
+                type="text"
+                value={templateSearch}
+                onChange={e => setTemplateSearch(e.target.value)}
+                placeholder="Search templates…"
+                className="w-full text-sm border border-stone-600 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent transition-shadow bg-stone-800 text-stone-100"
+              />
+
+              {/* Template list */}
+              {templatesLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-12 rounded-xl bg-stone-700/40 animate-pulse" />
+                  ))}
+                </div>
+              ) : templates.length === 0 ? (
+                <p className="text-sm text-stone-500 text-center py-6">
+                  {templateSearch ? 'No templates match your search.' : 'No templates yet. Create one to get started.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {templates.map(t => (
+                    <div
+                      key={t.id}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-600/50 hover:border-stone-500 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-stone-200 truncate">
+                            {t.title}
+                          </span>
+                          {t.category && (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORY_COLORS[t.category]}`}>
+                              {CATEGORY_LABELS[t.category]}
+                            </span>
+                          )}
+                          {t.tags.map(tag => (
+                            <span key={tag} className="text-xs text-stone-500">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        {t.description && (
+                          <p className="text-xs text-stone-500 truncate mt-0.5">{t.description}</p>
+                        )}
+                      </div>
+
+                      {/* Hover actions */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => setSchedulingTemplate(t)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-moss-400 hover:bg-moss-900/20 transition-colors relative"
+                          aria-label={`Schedules for ${t.title}`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                            <circle cx="6.5" cy="6.5" r="5" />
+                            <path d="M6.5 4v2.5l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          {(scheduleCounts[t.id] ?? 0) > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-moss-500 text-white text-[8px] font-bold flex items-center justify-center">
+                              {scheduleCounts[t.id]}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(t)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-600 transition-colors"
+                          aria-label={`Edit ${t.title}`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 2l2 2L4 11H2V9L9 2z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Delete template "${t.title}"?`)) {
+                              deleteTemplate.mutate(t.id)
+                            }
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-terracotta-400 hover:bg-terracotta-900/20 transition-colors"
+                          aria-label={`Delete ${t.title}`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M2 3h9M5 3V2h3v1M4 3v7a1 1 0 001 1h3a1 1 0 001-1V3" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Recurring Days Off card */}
+            <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-base font-semibold text-stone-200">
+                  Recurring days off
+                </h2>
+                <span
+                  className={`text-xs font-medium text-moss-400 transition-opacity duration-300 ${
+                    saved ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  Saved
+                </span>
+              </div>
+              <p className="text-sm text-stone-500 mb-5">
+                These weekdays are automatically marked as off in the calendar.
+              </p>
+
+              {isLoading ? (
+                <div className="flex gap-2">
+                  {DAYS.map(d => (
+                    <div key={d} className="h-9 w-12 rounded-xl bg-stone-700/40 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  {DAYS.map(day => {
+                    const active = recurringDays.has(day)
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => toggle(day)}
+                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150
+                          ${active
+                            ? 'bg-terracotta-500 text-white shadow-glow'
+                            : 'bg-stone-700/60 text-stone-400 hover:bg-stone-700'
+                          }`}
+                      >
+                        {LABELS[day]}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Calendar section */}
+          <div className="px-4 py-4 border-t border-stone-700/50">
+            <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">
+              Calendar
+            </h2>
+            {/* Month navigation */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-stone-200">
+                {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCalViewDate(new Date(year, month - 1, 1))}
+                  className="w-7 h-7 flex items-center justify-center text-stone-400 hover:text-stone-200 hover:bg-stone-700 rounded transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 2L4 6L8 10" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setCalViewDate(new Date(year, month + 1, 1))}
+                  className="w-7 h-7 flex items-center justify-center text-stone-400 hover:text-stone-200 hover:bg-stone-700 rounded transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 2L8 6L4 10" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            {/* Day headers */}
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                <div key={i} className="text-center text-[10px] text-stone-400 font-medium py-1">{d}</div>
+              ))}
+            </div>
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((cellDate, i) => {
+                if (!cellDate) return <div key={i} className="aspect-square" />
+                const dateStr = cellDate.toISOString().slice(0, 10)
+                const dayData = dayMap.get(dateStr)
+                const tasks = dayData?.tasks ?? []
+                const isToday = dateStr === todayStr
+                const hasTasks = tasks.length > 0
+                const completed = tasks.filter(t => t.status === 'completed').length
+                const rate = hasTasks ? completed / tasks.length : 0
+
+                let bgClass = 'text-stone-400'
+                if (hasTasks) {
+                  if (rate >= 1) bgClass = 'bg-moss-600/30 text-moss-300'
+                  else if (rate >= 0.67) bgClass = 'bg-amber-500/20 text-amber-300'
+                  else if (rate >= 0.33) bgClass = 'bg-stone-600/50 text-stone-300'
+                  else bgClass = 'bg-terracotta-500/20 text-terracotta-300'
+                }
+
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => navigate(`/day/${dateStr}`)}
+                    className={`
+                      aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium
+                      transition-all duration-150 hover:bg-stone-600/70
+                      ${bgClass}
+                      ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-1 ring-offset-stone-850' : ''}
+                    `}
+                  >
+                    <span>{cellDate.getDate()}</span>
+                    {hasTasks && (
+                      <span className="text-[8px] opacity-60">{completed}/{tasks.length}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        <BottomTabBar />
+      </div>
+
+      {modalOpen && (
+        <TemplateModal
+          template={editingTemplate}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+      {schedulingTemplate && (
+        <ScheduleModal
+          template={schedulingTemplate}
+          onClose={() => setSchedulingTemplate(null)}
+        />
+      )}
+      </>
+    )
   }
 
   return (
