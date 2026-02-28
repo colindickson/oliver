@@ -238,19 +238,28 @@ async def test_streaks_counts_consecutive_complete_days(
 ) -> None:
     """GET /api/analytics/streaks returns correct current and longest streak.
 
-    Setup: seed the last 3 consecutive workdays all fully completed.
-    Weekends are skipped, so we walk back to find 3 actual weekdays.
-    Today is excluded (in progress), so streak counts from yesterday backwards.
-    current_streak and longest_streak should be 2 (yesterday and day before).
+    Setup: seed the 2 most recent past workdays (fully completed), plus today
+    if today is a weekday (to verify today is excluded as in-progress).
+    Weekends are skipped, so we walk back from yesterday to find 2 actual weekdays.
+    current_streak and longest_streak should be 2 (the two past workdays).
     """
-    workdays: list[date] = []
-    cursor = date.today()
-    while len(workdays) < 3:
+    today = date.today()
+
+    # Collect 2 consecutive workdays starting from yesterday
+    past_workdays: list[date] = []
+    cursor = today - timedelta(days=1)
+    while len(past_workdays) < 2:
         if cursor.weekday() < 5:  # Monday=0 … Friday=4
-            workdays.append(cursor)
+            past_workdays.append(cursor)
         cursor -= timedelta(days=1)
 
-    for target in workdays:
+    # Seed the 2 past workdays; also seed today if it's a weekday so the
+    # exclusion logic is exercised (today should not count toward the streak).
+    targets = past_workdays[:]
+    if today.weekday() < 5:
+        targets.append(today)
+
+    for target in targets:
         await _seed_day_with_tasks(
             db_session,
             target,
