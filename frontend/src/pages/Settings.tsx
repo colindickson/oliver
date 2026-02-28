@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, templatesApi, type TaskTemplate } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { TemplateModal } from '../components/TemplateModal'
+import { ScheduleModal } from '../components/ScheduleModal'
 
 const CATEGORY_LABELS: Record<string, string> = {
   deep_work: 'Deep Work',
@@ -37,6 +38,7 @@ export function Settings() {
   const [templateSearch, setTemplateSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null)
+  const [schedulingTemplate, setSchedulingTemplate] = useState<TaskTemplate | null>(null)
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['templates', templateSearch],
@@ -46,6 +48,17 @@ export function Settings() {
   const deleteTemplate = useMutation({
     mutationFn: (id: number) => templatesApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  })
+
+  const { data: scheduleCounts = {} } = useQuery({
+    queryKey: ['schedule-counts', templates.map(t => t.id).join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(
+        templates.map(t => templatesApi.listSchedules(t.id).then(s => [t.id, s.length] as const))
+      )
+      return Object.fromEntries(results) as Record<number, number>
+    },
+    enabled: templates.length > 0,
   })
 
   function openCreate() {
@@ -175,6 +188,22 @@ export function Settings() {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
+                        onClick={() => setSchedulingTemplate(t)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-moss-600 hover:bg-moss-50 dark:hover:text-moss-400 dark:hover:bg-moss-900/20 transition-colors relative"
+                        aria-label={`Schedules for ${t.title}`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                          <circle cx="6.5" cy="6.5" r="5" />
+                          <path d="M6.5 4v2.5l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {(scheduleCounts[t.id] ?? 0) > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-moss-500 text-white text-[8px] font-bold flex items-center justify-center">
+                            {scheduleCounts[t.id]}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEdit(t)}
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:text-stone-200 dark:hover:bg-stone-600 transition-colors"
                         aria-label={`Edit ${t.title}`}
@@ -257,6 +286,12 @@ export function Settings() {
       <TemplateModal
         template={editingTemplate}
         onClose={() => setModalOpen(false)}
+      />
+    )}
+    {schedulingTemplate && (
+      <ScheduleModal
+        template={schedulingTemplate}
+        onClose={() => setSchedulingTemplate(null)}
       />
     )}
     </>
