@@ -100,6 +100,7 @@ The correct path is detected automatically — no manual config editing required
 | `get_recurring_days_off` | Get the configured recurring off weekdays (e.g. Saturday, Sunday) |
 | `set_recurring_days_off` | Set which weekdays are always treated as off days |
 | `set_day_metadata` | Record weather condition, temperature, and moon phase for a day |
+| `notify` | Push a notification to the Oliver UI (source + message, visible as a toast popup and in the bell inbox) |
 
 ### Example: Planning your day with Claude
 

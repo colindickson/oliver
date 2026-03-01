@@ -16,7 +16,7 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
-  const { recentNotifications, markRead, unreadCount } = useNotifications()
+  const { unreadNotifications, markRead, unreadCount } = useNotifications()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -64,29 +64,25 @@ export function NotificationBell() {
             <p className="text-sm font-semibold text-stone-700 dark:text-stone-200">Notifications</p>
           </div>
 
-          {recentNotifications.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-stone-400">No notifications yet</div>
+          {unreadNotifications.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-stone-400">All caught up</div>
           ) : (
             <div className="divide-y divide-stone-100 dark:divide-stone-700">
-              {recentNotifications.map(n => (
-                <div
-                  key={n.id}
-                  className={`px-4 py-3 ${n.is_read ? 'opacity-60' : ''}`}
-                >
+              {unreadNotifications.map(n => (
+                <div key={n.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">{n.source}</p>
                       <p className="text-sm text-stone-700 dark:text-stone-200 mt-0.5 break-words">{n.content}</p>
                       <p className="text-xs text-stone-400 mt-1">{formatRelativeTime(n.created_at)}</p>
                     </div>
-                    {!n.is_read && (
-                      <button
-                        onClick={() => markRead.mutate(n.id)}
-                        className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 whitespace-nowrap flex-shrink-0 mt-0.5"
-                      >
-                        Mark read
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => markRead.mutate(n.id)}
+                      className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 whitespace-nowrap flex-shrink-0 mt-0.5"
+                    >
+                      Mark read
+                    </button>
                   </div>
                 </div>
               ))}

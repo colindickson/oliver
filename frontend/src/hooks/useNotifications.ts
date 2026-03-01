@@ -12,12 +12,6 @@ export function useNotifications() {
     refetchInterval: 15_000,
   })
 
-  const { data: recentNotifications = [] } = useQuery({
-    queryKey: ['notifications', 'recent'],
-    queryFn: notificationApi.getRecent,
-    refetchInterval: 30_000,
-  })
-
   const markRead = useMutation({
     mutationFn: notificationApi.markRead,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
@@ -31,5 +25,5 @@ export function useNotifications() {
 
   const unreadCount = unreadNotifications.length
 
-  return { popupNotification, markPopupShown, recentNotifications, markRead, unreadCount }
+  return { popupNotification, markPopupShown, unreadNotifications, markRead, unreadCount }
 }
