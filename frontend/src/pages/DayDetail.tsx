@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dayApi, taskApi } from '../api/client'
-import type { Task, DayOffReason } from '../api/client'
+import { dayApi, taskApi, backlogApi, templatesApi } from '../api/client'
+import type { Task, DayOffReason, TaskTemplate } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ConfirmableDelete } from '../components/ConfirmableDelete'
 import { TagInput } from '../components/TagInput'
@@ -158,42 +158,198 @@ interface AddTaskFormProps {
   onTagsChange: (tags: string[]) => void
   onSubmit: () => void
   onCancel: () => void
+  onScheduleFromBacklog?: (task: Task, category: NonNullable<Task['category']>) => void
+  onInstantiateFromTemplate?: (template: TaskTemplate, category: NonNullable<Task['category']>) => void
   mt?: boolean
 }
 
-function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onTagsChange, onSubmit, onCancel, mt }: AddTaskFormProps) {
+function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onTagsChange, onSubmit, onCancel, onScheduleFromBacklog, onInstantiateFromTemplate, mt }: AddTaskFormProps) {
+  const [addMode, setAddMode] = useState<'new' | 'backlog' | 'template'>('new')
+  const [backlogSearch, setBacklogSearch] = useState('')
+  const [templateSearch, setTemplateSearch] = useState('')
+
+  const { data: backlogTasks = [] } = useQuery({
+    queryKey: ['backlog'],
+    queryFn: () => backlogApi.list(),
+    enabled: isOpen && addMode === 'backlog',
+  })
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['templates', templateSearch],
+    queryFn: () => templatesApi.list(templateSearch || undefined),
+    enabled: isOpen && addMode === 'template',
+  })
+
+  useEffect(() => {
+    if (isOpen) {
+      setAddMode('new')
+      setBacklogSearch('')
+      setTemplateSearch('')
+    }
+  }, [isOpen])
+
   if (isOpen) {
     return (
-      <form
-        onSubmit={e => { e.preventDefault(); onSubmit() }}
-        className={`space-y-2${mt ? ' mt-2' : ''}`}
-      >
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            value={title}
-            onChange={e => onTitleChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
-            placeholder="Task title…"
-            className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
-          />
-          <button
-            type="submit"
-            disabled={!title.trim()}
-            className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-        <TagInput value={tags} onChange={onTagsChange} />
-      </form>
+      <div className={`space-y-2${mt ? ' mt-2' : ''}`}>
+        {(onScheduleFromBacklog || onInstantiateFromTemplate) && (
+          <div className="flex gap-1 p-0.5 bg-stone-100 rounded-lg dark:bg-stone-700/50">
+            <button
+              type="button"
+              onClick={() => setAddMode('new')}
+              className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                addMode === 'new'
+                  ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-600 dark:text-stone-100'
+                  : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+              }`}
+            >
+              New task
+            </button>
+            {onScheduleFromBacklog && (
+              <button
+                type="button"
+                onClick={() => setAddMode('backlog')}
+                className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                  addMode === 'backlog'
+                    ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-600 dark:text-stone-100'
+                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                }`}
+              >
+                From backlog
+              </button>
+            )}
+            {onInstantiateFromTemplate && (
+              <button
+                type="button"
+                onClick={() => setAddMode('template')}
+                className={`flex-1 text-xs py-1 rounded-md transition-all ${
+                  addMode === 'template'
+                    ? 'bg-white shadow-sm text-stone-700 font-medium dark:bg-stone-600 dark:text-stone-100'
+                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+                }`}
+              >
+                From template
+              </button>
+            )}
+          </div>
+        )}
+
+        {addMode === 'new' ? (
+          <form onSubmit={e => { e.preventDefault(); onSubmit() }} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={title}
+                onChange={e => onTitleChange(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+                placeholder="Task title…"
+                className="flex-1 text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+              />
+              <button
+                type="submit"
+                disabled={!title.trim()}
+                className="px-3 py-2 text-sm font-medium text-white bg-terracotta-500 rounded-xl hover:bg-terracotta-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-3 py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            <TagInput value={tags} onChange={onTagsChange} />
+          </form>
+        ) : addMode === 'backlog' ? (
+          <>
+            <input
+              autoFocus
+              type="text"
+              value={backlogSearch}
+              onChange={e => setBacklogSearch(e.target.value)}
+              placeholder="Search backlog…"
+              className="w-full text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+            />
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {backlogTasks.length === 0 ? (
+                <p className="text-xs text-stone-400 text-center py-4 dark:text-stone-500">
+                  Backlog is empty
+                </p>
+              ) : (
+                backlogTasks
+                  .filter(t =>
+                    !backlogSearch.trim() ||
+                    t.title.toLowerCase().includes(backlogSearch.toLowerCase())
+                  )
+                  .map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        onScheduleFromBacklog?.(t, category)
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
+                    >
+                      <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                      {t.description && (
+                        <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
+                      )}
+                    </button>
+                  ))
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              autoFocus
+              type="text"
+              value={templateSearch}
+              onChange={e => setTemplateSearch(e.target.value)}
+              placeholder="Search templates…"
+              className="w-full text-sm px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 bg-white dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100"
+            />
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {templates.length === 0 ? (
+                <p className="text-xs text-stone-400 text-center py-4 dark:text-stone-500">
+                  No templates found
+                </p>
+              ) : (
+                templates.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      onInstantiateFromTemplate?.(t, category)
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
+                  >
+                    <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                    {t.description && (
+                      <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-sm text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
     )
   }
   return (
@@ -268,6 +424,25 @@ export function DayDetail() {
     },
   })
 
+  const scheduleFromBacklog = useMutation({
+    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
+      backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+      qc.invalidateQueries({ queryKey: ['backlog'] })
+    },
+  })
+
+  const instantiateTemplate = useMutation({
+    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) =>
+      templatesApi.instantiate(template.id, day!.id, category),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
+    },
+  })
+
   const upsertNotes = useMutation({
     mutationFn: ({ dayId, content }: { dayId: number; content: string }) =>
       dayApi.upsertNotes(dayId, content),
@@ -327,6 +502,16 @@ export function DayDetail() {
     setAddingCategory(null)
     setNewTaskTitle('')
     setNewTaskTags([])
+  }
+
+  function handleScheduleFromBacklog(task: Task, category: NonNullable<Task['category']>) {
+    scheduleFromBacklog.mutate({ taskId: task.id, category })
+    setAddingCategory(null)
+  }
+
+  function handleInstantiateFromTemplate(template: TaskTemplate, category: NonNullable<Task['category']>) {
+    instantiateTemplate.mutate({ template, category })
+    setAddingCategory(null)
   }
 
   const completedCount = day?.tasks.filter(t => t.status === 'completed').length ?? 0
@@ -401,6 +586,8 @@ export function DayDetail() {
                     onTagsChange={setNewTaskTags}
                     onSubmit={() => handleAddTask(activeCat.key)}
                     onCancel={cancelAdd}
+                    onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeCat.key)}
+                    onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeCat.key)}
                   />
                 ) : (
                   <>
@@ -423,6 +610,8 @@ export function DayDetail() {
                       onTagsChange={setNewTaskTags}
                       onSubmit={() => handleAddTask(activeCat.key)}
                       onCancel={cancelAdd}
+                      onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeCat.key)}
+                      onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeCat.key)}
                       mt
                     />
                   </>
@@ -643,6 +832,8 @@ export function DayDetail() {
                           onTagsChange={setNewTaskTags}
                           onSubmit={() => handleAddTask(cat.key)}
                           onCancel={cancelAdd}
+                          onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, cat.key)}
+                          onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, cat.key)}
                         />
                       </div>
                     </div>
@@ -681,6 +872,8 @@ export function DayDetail() {
                         onTagsChange={setNewTaskTags}
                         onSubmit={() => handleAddTask(cat.key)}
                         onCancel={cancelAdd}
+                        onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, cat.key)}
+                        onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, cat.key)}
                         mt
                       />
                     </div>
