@@ -7,7 +7,7 @@ parameter and raise a 422 validation error.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -53,7 +53,7 @@ async def list_unread_notifications(
 
 @router.get("", response_model=list[NotificationResponse])
 async def list_recent_notifications(
-    limit: int = 5,
+    limit: int = Query(default=5, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> list[NotificationResponse]:
     """Return the most recent notifications (default limit 5).

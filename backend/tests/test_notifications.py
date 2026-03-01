@@ -74,6 +74,17 @@ async def test_create_notification_content_too_long(client: AsyncClient) -> None
     assert response.status_code == 422
 
 
+async def test_create_notification_empty_source(client: AsyncClient) -> None:
+    """POST /api/notifications rejects an empty string for source."""
+    payload = {
+        "source": "",
+        "content": "Valid content",
+    }
+    response = await client.post("/api/notifications", json=payload)
+
+    assert response.status_code == 422
+
+
 # ---------------------------------------------------------------------------
 # GET /api/notifications
 # ---------------------------------------------------------------------------

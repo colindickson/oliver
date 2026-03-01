@@ -15,7 +15,7 @@ class NotificationCreate(BaseModel):
         content: Human-readable notification text (max 500 characters).
     """
 
-    source: str
+    source: str = Field(min_length=1, max_length=100)
     content: str = Field(max_length=500)
 
 
