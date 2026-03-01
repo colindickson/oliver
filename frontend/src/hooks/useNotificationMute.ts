@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTimer } from './useTimer'
 
 const STORAGE_KEY = 'notifications_muted'
@@ -23,8 +23,14 @@ export function useNotificationMute() {
     })
   }
 
-  // Auto-mute when timer starts running; auto-unmute when paused or stopped
+  const isMounted = useRef(false)
+
+  // Auto-mute on timer start; auto-unmute on pause/stop (skip initial mount)
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true
+      return
+    }
     if (timer?.status === 'running') {
       setMutedState(true)
       localStorage.setItem(STORAGE_KEY, 'true')
