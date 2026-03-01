@@ -1,212 +1,119 @@
 # Oliver
 
-> "The 3-3-3 Technique is a daily productivity framework designed to reduce overwhelm by structuring the workday into three distinct, manageable parts: 3 hours on a major project, 3 shorter urgent tasks, and 3 maintenance tasks. Popularized by author Oliver Burkeman, this approach promotes sustainable productivity by focusing on high-impact work and ensuring essential daily maintenance is completed without burnout."
-
-Oliver is a local-first productivity app built around the 3-3-3 Technique. It runs entirely on your machine via Docker — your data stays yours.
+A local-first productivity app built around Oliver Burkeman's 3-3-3 Technique.
 
 ---
 
-## The Method
+## The 3-3-3 Technique
 
-Each day is structured into intentional items across three categories:
+> "The 3-3-3 Technique is a daily productivity framework designed to reduce overwhelm by structuring the workday into three distinct, manageable parts: 3 hours on a major project, 3 shorter urgent tasks, and 3 maintenance tasks. Popularized by author Oliver Burkeman, this approach promotes sustainable productivity by focusing on high-impact work and ensuring essential daily maintenance is completed without burnout."
 
-| Category | Count | Description |
+Popularized by Oliver Burkeman — author of the book *Four Thousand Weeks* — the 3-3-3 Technique structures each workday into three intentional parts. The goal is sustainable focus without overwhelm — not more output, but clearer priorities.
+
+| Category | Amount | Description |
 |---|---|---|
 | **Deep Work** | 3 hours | One major project requiring focused, uninterrupted concentration |
 | **Urgent Tasks** | 3 tasks | Smaller, time-sensitive items — emails, quick reports, short meetings |
-| **Maintenance** | 3 tasks | Recurring activities that keep work and life running smoothly |
+| **Maintenance** | 3 tasks | Recurring upkeep that keeps work and life running smoothly |
 
 ---
 
-## Features
+## Motivation
 
-- **Daily planning board** — three-column layout (deep work, urgent tasks, maintenance) for the day
-- **Backlog** — unscheduled task queue with full-text search and tag filtering
-- **Goals** — long-term objectives with linked tasks and progress tracking
-- **Calendar view** — navigate and edit any past or future day
-- **Tags** — tag-based task organization with browsable tag pages
-- **Built-in timer** — start, pause, and stop timers during deep work sessions
-- **Task management** — add, edit, delete, reorder (drag-and-drop), and move tasks between days
-- **Day reflections** — daily notes, roadblocks, and energy ratings per day
-- **Progress tracking** — visual completion rings and per-category stats
-- **Analytics** — completion trends, streaks, and category breakdowns over time
-- **MCP server** — expose Oliver's task data to AI coding agents via the Model Context Protocol
+As a software developer, attention is my primary resource. Many roles come with more context switches than I can comfortably absorb — emails, Jira updates, meetings, code reviews, reports, evaluations. Each switch has a cost, and without deliberate structure, the day fragments before meaningful work can begin.
+
+I needed structure, but too much structure — spread across different tools — becomes its own source of overhead and resistance.
+
+The 3-3-3 technique operates at exactly the right level for me. It's flexible enough to let me define and organize my own tasks each day, simple enough that maintaining it doesn't become a job in itself, and clear enough that I always know what I've committed to and what I've done.
+
+The included MCP server also makes it easy to integrate Oliver into modern agentic workflows — letting me use Claude to connect tasks across different systems in whatever way fits the moment.
+
+I believe that this tool can help others in knowledge work roles — developers, writers, researchers — who face similar challenges of attention fragmentation and want a simple, local-first way to apply the 3-3-3 method.
 
 ---
 
-## Architecture
+## Who This Is For
 
-```
-oliver/
-├── frontend/     React 18 + TypeScript + Vite + Tailwind CSS
-├── backend/      FastAPI + SQLAlchemy (async) + PostgreSQL
-├── mcp-server/   MCP server (stdio) for agent integration
-├── shared/       Shared Python library (constants, validation)
-└── docker-compose.yml
-```
+Oliver is useful for knowledge workers — developers, writers, researchers — who want to apply the 3-3-3 method with a clean local app and keep their data on their own machine. It also ships with an MCP server, making it a practical task planning layer for AI coding agents like Claude Code and Claude Desktop.
 
-All services run locally via Docker Compose. Data is persisted in a named PostgreSQL volume.
+---
 
-The `shared/` package contains common Python code used by both the backend and MCP server.
+## Requirements
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- `make`
+- `python 3.12+`
 
 ---
 
 ## Getting Started
 
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- [Node.js](https://nodejs.org/) (for local frontend development only)
-- `make` (optional, but recommended)
-
-### Run with Docker
-
 ```bash
-# Install frontend dependencies (first time only)
-make install
-
-# Build images and start all services
-make build
-make up
+make start
 ```
 
-The app will be available at:
-
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-
-### Common Commands
-
-```bash
-make up           # Start services (detached)
-make down         # Stop and remove containers
-make logs         # Tail logs from all services
-make ps           # Show container status
-make restart      # Restart all services
-make clean        # Full reset — removes containers and volumes
-make reset        # clean + rebuild + start
-```
-
-### Development Mode
-
-```bash
-make dev          # Start with live logs and auto-rebuild on changes
-```
+Open the app in your browser at http://localhost:5173
 
 ---
 
-## MCP Server
+## MCP Integration
 
-Oliver includes an MCP (Model Context Protocol) server that allows AI agents to interact with your task data directly. It exposes tools for managing tasks, viewing the daily plan, tracking timers, and querying analytics.
+Oliver includes an MCP server that exposes task data to AI agents over stdio. The main services must be running (`make start`) before connecting.
 
-### Starting the MCP Server
+### Installation
+
+Run the following command from the Oliver directory to automatically install the MCP server for both Claude Code and Claude Desktop:
 
 ```bash
-make mcp
+make install-mcp
 ```
 
-The server runs in stdio mode and is designed to be attached to by an MCP-compatible client (e.g. Claude Desktop, Claude Code).
+Or install for each client individually:
 
-### Available Tool Categories
+```bash
+make install-mcp-claude-code     # Claude Code only
+make install-mcp-claude-desktop  # Claude Desktop only
+```
 
-| Module | Description |
+The correct path is detected automatically — no manual config editing required.
+
+### Available MCP Tools
+
+| Tool | Description |
 |---|---|
-| `tasks` | Create, read, update, and delete tasks |
-| `daily` | Fetch and manage the current day's plan |
-| `timer` | Start, stop, and query work timers |
-| `analytics` | Query productivity trends and summaries |
+| `get_daily_plan` | Get all tasks for a given date (defaults to today) |
+| `set_daily_plan` | Replace the full task list for a date with a new set of tasks |
+| `create_task` | Create a single task with a title, category (`deep_work`, `short_task`, `maintenance`), optional description, and tags |
+| `update_task` | Update a task's title, description, status, or tags by ID |
+| `complete_task` | Mark a task as completed by ID |
+| `delete_task` | Delete a task by ID |
+| `start_timer` | Start the timer for a task (resumes if previously paused) |
+| `stop_timer` | Stop the running timer and record the session |
+| `get_analytics` | Get productivity analytics for the past N days |
+| `mark_day_off` | Mark a day as off with a reason (`sick_day`, `vacation`, `holiday`, `personal_day`, `weekend`) and optional note |
+| `unmark_day_off` | Remove the off-day designation for a date |
+| `list_days_off` | List all days marked as off, newest first |
+| `get_recurring_days_off` | Get the configured recurring off weekdays (e.g. Saturday, Sunday) |
+| `set_recurring_days_off` | Set which weekdays are always treated as off days |
+| `set_day_metadata` | Record weather condition, temperature, and moon phase for a day |
 
-### Connecting to Claude Code or Claude Desktop
+### Example: Planning your day with Claude
 
-The MCP server uses stdio transport. The **main services (postgres) must be running** before connecting:
+Once Oliver is connected as an MCP server, you can talk to Claude naturally:
 
-```bash
-make up
-```
+> "Plan my day — I have a PR review that needs to happen before standup, I want to spend the morning on the auth refactor, and I need to update the team wiki."
 
-#### Claude Code
+Claude will create the appropriate tasks across the three 3-3-3 categories. You can also ask things like:
 
-Add the server via the CLI:
-
-```bash
-claude mcp add oliver -- docker compose -f /path/to/oliver/docker-compose.yml run --rm -i -T mcp-server
-```
-
-Or manually add the following to `~/.claude.json` under `mcpServers`:
-
-```json
-{
-  "mcpServers": {
-    "oliver": {
-      "command": "docker",
-      "args": [
-        "compose",
-        "-f", "/path/to/oliver/docker-compose.yml",
-        "run", "--rm", "-i", "-T",
-        "mcp-server"
-      ]
-    }
-  }
-}
-```
-
-> **Note on `-f` and `cwd`:** The `-f` flag points `docker compose` at the project's `docker-compose.yml` using an absolute path, so the command works from any working directory. `cwd` sets the working directory for `docker compose` on the host — it should be the Oliver project root. Neither is a path inside the container.
-
-> **Note on `-T`:** The `-T` flag disables pseudo-TTY allocation. This is required for stdio-based MCP transport, which communicates over raw stdin/stdout.
-
-#### Claude Desktop
-
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) and add the same block under `mcpServers`:
-
-```json
-{
-  "mcpServers": {
-    "oliver": {
-      "command": "docker",
-      "args": [
-        "compose",
-        "-f", "/path/to/oliver/docker-compose.yml",
-        "run", "--rm", "-i", "-T",
-        "mcp-server"
-      ]
-    }
-  }
-}
-```
-
-Restart Claude Desktop after saving. On Windows the config file is at `%APPDATA%\Claude\claude_desktop_config.json`.
-
-#### Verify the connection
-
-Once configured, ask Claude: _"What's on my Oliver plan for today?"_ — it should call `get_daily_plan_tool` and return your tasks.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, dnd-kit |
-| Backend | FastAPI, SQLAlchemy (async), Alembic, Pydantic |
-| Database | PostgreSQL 16 |
-| MCP Server | Python `mcp` SDK |
-| Infrastructure | Docker Compose |
-
+- *"What did I get done this week?"* → uses `get_analytics`
+- *"I'm sick, mark tomorrow as a sick day"* → uses `mark_day_off`
+- *"Start the timer on my deep work task"* → uses `start_timer`
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request with improvements, bug fixes, or new features. For major changes, please discuss them in an issue first.
-
-### TODOs
-
-* Improve UI/UX design
-* Add user authentication and multi-user support
-* Implement Github / Linear / Jira integrations
-* Add support for recurring tasks and templates
-* Enhance analytics with more detailed reports and visualizations
-
+Contributions are welcome — bugs, features, and improvements. Open an issue before starting major changes. Fork the repo, work on a feature branch, and submit a PR. Keep commits concise and in imperative mood.
 
 ---
 

@@ -12,7 +12,8 @@ install: ## Install frontend dependencies (run once before first build)
 	cd frontend && npm install
 
 build: ## Build all Docker images
-	$(COMPOSE) build
+	$(COMPOSE) build frontend backend
+	$(COMPOSE) build mcp-server
 
 up: ## Start backend and frontend services (detached)
 	$(COMPOSE) up -d
@@ -22,9 +23,6 @@ down: ## Stop and remove containers, networks (keeps volumes)
 
 stop: ## Stop running containers without removing them
 	$(COMPOSE) stop
-
-start: ## Start stopped containers
-	$(COMPOSE) start
 
 logs: ## Follow logs from all services (Ctrl+C to exit)
 	$(COMPOSE) logs -f
@@ -38,9 +36,6 @@ logs-frontend: ## Follow frontend logs
 ps: ## Show container status
 	$(COMPOSE) ps
 
-mcp-build: ## Build MCP server image only
-	$(COMPOSE) build mcp-server
-
 clean: ## Remove containers, networks, and volumes (full reset)
 	@echo "WARNING: This will remove all containers, networks, and volumes (including your database)."
 	@read -p "Type 'yes' to confirm: " CONFIRM; \
@@ -51,22 +46,13 @@ clean: ## Remove containers, networks, and volumes (full reset)
 		exit 1; \
 	fi
 
-dev: ## Start in development mode with live logs
-	$(COMPOSE) up --build
-
-dev-backend: ## Start only backend with logs
-	$(COMPOSE) up --build $(BACKEND)
-
-dev-frontend: ## Start only frontend with logs
-	$(COMPOSE) up --build $(FRONTEND)
-
 shell-backend: ## Open shell in backend container
 	$(COMPOSE) exec $(BACKEND) /bin/bash
 
 shell-frontend: ## Open shell in frontend container
 	$(COMPOSE) exec $(FRONTEND) /bin/sh
 
-db-shell: ## Open psql shell in postgres container
+shell-database: ## Open psql shell in postgres container
 	$(COMPOSE) exec postgres psql -U oliver -d oliver
 
 BACKUP_DIR := backups
@@ -108,18 +94,55 @@ migrate: ## Run Alembic migrations (alembic upgrade head)
 migrate-status: ## Show current Alembic migration status
 	$(COMPOSE) exec $(BACKEND) alembic current
 
-reset: down clean build mcp-build up ## Full reset: clean, rebuild, start fresh
+reset: db-backup down clean build up ## Full reset: clean, rebuild, start fresh
 
-restart:
+start:
+	$(MAKE) build
+	$(COMPOSE) down $(BACKEND) $(FRONTEND)
+	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
+
+restart: ## Restart backend and frontend services (with database backup)
 	$(MAKE) db-backup
-	$(COMPOSE) build $(BACKEND) $(FRONTEND) $(MCP_SERVER)
+	$(MAKE) build
 	$(COMPOSE) down $(BACKEND) $(FRONTEND)
 	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
 
 update: ## Pull latest code, backup DB, migrate, rebuild frontend/backend
 	git pull
-	$(MAKE) db-backup
-	$(MAKE) migrate
-	$(COMPOSE) build $(BACKEND) $(FRONTEND) $(MCP_SERVER)
-	$(COMPOSE) down $(BACKEND) $(FRONTEND)
-	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
+	$(MAKE) restart
+
+install-mcp: install-mcp-claude-code install-mcp-claude-desktop ## Install Oliver MCP server for Claude Code and Claude Desktop
+
+uninstall-mcp: uninstall-mcp-claude-code uninstall-mcp-claude-desktop ## Uninstall Oliver MCP server from Claude Code and Claude Desktop
+
+uninstall-mcp-claude-code: ## Uninstall Oliver MCP server from Claude Code
+	claude mcp remove oliver
+
+uninstall-mcp-claude-desktop: ## Uninstall Oliver MCP server from Claude Desktop
+	@python3 -c "\
+import json, os, sys; \
+p = sys.platform; \
+cfg = os.path.expanduser('~/Library/Application Support/Claude/claude_desktop_config.json') if p == 'darwin' \
+    else os.path.join(os.environ.get('APPDATA',''), 'Claude', 'claude_desktop_config.json'); \
+os.path.exists(cfg) or (print('Config not found:', cfg) or sys.exit(0)); \
+data = json.load(open(cfg)); \
+removed = data.get('mcpServers', {}).pop('oliver', None); \
+json.dump(data, open(cfg, 'w'), indent=2); \
+print('Removed Oliver MCP from Claude Desktop:', cfg) if removed else print('Oliver MCP not found in Claude Desktop config') \
+"
+
+install-mcp-claude-code: ## Install Oliver MCP server for Claude Code
+	claude mcp add oliver -- docker compose -f $(CURDIR)/docker-compose.yml run --rm -i -T mcp-server
+
+install-mcp-claude-desktop: ## Install Oliver MCP server for Claude Desktop
+	@OLIVER_PATH="$(CURDIR)" python3 -c "\
+import json, os, sys; \
+p = sys.platform; \
+cfg = os.path.expanduser('~/Library/Application Support/Claude/claude_desktop_config.json') if p == 'darwin' \
+    else os.path.join(os.environ.get('APPDATA',''), 'Claude', 'claude_desktop_config.json'); \
+os.makedirs(os.path.dirname(cfg), exist_ok=True); \
+data = json.load(open(cfg)) if os.path.exists(cfg) else {}; \
+data.setdefault('mcpServers', {})['oliver'] = {'command': 'docker', 'args': ['compose', '-f', os.environ['OLIVER_PATH'] + '/docker-compose.yml', 'run', '--rm', '-i', '-T', 'mcp-server']}; \
+json.dump(data, open(cfg, 'w'), indent=2); \
+print('Installed Oliver MCP for Claude Desktop:', cfg) \
+"
