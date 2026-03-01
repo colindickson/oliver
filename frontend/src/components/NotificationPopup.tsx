@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Notification } from '../api/client'
 
 interface NotificationPopupProps {
@@ -7,10 +7,13 @@ interface NotificationPopupProps {
 }
 
 export function NotificationPopup({ notification, onDismiss }: NotificationPopupProps) {
+  const onDismissRef = useRef(onDismiss)
+  useEffect(() => { onDismissRef.current = onDismiss })
+
   useEffect(() => {
-    const timer = setTimeout(onDismiss, 10_000)
+    const timer = setTimeout(() => onDismissRef.current(), 10_000)
     return () => clearTimeout(timer)
-  }, [notification.id, onDismiss])
+  }, [notification.id])
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm animate-slide-up">
