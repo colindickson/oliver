@@ -145,7 +145,7 @@ export function Sidebar() {
             to="/settings"
             className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0
               ${location.pathname === '/settings'
-                ? 'text-stone-200 bg-stone-700'
+                ? 'text-stone-100 bg-stone-700'
                 : 'text-stone-300 hover:text-stone-100 hover:bg-stone-700'
               }`}
             aria-label="Settings"
