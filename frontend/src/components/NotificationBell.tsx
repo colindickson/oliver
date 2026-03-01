@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNotifications } from '../hooks/useNotifications'
+import { useNotificationMute } from '../hooks/useNotificationMute'
 
 function formatRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -17,6 +18,7 @@ export function NotificationBell() {
   const btnRef = useRef<HTMLButtonElement>(null)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
   const { unreadNotifications, markRead, unreadCount } = useNotifications()
+  const { muted, toggleMuted } = useNotificationMute()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -43,15 +45,18 @@ export function NotificationBell() {
         type="button"
         onClick={handleToggle}
         className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-300 hover:text-stone-100 hover:bg-stone-700 transition-colors flex-shrink-0 relative"
-        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        aria-label={muted ? 'Notifications (muted)' : unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >
-        {/* Bell SVG */}
+        {/* Bell SVG — shows slash overlay when muted */}
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M7.5 1.5A3.5 3.5 0 0 0 4 5c0 3.5-1.5 4.5-1.5 4.5h9S10 8.5 10 5a3.5 3.5 0 0 0-2.5-3.5z" />
           <path d="M8.7 12.5a1.3 1.3 0 0 1-2.4 0" />
+          {muted && (
+            <line x1="2" y1="2" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" />
+          )}
         </svg>
         {/* Red dot badge */}
-        {unreadCount > 0 && (
+        {unreadCount > 0 && !muted && (
           <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full" aria-hidden="true" />
         )}
       </button>
@@ -88,6 +93,27 @@ export function NotificationBell() {
               ))}
             </div>
           )}
+          {/* Mute toggle */}
+          <div className="px-4 py-2.5 border-t border-stone-100 dark:border-stone-700">
+            <button
+              type="button"
+              onClick={toggleMuted}
+              className="w-full flex items-center justify-between gap-2 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7.5 1.5A3.5 3.5 0 0 0 4 5c0 3.5-1.5 4.5-1.5 4.5h9S10 8.5 10 5a3.5 3.5 0 0 0-2.5-3.5z" />
+                  <path d="M8.7 12.5a1.3 1.3 0 0 1-2.4 0" />
+                  {muted && <line x1="2" y1="2" x2="13" y2="13" />}
+                </svg>
+                <span>Mute notifications</span>
+              </div>
+              {/* Toggle pill */}
+              <div className={`w-8 h-4 rounded-full transition-colors flex items-center px-0.5 ${muted ? 'bg-blue-500' : 'bg-stone-300 dark:bg-stone-600'}`}>
+                <div className={`w-3 h-3 bg-white rounded-full shadow transition-transform ${muted ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </button>
+          </div>
         </div>
       )}
     </div>
