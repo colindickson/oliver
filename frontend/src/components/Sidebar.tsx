@@ -6,6 +6,7 @@ import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
 import { useMobile } from '../contexts/MobileContext'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
+import { NotificationBell } from './NotificationBell'
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -141,6 +142,7 @@ export function Sidebar() {
             <p className="text-xs text-stone-300 mt-0.5">3-3-3 Technique</p>
           </div>
           <div className="flex items-center gap-1">
+          <NotificationBell />
           <Link
             to="/settings"
             className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0

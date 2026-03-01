@@ -213,6 +213,25 @@ export const reminderApi = {
     api.patch<Reminder>(`/reminders/${id}/delivered`).then(r => r.data),
 }
 
+export interface Notification {
+  id: number
+  source: string
+  content: string
+  is_read: boolean
+  created_at: string
+}
+
+export const notificationApi = {
+  create: (source: string, content: string) =>
+    api.post<Notification>('/notifications', { source, content }).then(r => r.data),
+  getRecent: () =>
+    api.get<Notification[]>('/notifications').then(r => r.data),
+  getUnread: () =>
+    api.get<Notification[]>('/notifications/unread').then(r => r.data),
+  markRead: (id: number) =>
+    api.patch<Notification>(`/notifications/${id}/read`).then(r => r.data),
+}
+
 export interface TagResponse {
   id: number
   name: string
