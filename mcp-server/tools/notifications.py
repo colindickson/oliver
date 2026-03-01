@@ -8,7 +8,7 @@ from models.notification import Notification
 def notify(source: str, content: str) -> str:
     """Create a notification visible in the Oliver UI."""
     with get_session() as session:
-        n = Notification(source=source, content=content[:500])
+        n = Notification(source=source[:100], content=content[:500])
         session.add(n)
         session.commit()
         session.refresh(n)

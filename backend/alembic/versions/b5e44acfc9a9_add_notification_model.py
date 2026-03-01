@@ -24,10 +24,10 @@ def upgrade() -> None:
     op.create_table(
         'notifications',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('source', sa.String(), nullable=False),
+        sa.Column('source', sa.String(100), nullable=False),
         sa.Column('content', sa.String(500), nullable=False),
         sa.Column('is_read', sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint('id'),
     )
 
