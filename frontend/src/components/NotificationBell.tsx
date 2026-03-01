@@ -14,6 +14,8 @@ function formatRelativeTime(dateStr: string): string {
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
   const { recentNotifications, markRead, unreadCount } = useNotifications()
 
   useEffect(() => {
@@ -26,11 +28,20 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setOpen(o => !o)
+  }
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleToggle}
         className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-300 hover:text-stone-100 hover:bg-stone-700 transition-colors flex-shrink-0 relative"
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
       >
@@ -45,8 +56,10 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div className="absolute bottom-full right-0 mb-2 w-80 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-soft-lg overflow-hidden z-50">
+      {open && dropdownPos && (
+        <div
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left }}
+          className="w-80 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-soft-lg overflow-hidden z-50">
           <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
             <p className="text-sm font-semibold text-stone-700 dark:text-stone-200">Notifications</p>
           </div>
