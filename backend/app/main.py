@@ -12,6 +12,7 @@ from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
 from app.api import goals as goals_router
+from app.api import notifications as notifications_router
 from app.api import reminders as reminders_router
 from app.api import settings as settings_router
 from app.api import tags as tags_router
@@ -52,6 +53,7 @@ app.include_router(analytics_router.router)
 app.include_router(backlog_router.router)
 app.include_router(days_router.router)
 app.include_router(goals_router.router)
+app.include_router(notifications_router.router)
 app.include_router(reminders_router.router)
 app.include_router(settings_router.router)
 app.include_router(tags_router.router)

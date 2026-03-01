@@ -10,6 +10,7 @@ from app.models.day_metadata import DayMetadata
 from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.goal import Goal
+from app.models.notification import Notification
 from app.models.reminder import Reminder
 from app.models.roadblock import Roadblock
 from app.models.setting import Setting
@@ -25,6 +26,7 @@ __all__ = [
     "DayOff",
     "DayRating",
     "Goal",
+    "Notification",
     "Reminder",
     "Roadblock",
     "Setting",
