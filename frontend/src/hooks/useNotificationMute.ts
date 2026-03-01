@@ -10,11 +10,6 @@ export function useNotificationMute() {
 
   const { timer } = useTimer()
 
-  function setMuted(value: boolean) {
-    setMutedState(value)
-    localStorage.setItem(STORAGE_KEY, String(value))
-  }
-
   function toggleMuted() {
     setMutedState(prev => {
       const next = !prev
