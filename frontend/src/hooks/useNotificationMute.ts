@@ -26,10 +26,14 @@ export function useNotificationMute() {
   // Auto-mute when timer starts running; auto-unmute when paused or stopped
   useEffect(() => {
     if (timer?.status === 'running') {
-      setMuted(true)
+      setMutedState(true)
+      localStorage.setItem(STORAGE_KEY, 'true')
     } else if (timer?.status === 'paused' || timer?.status === 'idle') {
-      setMuted(false)
+      setMutedState(false)
+      localStorage.setItem(STORAGE_KEY, 'false')
     }
+    // setMutedState is stable (from useState), STORAGE_KEY is a module constant
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timer?.status])
 
   return { muted, toggleMuted }
