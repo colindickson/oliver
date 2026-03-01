@@ -124,3 +124,5 @@ Contributions are welcome — bugs, features, and improvements. Open an issue be
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE) or later.
+
+Free to use for personal, non-commercial purposes. Commercial use — including use in paid products, services, or internal business tooling — is not permitted without explicit written authorization from the author.
