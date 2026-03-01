@@ -10,6 +10,9 @@ import { Settings } from './pages/Settings'
 import { NotificationPopup } from './components/NotificationPopup'
 import { useNotifications } from './hooks/useNotifications'
 
+// GlobalNotifications and NotificationBell each call useNotifications independently.
+// TanStack Query deduplicates the network requests via shared cache keys.
+// shownIds state is intentionally local to this component — it gates popup display only.
 function GlobalNotifications() {
   const { popupNotification, markPopupShown } = useNotifications()
   if (!popupNotification) return null
