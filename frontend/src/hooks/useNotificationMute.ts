@@ -16,7 +16,11 @@ export function useNotificationMute() {
   }
 
   function toggleMuted() {
-    setMuted(!muted)
+    setMutedState(prev => {
+      const next = !prev
+      localStorage.setItem(STORAGE_KEY, String(next))
+      return next
+    })
   }
 
   // Auto-mute when timer starts running; auto-unmute when paused or stopped
