@@ -114,6 +114,53 @@ def list_days_off() -> str:
     return json.dumps({"days": entries}, indent=2)
 
 
+def is_day_off(date_str: str) -> str:
+    """Check whether a given date is a day off.
+
+    A date is considered a day off if its weekday appears in the recurring
+    days-off setting, or if an explicit DayOff record exists for it.
+
+    Args:
+        date_str: ISO-8601 date string (YYYY-MM-DD).
+
+    Returns:
+        JSON-encoded dict with ``is_day_off`` bool, and optionally ``reason``
+        and ``note``.  Returns ``error`` on invalid input.
+    """
+    try:
+        target = date.fromisoformat(date_str)
+    except ValueError:
+        return json.dumps({"error": f"Invalid date format: {date_str!r}. Use YYYY-MM-DD."})
+
+    weekday_name = target.strftime("%A").lower()
+
+    with get_session() as session:
+        setting = (
+            session.query(Setting)
+            .filter(Setting.key == RECURRING_DAYS_OFF_KEY)
+            .first()
+        )
+        recurring = json.loads(setting.value) if setting else []
+        if weekday_name in recurring:
+            return json.dumps({
+                "is_day_off": True,
+                "reason": "recurring",
+                "note": f"{weekday_name.capitalize()} is a recurring day off",
+            })
+
+        day = session.query(Day).filter(Day.date == target).first()
+        if day:
+            day_off = session.query(DayOff).filter(DayOff.day_id == day.id).first()
+            if day_off:
+                return json.dumps({
+                    "is_day_off": True,
+                    "reason": day_off.reason,
+                    "note": day_off.note,
+                })
+
+    return json.dumps({"is_day_off": False})
+
+
 def get_recurring_days_off() -> str:
     """Return the configured recurring off weekdays from settings.
 

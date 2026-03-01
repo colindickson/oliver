@@ -97,6 +97,7 @@ make install-mcp-claude-desktop  # Claude Desktop only
 | `list_days_off` | List all days marked as off, newest first |
 | `get_recurring_days_off` | Get the configured recurring off weekdays (e.g. Saturday, Sunday) |
 | `set_recurring_days_off` | Set which weekdays are always treated as off days |
+| `is_day_off` | Check if a date is a day off — via recurring weekday config or an explicit day-off record |
 | `set_day_metadata` | Record weather condition, temperature, and moon phase for a day |
 | `notify` | Push a notification to the Oliver UI (source + message, visible as a toast popup and in the bell inbox) |
 

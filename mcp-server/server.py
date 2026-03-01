@@ -14,6 +14,7 @@ from tools.analytics import get_analytics
 from tools.daily import get_daily_plan, set_daily_plan
 from tools.days_off import (
     get_recurring_days_off,
+    is_day_off,
     list_days_off,
     mark_day_off,
     set_recurring_days_off,
@@ -146,6 +147,12 @@ def set_recurring_days_off_tool(days: list[str]) -> str:
     Valid values: monday, tuesday, wednesday, thursday, friday, saturday, sunday
     """
     return set_recurring_days_off(days)
+
+
+@mcp.tool()
+def is_day_off_tool(date: str) -> str:
+    """Check if a date (YYYY-MM-DD) is a day off — either via recurring weekday config or an explicit day-off record."""
+    return is_day_off(date)
 
 
 @mcp.tool()
