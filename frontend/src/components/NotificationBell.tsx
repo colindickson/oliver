@@ -106,7 +106,7 @@ export function NotificationBell() {
                   <path d="M8.7 12.5a1.3 1.3 0 0 1-2.4 0" />
                   {muted && <line x1="2" y1="2" x2="13" y2="13" />}
                 </svg>
-                <span>Mute notifications</span>
+                <span>{muted ? 'Unmute notifications' : 'Mute notifications'}</span>
               </div>
               {/* Toggle pill */}
               <div className={`w-8 h-4 rounded-full transition-colors flex items-center px-0.5 ${muted ? 'bg-blue-500' : 'bg-stone-300 dark:bg-stone-600'}`}>
