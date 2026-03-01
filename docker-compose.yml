@@ -45,7 +45,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - DATABASE_URL=postgres://oliver:oliver@postgres:5432/oliver?sslmode=disable
+      - PGWEB_DATABASE_URL=postgres://oliver:oliver@postgres:5432/oliver?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
