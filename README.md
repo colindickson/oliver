@@ -2,6 +2,10 @@
 
 A local-first productivity app built around Oliver Burkeman's 3-3-3 Technique.
 
+Built on personal time.
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/colindickson)
+
 ---
 
 ## The 3-3-3 Technique
