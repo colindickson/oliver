@@ -20,6 +20,7 @@ from tools.days_off import (
     unmark_day_off,
 )
 from tools.metadata import set_day_metadata
+from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
 
@@ -145,6 +146,12 @@ def set_recurring_days_off_tool(days: list[str]) -> str:
     Valid values: monday, tuesday, wednesday, thursday, friday, saturday, sunday
     """
     return set_recurring_days_off(days)
+
+
+@mcp.tool()
+def notify_tool(source: str, content: str) -> str:
+    """Send a notification to the Oliver UI. source identifies the sender (e.g. 'claude-cowork'). content is the message (max 500 chars)."""
+    return notify(source, content)
 
 
 if __name__ == "__main__":
