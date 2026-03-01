@@ -146,7 +146,7 @@ export function Sidebar() {
             className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0
               ${location.pathname === '/settings'
                 ? 'text-stone-200 bg-stone-700'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-700'
+                : 'text-stone-300 hover:text-stone-100 hover:bg-stone-700'
               }`}
             aria-label="Settings"
           >
@@ -162,7 +162,7 @@ export function Sidebar() {
           </Link>
           <button
             onClick={toggleTheme}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-700 transition-colors flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-300 hover:text-stone-100 hover:bg-stone-700 transition-colors flex-shrink-0"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? (
@@ -192,7 +192,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-100 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -208,7 +208,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-100 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -226,7 +226,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-100 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -242,7 +242,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-100 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -258,7 +258,7 @@ export function Sidebar() {
             `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-stone-700 text-white'
-                : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
+                : 'text-stone-100 hover:text-white hover:bg-stone-700/50'
             }`
           }
         >
@@ -273,7 +273,7 @@ export function Sidebar() {
       <div className="px-4 py-4 border-b border-stone-700/50">
         {/* Month navigation */}
         <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-sm font-medium text-stone-200">{formatMonth(viewDate)}</h2>
+          <h2 className="text-sm font-medium text-stone-100">{formatMonth(viewDate)}</h2>
           <div className="flex gap-1">
             <button
               onClick={() => setViewDate(new Date(year, month - 1, 1))}
