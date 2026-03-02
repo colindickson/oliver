@@ -111,6 +111,19 @@ function buildTaskVolumeData(days: DayResponse[]): TaskVolumePoint[] {
   }))
 }
 
+interface TagFrequencyItem { name: string; count: number; pct: number }
+
+function buildTagFrequencyData(days: DayResponse[]): TagFrequencyItem[] {
+  const completed = days.flatMap(d => d.tasks).filter(t => t.status === 'completed')
+  const total = completed.length
+  if (total === 0) return []
+  const freq: Record<string, number> = {}
+  completed.forEach(t => t.tags.forEach(tag => { freq[tag] = (freq[tag] ?? 0) + 1 }))
+  return Object.entries(freq)
+    .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }))
+    .sort((a, b) => b.count - a.count)
+}
+
 // -----------------------------------------------------------------------------
 // Custom XAxis tick — shows moon + weather icons below the date label
 // -----------------------------------------------------------------------------
@@ -282,6 +295,131 @@ function SummaryCard({ label, value, sub, accent }: SummaryCardProps) {
   )
 }
 
+interface TagCloudProps { data: TagFrequencyItem[]; isDark: boolean }
+
+function TagCloud({ data, isDark }: TagCloudProps) {
+  const [tooltip, setTooltip] = useState<{ item: TagFrequencyItem; x: number; y: number } | null>(null)
+  const [exponent, setExponent] = useState(2)
+
+  if (data.length === 0) {
+    return (
+      <div className="text-sm text-stone-400 flex items-center justify-center h-24">
+        No tagged tasks completed in this period
+      </div>
+    )
+  }
+
+  const COLORS = [TERRACOTTA, OCEAN, MOSS, AMBER]
+  const minCount = Math.min(...data.map(d => d.count))
+  const maxCount = Math.max(...data.map(d => d.count))
+  const minSize = 0.75
+  const maxSize = 2.25
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 justify-center py-4">
+        {data.map((item, i) => {
+          const color = COLORS[i % COLORS.length]
+          // Power-law scaling: higher exponent = more dramatic size spread
+          const size = maxCount === minCount
+            ? (minSize + maxSize) / 2
+            : minSize + Math.pow((item.count - minCount) / (maxCount - minCount), exponent) * (maxSize - minSize)
+          const r = parseInt(color.slice(1, 3), 16)
+          const g = parseInt(color.slice(3, 5), 16)
+          const b = parseInt(color.slice(5, 7), 16)
+          return (
+            <span
+              key={item.name}
+              className="cursor-default select-none rounded-full font-medium hover:opacity-80 transition-opacity"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: `${size.toFixed(2)}rem`,
+                // em-based padding keeps the pill proportional at every font size
+                padding: '0.35em 0.8em',
+                color,
+                backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
+              }}
+              onMouseEnter={(e) => setTooltip({ item, x: e.clientX, y: e.clientY })}
+              onMouseMove={(e) => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+              onMouseLeave={() => setTooltip(null)}
+            >
+              {item.name}
+            </span>
+          )
+        })}
+      </div>
+
+      {/* Scaling slider */}
+      <div className="flex items-center gap-3 px-1 pt-1 pb-0.5">
+        <span className="text-xs text-stone-400 shrink-0">Scale</span>
+        <input
+          type="range"
+          min={0.5}
+          max={3}
+          step={0.1}
+          value={exponent}
+          onChange={(e) => setExponent(parseFloat(e.target.value))}
+          className="flex-1 h-1 appearance-none rounded-full cursor-pointer"
+          style={{ accentColor: TERRACOTTA }}
+        />
+        <span className="text-xs text-stone-400 w-8 text-right tabular-nums shrink-0">
+          {exponent.toFixed(1)}×
+        </span>
+      </div>
+
+      {tooltip && (
+        <div style={{
+          position: 'fixed',
+          left: tooltip.x + 12,
+          top: tooltip.y - 10,
+          backgroundColor: isDark ? '#1c1917' : '#ffffff',
+          border: `1px solid ${isDark ? '#44403c' : '#e7e5e4'}`,
+          borderRadius: '10px',
+          padding: '12px 14px',
+          fontSize: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          pointerEvents: 'none',
+          zIndex: 50,
+        }}>
+          <div style={{
+            color: isDark ? '#a8a29e' : '#78716c',
+            fontSize: '11px',
+            fontWeight: 500,
+            marginBottom: 8,
+            paddingBottom: 8,
+            borderBottom: `1px solid ${isDark ? '#292524' : '#e7e5e4'}`,
+          }}>
+            {tooltip.item.name}
+          </div>
+          <div style={{
+            color: isDark ? '#e7e5e4' : '#292524',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                backgroundColor: COLORS[data.indexOf(tooltip.item) % COLORS.length],
+                display: 'inline-block',
+              }} />
+              Completed tasks
+            </span>
+            <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {tooltip.item.count} ({tooltip.item.pct}%)
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // -----------------------------------------------------------------------------
 // Period options
 // -----------------------------------------------------------------------------
@@ -327,6 +465,7 @@ export function Analytics() {
   const windowedDays = filterDaysToWindow(allDays, periodDays)
   const trendsData = buildTrendsData(windowedDays)
   const taskVolumeData = buildTaskVolumeData(windowedDays)
+  const tagFrequencyData = buildTagFrequencyData(windowedDays)
 
   const chartCard = 'bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-soft'
   const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'
@@ -485,6 +624,15 @@ export function Analytics() {
                     </ResponsiveContainer>
                   )}
                 </div>
+              </div>
+            </section>
+
+            {/* Section: Tags */}
+            <section>
+              <h2 className={sectionHeader}>Tags</h2>
+              <div className={chartCard}>
+                <h3 className={chartTitle}>Completed Task Tags</h3>
+                <TagCloud data={tagFrequencyData} isDark={isDark} />
               </div>
             </section>
           </div>
@@ -667,6 +815,15 @@ export function Analytics() {
                   </ResponsiveContainer>
                 )}
               </div>
+            </div>
+          </section>
+
+          {/* Section: Tags */}
+          <section>
+            <h2 className={sectionHeader}>Tags</h2>
+            <div className={chartCard}>
+              <h3 className={chartTitle}>Completed Task Tags</h3>
+              <TagCloud data={tagFrequencyData} isDark={isDark} />
             </div>
           </section>
 
