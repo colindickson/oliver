@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ComposedChart, Line, Bar,
@@ -295,51 +295,142 @@ function SummaryCard({ label, value, sub, accent }: SummaryCardProps) {
   )
 }
 
+// Stable deterministic "random" value derived from a string + integer salt
+function pseudoRand(seed: string, salt: number): number {
+  let h = (salt * 2654435761) >>> 0
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(h ^ seed.charCodeAt(i), 2246822519)) >>> 0
+  return (h >>> 16) / 65535
+}
+
+const TAG_CLOUD_H = 300
+const TAG_MIN_SIZE = 0.75
+const TAG_MAX_SIZE = 2.25
+const TAG_COLORS = [TERRACOTTA, OCEAN, MOSS, AMBER]
+
 interface TagCloudProps { data: TagFrequencyItem[]; isDark: boolean }
 
 function TagCloud({ data, isDark }: TagCloudProps) {
   const [tooltip, setTooltip] = useState<{ item: TagFrequencyItem; x: number; y: number } | null>(null)
   const [exponent, setExponent] = useState(2)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerW, setContainerW] = useState(0)
 
-  if (data.length === 0) {
-    return (
-      <div className="text-sm text-stone-400 flex items-center justify-center h-24">
-        No tagged tasks completed in this period
-      </div>
-    )
-  }
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    setContainerW(el.clientWidth)
+    const obs = new ResizeObserver(entries => setContainerW(entries[0].contentRect.width))
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
-  const COLORS = [TERRACOTTA, OCEAN, MOSS, AMBER]
-  const minCount = Math.min(...data.map(d => d.count))
-  const maxCount = Math.max(...data.map(d => d.count))
-  const minSize = 0.75
-  const maxSize = 2.25
+  // Archimedean spiral placement with AABB collision detection.
+  // Each tag spirals outward from the centre until it finds a gap-free position.
+  const cloudData = useMemo(() => {
+    if (data.length === 0 || containerW < 50) return []
+
+    const minCount = Math.min(...data.map(d => d.count))
+    const maxCount = Math.max(...data.map(d => d.count))
+    const cx = containerW / 2
+    const cy = TAG_CLOUD_H / 2
+    const GAP = 8 // minimum px between pill edges
+
+    // Bounding boxes of already-placed pills (half-extents, no tilt in collision math)
+    const placed: Array<{ x: number; y: number; hw: number; hh: number }> = []
+    const result: Array<{
+      item: TagFrequencyItem; size: number; tilt: number; color: string; x: number; y: number
+    }> = []
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i]
+      const norm = maxCount === minCount ? 1 : (item.count - minCount) / (maxCount - minCount)
+      const size = TAG_MIN_SIZE + Math.pow(norm, exponent) * (TAG_MAX_SIZE - TAG_MIN_SIZE)
+      const basePx = size * 16
+
+      // Estimated pill bounding box (font-medium, average char ~0.60em wide)
+      const pillW = item.name.length * basePx * 0.60 + basePx * 1.6
+      const pillH = basePx * 1.7
+      const hw = pillW / 2 + GAP / 2
+      const hh = pillH / 2 + GAP / 2
+
+      // Small organic tilts for ~25% of tags — keeps pill shape readable
+      const rng = pseudoRand(item.name, 3)
+      const tilt = rng < 0.12 ? 10 : rng < 0.24 ? -10 : rng < 0.32 ? 6 : 0
+
+      const color = TAG_COLORS[i % TAG_COLORS.length]
+
+      // First (largest) tag anchors at centre
+      if (i === 0) {
+        placed.push({ x: cx, y: cy, hw, hh })
+        result.push({ item, size, tilt, color, x: cx, y: cy })
+        continue
+      }
+
+      // Spiral outward from a per-tag random start angle for varied spread
+      const startTheta = pseudoRand(item.name, 4) * Math.PI * 2
+      const A = 2.0        // px per radian — controls coil spacing
+      const DTHETA = 0.10  // radian step — smaller = finer search
+      let px = cx, py = cy
+      let didPlace = false
+
+      for (let iter = 0; iter < 6000; iter++) {
+        const theta = startTheta + iter * DTHETA
+        const r = A * theta
+        const x = cx + r * Math.cos(theta)
+        // y-compression keeps cloud oval to fit the wide card shape
+        const y = cy + r * Math.sin(theta) * 0.50
+
+        if (x - hw < 4 || x + hw > containerW - 4 || y - hh < 4 || y + hh > TAG_CLOUD_H - 4) continue
+
+        let ok = true
+        for (const p of placed) {
+          if (Math.abs(x - p.x) < hw + p.hw && Math.abs(y - p.y) < hh + p.hh) { ok = false; break }
+        }
+        if (ok) { px = x; py = y; placed.push({ x, y, hw, hh }); didPlace = true; break }
+      }
+
+      // Fallback: place at centre (will overlap, but beats being invisible)
+      if (!didPlace) placed.push({ x: px, y: py, hw, hh })
+      result.push({ item, size, tilt, color, x: px, y: py })
+    }
+
+    return result
+  }, [data, containerW, exponent])
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-3 justify-center py-4">
-        {data.map((item, i) => {
-          const color = COLORS[i % COLORS.length]
-          // Power-law scaling: higher exponent = more dramatic size spread
-          const size = maxCount === minCount
-            ? (minSize + maxSize) / 2
-            : minSize + Math.pow((item.count - minCount) / (maxCount - minCount), exponent) * (maxSize - minSize)
+    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+
+      {/* Word cloud canvas — always rendered so the ResizeObserver ref is always attached */}
+      <div ref={containerRef} style={{ position: 'relative', height: TAG_CLOUD_H, flex: 1, overflow: 'hidden' }}>
+        {data.length === 0 ? (
+          <div className="text-sm text-stone-400 flex items-center justify-center h-full">
+            No tagged tasks completed in this period
+          </div>
+        ) : cloudData.map(({ item, size, tilt, color, x, y }) => {
           const r = parseInt(color.slice(1, 3), 16)
           const g = parseInt(color.slice(3, 5), 16)
           const b = parseInt(color.slice(5, 7), 16)
           return (
             <span
               key={item.name}
-              className="cursor-default select-none rounded-full font-medium hover:opacity-80 transition-opacity"
+              className="hover:opacity-80 transition-opacity"
               style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                transform: `translate(-50%, -50%) rotate(${tilt}deg)`,
+                fontSize: `${size.toFixed(2)}rem`,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: `${size.toFixed(2)}rem`,
-                // em-based padding keeps the pill proportional at every font size
                 padding: '0.35em 0.8em',
                 color,
                 backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
+                borderRadius: '9999px',
+                fontWeight: 500,
+                cursor: 'default',
+                userSelect: 'none',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => setTooltip({ item, x: e.clientX, y: e.clientY })}
               onMouseMove={(e) => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
@@ -351,9 +442,12 @@ function TagCloud({ data, isDark }: TagCloudProps) {
         })}
       </div>
 
-      {/* Scaling slider */}
-      <div className="flex items-center gap-3 px-1 pt-1 pb-0.5">
-        <span className="text-xs text-stone-400 shrink-0">Scale</span>
+      {/* Vertical scale slider — right side, ~33% of container height */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', gap: 6, minWidth: 28,
+      }}>
+        <span style={{ fontSize: 10, color: isDark ? '#57534e' : '#a8a29e' }}>steep</span>
         <input
           type="range"
           min={0.5}
@@ -361,12 +455,15 @@ function TagCloud({ data, isDark }: TagCloudProps) {
           step={0.1}
           value={exponent}
           onChange={(e) => setExponent(parseFloat(e.target.value))}
-          className="flex-1 h-1 appearance-none rounded-full cursor-pointer"
-          style={{ accentColor: TERRACOTTA }}
+          style={{
+            writingMode: 'vertical-lr',
+            direction: 'rtl',
+            height: TAG_CLOUD_H * 0.33,
+            cursor: 'pointer',
+            accentColor: TERRACOTTA,
+          }}
         />
-        <span className="text-xs text-stone-400 w-8 text-right tabular-nums shrink-0">
-          {exponent.toFixed(1)}×
-        </span>
+        <span style={{ fontSize: 10, color: isDark ? '#57534e' : '#a8a29e' }}>flat</span>
       </div>
 
       {tooltip && (
@@ -402,10 +499,8 @@ function TagCloud({ data, isDark }: TagCloudProps) {
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: 2,
-                backgroundColor: COLORS[data.indexOf(tooltip.item) % COLORS.length],
+                width: 8, height: 8, borderRadius: 2,
+                backgroundColor: TAG_COLORS[data.indexOf(tooltip.item) % TAG_COLORS.length],
                 display: 'inline-block',
               }} />
               Completed tasks
