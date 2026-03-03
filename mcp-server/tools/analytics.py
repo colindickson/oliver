@@ -8,6 +8,7 @@ from models.day_off import DayOff
 from models.task import Task
 from models.timer_session import TimerSession
 from tools.daily import get_session
+from tools.log_utils import log_call
 
 
 def get_analytics(days: int = 30) -> str:
@@ -30,46 +31,54 @@ def get_analytics(days: int = 30) -> str:
         - ``category_time_seconds``: Dict mapping each category name to its
           total recorded timer seconds.
     """
-    cutoff = date.today() - timedelta(days=days)
-    with get_session() as session:
-        off_day_ids = {row.day_id for row in session.query(DayOff).all()}
-        day_rows = session.query(Day).filter(Day.date >= cutoff).all()
-        day_rows = [d for d in day_rows if d.id not in off_day_ids]
-        total_days = len(day_rows)
-        completed_tasks = 0
-        total_tasks = 0
-        category_seconds: dict[str, int] = {
-            "deep_work": 0,
-            "short_task": 0,
-            "maintenance": 0,
-        }
+    params = {"days": days}
+    try:
+        cutoff = date.today() - timedelta(days=days)
+        with get_session() as session:
+            off_day_ids = {row.day_id for row in session.query(DayOff).all()}
+            day_rows = session.query(Day).filter(Day.date >= cutoff).all()
+            day_rows = [d for d in day_rows if d.id not in off_day_ids]
+            total_days = len(day_rows)
+            completed_tasks = 0
+            total_tasks = 0
+            category_seconds: dict[str, int] = {
+                "deep_work": 0,
+                "short_task": 0,
+                "maintenance": 0,
+            }
 
-        for day in day_rows:
-            tasks = session.query(Task).filter(Task.day_id == day.id).all()
-            total_tasks += len(tasks)
-            completed_tasks += sum(1 for t in tasks if t.status == "completed")
-            for task in tasks:
-                timer_sessions = (
-                    session.query(TimerSession)
-                    .filter(TimerSession.task_id == task.id)
-                    .all()
-                )
-                for ts in timer_sessions:
-                    if ts.duration_seconds:
-                        category_seconds[task.category] = (
-                            category_seconds.get(task.category, 0) + ts.duration_seconds
-                        )
+            for day in day_rows:
+                tasks = session.query(Task).filter(Task.day_id == day.id).all()
+                total_tasks += len(tasks)
+                completed_tasks += sum(1 for t in tasks if t.status == "completed")
+                for task in tasks:
+                    timer_sessions = (
+                        session.query(TimerSession)
+                        .filter(TimerSession.task_id == task.id)
+                        .all()
+                    )
+                    for ts in timer_sessions:
+                        if ts.duration_seconds:
+                            category_seconds[task.category] = (
+                                category_seconds.get(task.category, 0) + ts.duration_seconds
+                            )
 
-        completion_rate = (
-            round(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
-        )
+            completion_rate = (
+                round(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+            )
 
-        result = {
-            "period_days": days,
-            "total_days_tracked": total_days,
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "completion_rate_pct": completion_rate,
-            "category_time_seconds": category_seconds,
-        }
-    return json.dumps(result, indent=2)
+            result = {
+                "period_days": days,
+                "total_days_tracked": total_days,
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "completion_rate_pct": completion_rate,
+                "category_time_seconds": category_seconds,
+            }
+        result_json = json.dumps(result, indent=2)
+        log_call("get_analytics", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("get_analytics", params, error_json, "error")
+        return error_json

@@ -362,3 +362,21 @@ export const templatesApi = {
   deleteSchedule: (templateId: number, scheduleId: number) =>
     api.delete(`/templates/${templateId}/schedules/${scheduleId}`).then(r => r.data),
 }
+
+export interface MCPLogResponse {
+  id: number
+  tool_name: string
+  params: string       // JSON string
+  result: string | null
+  status: 'success' | 'error'
+  is_reverted: boolean
+  is_revertible: boolean
+  created_at: string
+}
+
+export const mcpLogsApi = {
+  list: (limit = 50, offset = 0) =>
+    api.get<MCPLogResponse[]>(`/mcp-logs?limit=${limit}&offset=${offset}`).then(r => r.data),
+  revert: (id: number) =>
+    api.post<MCPLogResponse>(`/mcp-logs/${id}/revert`).then(r => r.data),
+}

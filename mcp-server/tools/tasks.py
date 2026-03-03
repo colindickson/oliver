@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from models.tag import Tag
 from models.task import Task
 from tools.daily import get_session, _get_or_create_day
+from tools.log_utils import log_call
 from oliver_shared import (
     MAX_TAGS_PER_TASK,
     STATUS_COMPLETED,
@@ -65,42 +66,53 @@ def create_task(
     """
     if tags is None:
         tags = []
+    params = {"title": title, "category": category, "day_date": day_date,
+              "description": description, "tags": tags}
     try:
         validate_tag_count(tags)
     except ValueError as e:
-        return json.dumps({"error": str(e)})
+        error_json = json.dumps({"error": str(e)})
+        log_call("create_task", params, error_json, "error")
+        return error_json
 
     target = date.fromisoformat(day_date) if day_date else date.today()
-    with get_session() as session:
-        day = _get_or_create_day(session, target)
-        count = (
-            session.query(Task)
-            .filter(Task.day_id == day.id, Task.category == category)
-            .count()
-        )
-        task = Task(
-            day_id=day.id,
-            category=category,
-            title=title,
-            description=description or None,
-            order_index=count,
-        )
-        session.add(task)
-        session.flush()
+    try:
+        with get_session() as session:
+            day = _get_or_create_day(session, target)
+            count = (
+                session.query(Task)
+                .filter(Task.day_id == day.id, Task.category == category)
+                .count()
+            )
+            task = Task(
+                day_id=day.id,
+                category=category,
+                title=title,
+                description=description or None,
+                order_index=count,
+            )
+            session.add(task)
+            session.flush()
 
-        # Add tags if provided
-        if tags:
-            tag_objects = _get_or_create_tags(session, tags)
-            task.tags = tag_objects
+            # Add tags if provided
+            if tags:
+                tag_objects = _get_or_create_tags(session, tags)
+                task.tags = tag_objects
 
-        result = {
-            "id": task.id,
-            "title": task.title,
-            "category": task.category,
-            "status": task.status,
-            "tags": [t.name for t in task.tags],
-        }
-    return json.dumps(result)
+            result = {
+                "id": task.id,
+                "title": task.title,
+                "category": task.category,
+                "status": task.status,
+                "tags": [t.name for t in task.tags],
+            }
+        result_json = json.dumps(result)
+        log_call("create_task", params, result_json, "success", before_state=None)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("create_task", params, error_json, "error")
+        return error_json
 
 
 def update_task(
@@ -126,29 +138,52 @@ def update_task(
         JSON-encoded dict with ``success``, ``task_id``, and ``tags``, or an ``error``
         key when the task is not found.
     """
-    with get_session() as session:
-        task = session.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            return json.dumps({"error": f"Task {task_id} not found"})
-        if title:
-            task.title = title
-        if description:
-            task.description = description
-        if status:
-            task.status = status
-            if status == STATUS_COMPLETED:
-                task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    params = {"task_id": task_id, "title": title, "description": description,
+              "status": status, "tags": tags}
+    try:
+        with get_session() as session:
+            task = session.query(Task).filter(Task.id == task_id).first()
+            if not task:
+                error_json = json.dumps({"error": f"Task {task_id} not found"})
+                log_call("update_task", params, error_json, "error")
+                return error_json
 
-        if tags is not None:
-            try:
-                validate_tag_count(tags)
-            except ValueError as e:
-                return json.dumps({"error": str(e)})
-            tag_objects = _get_or_create_tags(session, tags)
-            task.tags = tag_objects
+            before_state = {
+                "title": task.title,
+                "description": task.description,
+                "status": task.status,
+                "category": task.category,
+                "tags": [t.name for t in task.tags],
+            }
 
-    result = {"success": True, "task_id": task_id, "tags": [t.name for t in task.tags]}
-    return json.dumps(result)
+            if title:
+                task.title = title
+            if description:
+                task.description = description
+            if status:
+                task.status = status
+                if status == STATUS_COMPLETED:
+                    task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+            if tags is not None:
+                try:
+                    validate_tag_count(tags)
+                except ValueError as e:
+                    error_json = json.dumps({"error": str(e)})
+                    log_call("update_task", params, error_json, "error")
+                    return error_json
+                tag_objects = _get_or_create_tags(session, tags)
+                task.tags = tag_objects
+
+            final_tags = [t.name for t in task.tags]
+
+        result_json = json.dumps({"success": True, "task_id": task_id, "tags": final_tags})
+        log_call("update_task", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("update_task", params, error_json, "error")
+        return error_json
 
 
 def delete_task(task_id: int) -> str:
@@ -161,12 +196,34 @@ def delete_task(task_id: int) -> str:
         JSON-encoded dict with ``deleted`` and ``task_id``, or an ``error``
         key when the task is not found.
     """
-    with get_session() as session:
-        task = session.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            return json.dumps({"error": f"Task {task_id} not found"})
-        session.delete(task)
-    return json.dumps({"deleted": True, "task_id": task_id})
+    params = {"task_id": task_id}
+    try:
+        with get_session() as session:
+            task = session.query(Task).filter(Task.id == task_id).first()
+            if not task:
+                error_json = json.dumps({"error": f"Task {task_id} not found"})
+                log_call("delete_task", params, error_json, "error")
+                return error_json
+
+            day = task.day
+            before_state = {
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "status": task.status,
+                "category": task.category,
+                "day_date": day.date.isoformat() if day else None,
+                "tags": [t.name for t in task.tags],
+            }
+            session.delete(task)
+
+        result_json = json.dumps({"deleted": True, "task_id": task_id})
+        log_call("delete_task", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("delete_task", params, error_json, "error")
+        return error_json
 
 
 def complete_task(task_id: int) -> str:
@@ -182,4 +239,27 @@ def complete_task(task_id: int) -> str:
         JSON-encoded dict with ``success`` and ``task_id``, or an ``error``
         key when the task is not found.
     """
-    return update_task(task_id, status=STATUS_COMPLETED)
+    params = {"task_id": task_id}
+    try:
+        with get_session() as session:
+            task = session.query(Task).filter(Task.id == task_id).first()
+            if not task:
+                error_json = json.dumps({"error": f"Task {task_id} not found"})
+                log_call("complete_task", params, error_json, "error")
+                return error_json
+
+            before_state = {
+                "status": task.status,
+                "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            }
+
+            task.status = STATUS_COMPLETED
+            task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        result_json = json.dumps({"success": True, "task_id": task_id})
+        log_call("complete_task", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("complete_task", params, error_json, "error")
+        return error_json

@@ -5,6 +5,7 @@ from datetime import date
 
 from models.day_metadata import DayMetadata
 from tools.daily import _get_or_create_day, get_session
+from tools.log_utils import log_call
 
 VALID_CONDITIONS = frozenset(
     {"sunny", "partly_cloudy", "cloudy", "rainy", "snowy", "stormy", "foggy"}
@@ -35,43 +36,64 @@ def set_day_metadata(
     Returns:
         JSON-encoded dict with ``success`` and the saved fields, or ``error``.
     """
+    params = {"date_str": date_str, "temperature_c": temperature_c,
+              "condition": condition, "moon_phase": moon_phase}
     if condition is not None and condition not in VALID_CONDITIONS:
-        return json.dumps(
+        error_json = json.dumps(
             {"error": f"Invalid condition '{condition}'. Must be one of: {sorted(VALID_CONDITIONS)}"}
         )
+        log_call("set_day_metadata", params, error_json, "error")
+        return error_json
 
     if moon_phase is not None and moon_phase not in VALID_MOON_PHASES:
-        return json.dumps(
+        error_json = json.dumps(
             {"error": f"Invalid moon_phase '{moon_phase}'. Must be one of: {sorted(VALID_MOON_PHASES)}"}
         )
+        log_call("set_day_metadata", params, error_json, "error")
+        return error_json
 
     try:
         target = date.fromisoformat(date_str)
     except ValueError:
-        return json.dumps({"error": f"Invalid date format '{date_str}'. Use YYYY-MM-DD."})
+        error_json = json.dumps({"error": f"Invalid date format '{date_str}'. Use YYYY-MM-DD."})
+        log_call("set_day_metadata", params, error_json, "error")
+        return error_json
 
-    with get_session() as session:
-        day = _get_or_create_day(session, target)
-        meta = session.query(DayMetadata).filter(DayMetadata.day_id == day.id).first()
-        if meta:
-            meta.temperature_c = temperature_c
-            meta.condition = condition
-            meta.moon_phase = moon_phase
-        else:
-            meta = DayMetadata(
-                day_id=day.id,
-                temperature_c=temperature_c,
-                condition=condition,
-                moon_phase=moon_phase,
-            )
-            session.add(meta)
+    try:
+        with get_session() as session:
+            day = _get_or_create_day(session, target)
+            meta = session.query(DayMetadata).filter(DayMetadata.day_id == day.id).first()
+            if meta:
+                before_state = {
+                    "temperature_c": meta.temperature_c,
+                    "condition": meta.condition,
+                    "moon_phase": meta.moon_phase,
+                }
+                meta.temperature_c = temperature_c
+                meta.condition = condition
+                meta.moon_phase = moon_phase
+            else:
+                before_state = None
+                meta = DayMetadata(
+                    day_id=day.id,
+                    temperature_c=temperature_c,
+                    condition=condition,
+                    moon_phase=moon_phase,
+                )
+                session.add(meta)
 
-    return json.dumps(
-        {
-            "success": True,
-            "date": target.isoformat(),
-            "temperature_c": temperature_c,
-            "condition": condition,
-            "moon_phase": moon_phase,
-        }
-    )
+        result_json = json.dumps(
+            {
+                "success": True,
+                "date": target.isoformat(),
+                "temperature_c": temperature_c,
+                "condition": condition,
+                "moon_phase": moon_phase,
+            }
+        )
+        log_call("set_day_metadata", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("set_day_metadata", params, error_json, "error")
+        return error_json

@@ -10,6 +10,7 @@ from models.day import Day
 from models.day_rating import DayRating
 from models.roadblock import Roadblock
 from models.task import Task, STATUS_PENDING
+from tools.log_utils import log_call
 
 
 @contextmanager
@@ -56,43 +57,51 @@ def get_daily_plan(date_str: str = "") -> str:
     Returns:
         JSON-encoded dict with ``date``, ``day_id``, and ``tasks`` fields.
     """
+    params = {"date_str": date_str}
     target = date.fromisoformat(date_str) if date_str else date.today()
-    with get_session() as session:
-        day = _get_or_create_day(session, target)
-        tasks = (
-            session.query(Task)
-            .filter(Task.day_id == day.id)
-            .order_by(Task.order_index)
-            .all()
-        )
-        note = session.query(DailyNote).filter(DailyNote.day_id == day.id).first()
-        roadblock = session.query(Roadblock).filter(Roadblock.day_id == day.id).first()
-        rating = session.query(DayRating).filter(DayRating.day_id == day.id).first()
+    try:
+        with get_session() as session:
+            day = _get_or_create_day(session, target)
+            tasks = (
+                session.query(Task)
+                .filter(Task.day_id == day.id)
+                .order_by(Task.order_index)
+                .all()
+            )
+            note = session.query(DailyNote).filter(DailyNote.day_id == day.id).first()
+            roadblock = session.query(Roadblock).filter(Roadblock.day_id == day.id).first()
+            rating = session.query(DayRating).filter(DayRating.day_id == day.id).first()
 
-        result = {
-            "date": day.date.isoformat(),
-            "day_id": day.id,
-            "tasks": [
-                {
-                    "id": t.id,
-                    "category": t.category,
-                    "title": t.title,
-                    "description": t.description,
-                    "status": t.status,
-                    "order_index": t.order_index,
-                    "tags": [tag.name for tag in t.tags],
-                }
-                for t in tasks
-            ],
-            "notes": note.content if note else None,
-            "roadblocks": roadblock.content if roadblock else None,
-            "rating": {
-                "focus": rating.focus,
-                "energy": rating.energy,
-                "satisfaction": rating.satisfaction,
-            } if rating else None,
-        }
-    return json.dumps(result, indent=2)
+            result = {
+                "date": day.date.isoformat(),
+                "day_id": day.id,
+                "tasks": [
+                    {
+                        "id": t.id,
+                        "category": t.category,
+                        "title": t.title,
+                        "description": t.description,
+                        "status": t.status,
+                        "order_index": t.order_index,
+                        "tags": [tag.name for tag in t.tags],
+                    }
+                    for t in tasks
+                ],
+                "notes": note.content if note else None,
+                "roadblocks": roadblock.content if roadblock else None,
+                "rating": {
+                    "focus": rating.focus,
+                    "energy": rating.energy,
+                    "satisfaction": rating.satisfaction,
+                } if rating else None,
+            }
+        result_json = json.dumps(result, indent=2)
+        log_call("get_daily_plan", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("get_daily_plan", params, error_json, "error")
+        return error_json
 
 
 def set_daily_plan(date_str: str, tasks_json: str) -> str:
@@ -110,27 +119,43 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
     Returns:
         JSON-encoded dict with ``success``, ``date``, and ``tasks_count``.
     """
+    params = {"date_str": date_str, "tasks_json": tasks_json}
     target = date.fromisoformat(date_str) if date_str else date.today()
     try:
         new_tasks = json.loads(tasks_json) if isinstance(tasks_json, str) else tasks_json
     except (json.JSONDecodeError, TypeError):
-        return json.dumps({"error": "tasks must be a JSON array string"})
+        error_json = json.dumps({"error": "tasks must be a JSON array string"})
+        log_call("set_daily_plan", params, error_json, "error")
+        return error_json
 
-    with get_session() as session:
-        day = _get_or_create_day(session, target)
-        # Delete existing tasks for the day before inserting the replacement set.
-        session.query(Task).filter(Task.day_id == day.id).delete()
-        for i, t in enumerate(new_tasks):
-            task = Task(
-                day_id=day.id,
-                category=t.get("category", "short_task"),
-                title=t["title"],
-                description=t.get("description"),
-                status=STATUS_PENDING,
-                order_index=i,
-            )
-            session.add(task)
+    try:
+        with get_session() as session:
+            day = _get_or_create_day(session, target)
+            note = session.query(DailyNote).filter(DailyNote.day_id == day.id).first()
+            roadblock = session.query(Roadblock).filter(Roadblock.day_id == day.id).first()
+            before_state = {
+                "note": note.content if note else None,
+                "roadblocks": roadblock.content if roadblock else None,
+            }
+            # Delete existing tasks for the day before inserting the replacement set.
+            session.query(Task).filter(Task.day_id == day.id).delete()
+            for i, t in enumerate(new_tasks):
+                task = Task(
+                    day_id=day.id,
+                    category=t.get("category", "short_task"),
+                    title=t["title"],
+                    description=t.get("description"),
+                    status=STATUS_PENDING,
+                    order_index=i,
+                )
+                session.add(task)
 
-    return json.dumps(
-        {"success": True, "date": target.isoformat(), "tasks_count": len(new_tasks)}
-    )
+        result_json = json.dumps(
+            {"success": True, "date": target.isoformat(), "tasks_count": len(new_tasks)}
+        )
+        log_call("set_daily_plan", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("set_daily_plan", params, error_json, "error")
+        return error_json

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from models.setting import Setting
 from models.timer_session import TimerSession
 from tools.daily import get_session
+from tools.log_utils import log_call
 
 # Settings table key used to persist the active timer state across MCP calls.
 _TIMER_KEY = "active_timer"
@@ -61,27 +62,39 @@ def start_timer(task_id: int) -> str:
         JSON-encoded dict with ``success``, ``task_id``, and ``status``, or an
         ``error`` key when a timer is already running.
     """
-    with get_session() as session:
-        state = _get_timer_state(session)
-        if state and state["status"] == "running":
-            return json.dumps({"error": "Timer already running"})
-        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-        # Carry forward accumulated seconds only when resuming the same task.
-        accumulated = (
-            state.get("accumulated_seconds", 0)
-            if state and state.get("task_id") == task_id
-            else 0
-        )
-        _set_timer_state(
-            session,
-            {
-                "task_id": task_id,
-                "status": "running",
-                "started_at": now,
-                "accumulated_seconds": accumulated,
-            },
-        )
-    return json.dumps({"success": True, "task_id": task_id, "status": "running"})
+    params = {"task_id": task_id}
+    try:
+        with get_session() as session:
+            state = _get_timer_state(session)
+            before_state = {"active_timer": state}
+            if state and state["status"] == "running":
+                error_json = json.dumps({"error": "Timer already running"})
+                log_call("start_timer", params, error_json, "error")
+                return error_json
+            now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+            # Carry forward accumulated seconds only when resuming the same task.
+            accumulated = (
+                state.get("accumulated_seconds", 0)
+                if state and state.get("task_id") == task_id
+                else 0
+            )
+            _set_timer_state(
+                session,
+                {
+                    "task_id": task_id,
+                    "status": "running",
+                    "started_at": now,
+                    "accumulated_seconds": accumulated,
+                },
+            )
+
+        result_json = json.dumps({"success": True, "task_id": task_id, "status": "running"})
+        log_call("start_timer", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("start_timer", params, error_json, "error")
+        return error_json
 
 
 def stop_timer(task_id: int) -> str:
@@ -98,23 +111,40 @@ def stop_timer(task_id: int) -> str:
         JSON-encoded dict with ``success`` and ``duration_seconds``, or an
         ``error`` key when no timer is active.
     """
-    with get_session() as session:
-        state = _get_timer_state(session)
-        if not state:
-            return json.dumps({"error": "No timer running"})
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        accumulated = state.get("accumulated_seconds", 0)
-        if state["status"] == "running":
-            started_at = datetime.fromisoformat(state["started_at"])
-            total = accumulated + int((now - started_at).total_seconds())
-        else:
-            total = accumulated
-        ts = TimerSession(
-            task_id=state["task_id"],
-            started_at=datetime.fromisoformat(state["started_at"]),
-            ended_at=now,
-            duration_seconds=total,
-        )
-        session.add(ts)
-        _clear_timer_state(session)
-    return json.dumps({"success": True, "duration_seconds": total})
+    params = {"task_id": task_id}
+    try:
+        with get_session() as session:
+            state = _get_timer_state(session)
+            if not state:
+                error_json = json.dumps({"error": "No timer running"})
+                log_call("stop_timer", params, error_json, "error")
+                return error_json
+
+            before_state = {"active_timer": state, "timer_session_id": None}
+
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            accumulated = state.get("accumulated_seconds", 0)
+            if state["status"] == "running":
+                started_at = datetime.fromisoformat(state["started_at"])
+                total = accumulated + int((now - started_at).total_seconds())
+            else:
+                total = accumulated
+            ts = TimerSession(
+                task_id=state["task_id"],
+                started_at=datetime.fromisoformat(state["started_at"]),
+                ended_at=now,
+                duration_seconds=total,
+            )
+            session.add(ts)
+            session.flush()
+            timer_session_id = ts.id
+            _clear_timer_state(session)
+
+        result_json = json.dumps({"success": True, "duration_seconds": total,
+                                  "timer_session_id": timer_session_id})
+        log_call("stop_timer", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("stop_timer", params, error_json, "error")
+        return error_json

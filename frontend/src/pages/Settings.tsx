@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, templatesApi, dayApi, type TaskTemplate } from '../api/client'
+import { settingsApi, templatesApi, dayApi, mcpLogsApi, type TaskTemplate, type MCPLogResponse } from '../api/client'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { Sidebar } from '../components/Sidebar'
 import { TemplateModal } from '../components/TemplateModal'
@@ -31,6 +31,277 @@ const LABELS: Record<string, string> = {
   thursday: 'Thu',
   friday: 'Fri',
   saturday: 'Sat',
+}
+
+const READ_ONLY_TOOLS = new Set([
+  'get_daily_plan', 'list_days_off', 'is_day_off',
+  'get_recurring_days_off', 'get_analytics',
+])
+
+function formatRelativeTime(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+function MCPLogCard() {
+  const qc = useQueryClient()
+  const [logOffset, setLogOffset] = useState(0)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const PAGE = 20
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['mcp-logs', logOffset],
+    queryFn: () => mcpLogsApi.list(PAGE, logOffset),
+  })
+
+  const revert = useMutation({
+    mutationFn: (id: number) => mcpLogsApi.revert(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mcp-logs'] }),
+  })
+
+  return (
+    <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6 mt-6">
+      <h2 className="text-base font-semibold text-stone-700 dark:text-stone-200 mb-1">
+        MCP Tool Log
+      </h2>
+      <p className="text-sm text-stone-400 dark:text-stone-500 mb-4">
+        Audit log of all AI agent tool calls. Revertible actions can be undone.
+      </p>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-10 rounded-xl bg-stone-100 dark:bg-stone-700/40 animate-pulse" />
+          ))}
+        </div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-6">
+          No tool calls logged yet.
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {logs.map((log: MCPLogResponse) => {
+            const isExpanded = expandedId === log.id
+            const isReadOnly = READ_ONLY_TOOLS.has(log.tool_name)
+            return (
+              <div key={log.id} className="rounded-xl border border-stone-100 dark:border-stone-700/50">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-stone-50 dark:hover:bg-stone-700/30 rounded-xl transition-colors"
+                >
+                  <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0 w-14">
+                    {formatRelativeTime(log.created_at)}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                    isReadOnly
+                      ? 'bg-ocean-100 text-ocean-700 dark:bg-ocean-900/30 dark:text-ocean-300'
+                      : 'bg-terracotta-100 text-terracotta-700 dark:bg-terracotta-900/30 dark:text-terracotta-300'
+                  }`}>
+                    {log.tool_name}
+                  </span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                    log.status === 'success'
+                      ? 'bg-moss-100 text-moss-700 dark:bg-moss-900/30 dark:text-moss-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {log.status}
+                  </span>
+                  {log.is_reverted && (
+                    <span className="text-xs text-stone-400 dark:text-stone-500 italic">reverted</span>
+                  )}
+                  <svg
+                    className={`ml-auto w-3 h-3 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"
+                  >
+                    <path d="M2 4l4 4 4-4" />
+                  </svg>
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-2">
+                    <div>
+                      <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Params</p>
+                      <pre className="text-xs text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(JSON.parse(log.params), null, 2)}
+                      </pre>
+                    </div>
+                    {log.result && (
+                      <div>
+                        <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Result</p>
+                        <pre className="text-xs text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                          {JSON.stringify(JSON.parse(log.result), null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    {log.is_revertible && (
+                      <button
+                        type="button"
+                        onClick={() => revert.mutate(log.id)}
+                        disabled={revert.isPending}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-terracotta-500 text-white hover:bg-terracotta-600 disabled:opacity-50 transition-colors"
+                      >
+                        {revert.isPending ? 'Reverting…' : 'Revert'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-3">
+        {logOffset > 0 && (
+          <button
+            type="button"
+            onClick={() => setLogOffset(Math.max(0, logOffset - PAGE))}
+            className="text-xs px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+          >
+            ← Newer
+          </button>
+        )}
+        {logs.length === PAGE && (
+          <button
+            type="button"
+            onClick={() => setLogOffset(logOffset + PAGE)}
+            className="text-xs px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+          >
+            Older →
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MCPLogCardMobile() {
+  const qc = useQueryClient()
+  const [logOffset, setLogOffset] = useState(0)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const PAGE = 20
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['mcp-logs', logOffset],
+    queryFn: () => mcpLogsApi.list(PAGE, logOffset),
+  })
+
+  const revert = useMutation({
+    mutationFn: (id: number) => mcpLogsApi.revert(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mcp-logs'] }),
+  })
+
+  return (
+    <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">
+      <h2 className="text-base font-semibold text-stone-200 mb-1">MCP Tool Log</h2>
+      <p className="text-sm text-stone-500 mb-4">
+        Audit log of all AI agent tool calls.
+      </p>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-10 rounded-xl bg-stone-700/40 animate-pulse" />
+          ))}
+        </div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-stone-500 text-center py-6">No tool calls logged yet.</p>
+      ) : (
+        <div className="space-y-1">
+          {logs.map((log: MCPLogResponse) => {
+            const isExpanded = expandedId === log.id
+            const isReadOnly = READ_ONLY_TOOLS.has(log.tool_name)
+            return (
+              <div key={log.id} className="rounded-xl border border-stone-600/50">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-stone-700/30 rounded-xl transition-colors"
+                >
+                  <span className="text-xs text-stone-500 shrink-0 w-12">
+                    {formatRelativeTime(log.created_at)}
+                  </span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 truncate max-w-[120px] ${
+                    isReadOnly
+                      ? 'bg-ocean-900/30 text-ocean-300'
+                      : 'bg-terracotta-900/30 text-terracotta-300'
+                  }`}>
+                    {log.tool_name}
+                  </span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                    log.status === 'success'
+                      ? 'bg-moss-900/30 text-moss-400'
+                      : 'bg-red-900/30 text-red-400'
+                  }`}>
+                    {log.status}
+                  </span>
+                  {log.is_reverted && (
+                    <span className="text-xs text-stone-500 italic">reverted</span>
+                  )}
+                  <svg
+                    className={`ml-auto w-3 h-3 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"
+                  >
+                    <path d="M2 4l4 4 4-4" />
+                  </svg>
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-2">
+                    <pre className="text-xs text-stone-300 bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                      {JSON.stringify(JSON.parse(log.params), null, 2)}
+                    </pre>
+                    {log.result && (
+                      <pre className="text-xs text-stone-300 bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(JSON.parse(log.result), null, 2)}
+                      </pre>
+                    )}
+                    {log.is_revertible && (
+                      <button
+                        type="button"
+                        onClick={() => revert.mutate(log.id)}
+                        disabled={revert.isPending}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-terracotta-500 text-white hover:bg-terracotta-600 disabled:opacity-50 transition-colors"
+                      >
+                        {revert.isPending ? 'Reverting…' : 'Revert'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-3">
+        {logOffset > 0 && (
+          <button
+            type="button"
+            onClick={() => setLogOffset(Math.max(0, logOffset - PAGE))}
+            className="text-xs px-3 py-1.5 rounded-lg bg-stone-700/60 text-stone-400 hover:bg-stone-700 transition-colors"
+          >
+            ← Newer
+          </button>
+        )}
+        {logs.length === PAGE && (
+          <button
+            type="button"
+            onClick={() => setLogOffset(logOffset + PAGE)}
+            className="text-xs px-3 py-1.5 rounded-lg bg-stone-700/60 text-stone-400 hover:bg-stone-700 transition-colors"
+          >
+            Older →
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function Settings() {
@@ -309,6 +580,9 @@ export function Settings() {
                 {showTimer ? 'On' : 'Off'}
               </button>
             </div>
+
+            {/* MCP Tool Log card */}
+            <MCPLogCardMobile />
           </div>
 
           {/* Calendar section */}
@@ -613,6 +887,9 @@ export function Settings() {
               {showTimer ? 'On' : 'Off'}
             </button>
           </div>
+
+          {/* MCP Tool Log card */}
+          <MCPLogCard />
         </div>
       </main>
     </div>
