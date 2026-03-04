@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { dayApi, backlogApi } from '../api/client'
@@ -7,8 +7,7 @@ import { Sidebar } from '../components/Sidebar'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
-
-type PeriodOption = 7 | 30 | 90 | 'all'
+import { useTagFilters, type PeriodOption } from '../hooks/useTagFilters'
 
 // Filter days to a date window (excluding today, matching Analytics behavior)
 function filterDaysToWindow(days: DayResponse[], windowDays: number): DayResponse[] {
@@ -77,8 +76,7 @@ function IncompleteToggle({ checked, onChange }: IncompleteToggleProps) {
 }
 
 export function Tags() {
-  const [periodDays, setPeriodDays] = useState<PeriodOption>(7)
-  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
+  const { periodDays, showIncompleteOnly, setPeriodDays, setShowIncompleteOnly, filterParams } = useTagFilters()
 
   const { data: days = [], isLoading: daysLoading } = useQuery({
     queryKey: ['days', 'all'],
@@ -169,7 +167,7 @@ export function Tags() {
                 {filteredTags.map(tag => (
                   <Link
                     key={tag.name}
-                    to={`/tags/${encodeURIComponent(tag.name)}`}
+                    to={`/tags/${encodeURIComponent(tag.name)}${filterParams}`}
                     className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm hover:border-terracotta-300 hover:shadow-md transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:border-terracotta-600/50"
                   >
                     <span className="text-sm font-medium text-stone-700 group-hover:text-terracotta-600 transition-colors dark:text-stone-200 dark:group-hover:text-terracotta-300">
@@ -232,7 +230,7 @@ export function Tags() {
               {filteredTags.map(tag => (
                 <Link
                   key={tag.name}
-                  to={`/tags/${encodeURIComponent(tag.name)}`}
+                  to={`/tags/${encodeURIComponent(tag.name)}${filterParams}`}
                   className="group flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm hover:border-terracotta-300 hover:shadow-md transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:border-terracotta-600/50"
                 >
                   <span className="text-sm font-medium text-stone-700 group-hover:text-terracotta-600 transition-colors dark:text-stone-200 dark:group-hover:text-terracotta-300">
