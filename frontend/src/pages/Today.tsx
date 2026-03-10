@@ -12,6 +12,7 @@ import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
+import { FocusGoalBanner } from '../components/FocusGoalBanner'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
 
 interface ColumnConfig {
@@ -235,6 +236,9 @@ export function Today() {
           </div>
         </div>
 
+        {/* Focus Goal Banner */}
+        <FocusGoalBanner />
+
         {/* Tab strip */}
         <div className="flex border-b border-stone-700/50 flex-shrink-0">
           {columns.map(col => (
@@ -352,6 +356,9 @@ export function Today() {
             </div>
           </div>
         </header>
+
+        {/* Focus Goal Banner */}
+        <FocusGoalBanner />
 
         {/* Three-column board */}
         <main className="flex-1 p-8 overflow-auto">

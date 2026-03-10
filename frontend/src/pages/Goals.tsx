@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { GoalCard } from '../components/GoalCard'
 import { GoalDetail } from '../components/GoalDetail'
 import { useGoals } from '../hooks/useGoals'
+import { useFocusGoal } from '../hooks/useFocusGoal'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
@@ -49,9 +51,22 @@ function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void
 
 export function Goals() {
   const { goals, createGoal, deleteGoal } = useGoals()
-  const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selectedGoalId, setSelectedGoalId] = useState<number | null>(() => {
+    const id = searchParams.get('id')
+    return id ? parseInt(id, 10) : null
+  })
   const [showNewForm, setShowNewForm] = useState(false)
   const isMobile = useMobile()
+  const { focusGoalId, setFocusGoal } = useFocusGoal()
+
+  useEffect(() => {
+    if (selectedGoalId !== null) {
+      setSearchParams({ id: String(selectedGoalId) })
+    } else {
+      setSearchParams({})
+    }
+  }, [selectedGoalId, setSearchParams])
 
   const activeGoals = goals.filter(g => g.status === 'active')
   const completedGoals = goals.filter(g => g.status === 'completed')
@@ -119,7 +134,9 @@ export function Goals() {
                     key={goal.id}
                     goal={goal}
                     isSelected={selectedGoalId === goal.id}
+                    isFocusGoal={focusGoalId === goal.id}
                     onClick={() => setSelectedGoalId(goal.id)}
+                    onSetFocus={() => setFocusGoal.mutate(goal.id)}
                   />
                 ))}
               </div>
@@ -136,6 +153,7 @@ export function Goals() {
                     key={goal.id}
                     goal={goal}
                     isSelected={selectedGoalId === goal.id}
+                    isFocusGoal={focusGoalId === goal.id}
                     onClick={() => setSelectedGoalId(goal.id)}
                   />
                 ))}
@@ -148,6 +166,9 @@ export function Goals() {
                   key={selectedGoalId}
                   goalId={selectedGoalId}
                   onDeleted={handleDeleted}
+                  isFocusGoal={focusGoalId === selectedGoalId}
+                  onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
+                  onClearFocus={() => setFocusGoal.mutate(null)}
                 />
               </div>
             )}
@@ -207,7 +228,9 @@ export function Goals() {
                   key={goal.id}
                   goal={goal}
                   isSelected={selectedGoalId === goal.id}
+                  isFocusGoal={focusGoalId === goal.id}
                   onClick={() => setSelectedGoalId(goal.id)}
+                  onSetFocus={() => setFocusGoal.mutate(goal.id)}
                 />
               ))}
             </div>
@@ -224,6 +247,7 @@ export function Goals() {
                   key={goal.id}
                   goal={goal}
                   isSelected={selectedGoalId === goal.id}
+                  isFocusGoal={focusGoalId === goal.id}
                   onClick={() => setSelectedGoalId(goal.id)}
                 />
               ))}
@@ -239,6 +263,9 @@ export function Goals() {
             key={selectedGoalId}
             goalId={selectedGoalId}
             onDeleted={handleDeleted}
+            isFocusGoal={focusGoalId === selectedGoalId}
+            onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
+            onClearFocus={() => setFocusGoal.mutate(null)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

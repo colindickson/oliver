@@ -26,6 +26,7 @@ from app.services.template_service import compute_next_run, TemplateService
 
 RECURRING_DAYS_OFF_KEY = "recurring_days_off"
 TIMER_DISPLAY_KEY = "timer_display"
+FOCUS_GOAL_KEY = "focus_goal_id"
 
 
 class DayService:
@@ -229,9 +230,7 @@ class DayService:
         Returns:
             The persisted DayOff instance.
         """
-        day_off = await self._db.scalar(
-            select(DayOff).where(DayOff.day_id == day_id)
-        )
+        day_off = await self._db.scalar(select(DayOff).where(DayOff.day_id == day_id))
         if day_off:
             day_off.reason = reason
             day_off.note = note
@@ -248,9 +247,7 @@ class DayService:
         Args:
             day_id: Primary key of the parent Day.
         """
-        day_off = await self._db.scalar(
-            select(DayOff).where(DayOff.day_id == day_id)
-        )
+        day_off = await self._db.scalar(select(DayOff).where(DayOff.day_id == day_id))
         if day_off:
             await self._db.delete(day_off)
             await self._db.flush()
@@ -261,9 +258,7 @@ class DayService:
         Returns:
             A list of DayOff instances.
         """
-        result = await self._db.execute(
-            select(DayOff).order_by(DayOff.day_id.desc())
-        )
+        result = await self._db.execute(select(DayOff).order_by(DayOff.day_id.desc()))
         return list(result.scalars().all())
 
     async def get_timer_display(self) -> bool:
@@ -298,6 +293,39 @@ class DayService:
             self._db.add(setting)
         await self._db.flush()
         return enabled
+
+    async def get_focus_goal_id(self) -> int | None:
+        """Return the current focus goal ID, or None if not set.
+
+        Returns:
+            The focus goal ID, or None.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
+        )
+        if setting is None:
+            return None
+        return json.loads(setting.value)
+
+    async def set_focus_goal_id(self, goal_id: int | None) -> int | None:
+        """Save the focus goal ID to settings.
+
+        Args:
+            goal_id: The goal ID to set as focus, or None to clear.
+
+        Returns:
+            The saved goal ID.
+        """
+        setting = await self._db.scalar(
+            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
+        )
+        if setting:
+            setting.value = json.dumps(goal_id)
+        else:
+            setting = Setting(key=FOCUS_GOAL_KEY, value=json.dumps(goal_id))
+            self._db.add(setting)
+        await self._db.flush()
+        return goal_id
 
     async def get_recurring_days_off(self) -> list[str]:
         """Return the list of recurring off weekday names from settings.
@@ -368,7 +396,9 @@ class DayService:
         is_day_off = day.day_off is not None
 
         result = await self._db.execute(
-            select(TemplateSchedule).where(TemplateSchedule.next_run_date <= target_date)
+            select(TemplateSchedule).where(
+                TemplateSchedule.next_run_date <= target_date
+            )
         )
         schedules = list(result.scalars().all())
 
@@ -395,7 +425,9 @@ class DayService:
             # Pass anchor_date.day so monthly schedules don't drift after short months.
             while schedule.next_run_date <= target_date:
                 schedule.next_run_date = compute_next_run(
-                    schedule.next_run_date, schedule.recurrence, schedule.anchor_date.day
+                    schedule.next_run_date,
+                    schedule.recurrence,
+                    schedule.anchor_date.day,
                 )
 
         await self._db.flush()  # commit is handled by the route handler (days.py)

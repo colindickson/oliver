@@ -52,6 +52,18 @@ class TimerDisplayUpdate(BaseModel):
     enabled: bool
 
 
+class FocusGoalResponse(BaseModel):
+    """Response schema for focus goal setting."""
+
+    goal_id: int | None
+
+
+class FocusGoalUpdate(BaseModel):
+    """Request schema for updating focus goal setting."""
+
+    goal_id: int | None
+
+
 @router.get("/timer-display", response_model=TimerDisplayResponse)
 async def get_timer_display(
     db: AsyncSession = Depends(get_db),
@@ -86,6 +98,43 @@ async def set_timer_display(
     enabled = await service.set_timer_display(payload.enabled)
     await db.commit()
     return TimerDisplayResponse(enabled=enabled)
+
+
+@router.get("/focus-goal", response_model=FocusGoalResponse)
+async def get_focus_goal(
+    db: AsyncSession = Depends(get_db),
+) -> FocusGoalResponse:
+    """Return the current focus goal ID.
+
+    Args:
+        db: Injected async database session.
+
+    Returns:
+        A FocusGoalResponse with the goal_id (or null if not set).
+    """
+    service = DayService(db)
+    goal_id = await service.get_focus_goal_id()
+    return FocusGoalResponse(goal_id=goal_id)
+
+
+@router.put("/focus-goal", response_model=FocusGoalResponse)
+async def set_focus_goal(
+    payload: FocusGoalUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> FocusGoalResponse:
+    """Save the focus goal preference.
+
+    Args:
+        payload: The goal_id to set as focus, or null to clear.
+        db: Injected async database session.
+
+    Returns:
+        A FocusGoalResponse with the saved goal_id.
+    """
+    service = DayService(db)
+    goal_id = await service.set_focus_goal_id(payload.goal_id)
+    await db.commit()
+    return FocusGoalResponse(goal_id=goal_id)
 
 
 @router.get("/recurring-days-off", response_model=RecurringDaysOffResponse)

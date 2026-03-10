@@ -8,6 +8,9 @@ import { useGoalDetail } from '../hooks/useGoalDetail'
 interface Props {
   goalId: number
   onDeleted: () => void
+  isFocusGoal?: boolean
+  onSetFocus?: () => void
+  onClearFocus?: () => void
 }
 
 function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
@@ -58,7 +61,7 @@ function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
   )
 }
 
-export function GoalDetail({ goalId, onDeleted }: Props) {
+export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus }: Props) {
   const { goal, updateGoal, setStatus } = useGoalDetail(goalId)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
@@ -116,6 +119,33 @@ export function GoalDetail({ goalId, onDeleted }: Props) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {goal.status === 'active' && (
+            isFocusGoal ? (
+              <button
+                onClick={onClearFocus}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-terracotta-100 hover:bg-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/40 dark:hover:bg-terracotta-900/60 dark:text-terracotta-300 transition-colors flex items-center gap-1"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="8" cy="8" r="6" />
+                  <circle cx="8" cy="8" r="3" fill="white" />
+                  <circle cx="8" cy="8" r="1.5" />
+                </svg>
+                Focus
+              </button>
+            ) : (
+              <button
+                onClick={onSetFocus}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 hover:border-terracotta-300 dark:hover:border-terracotta-600 text-stone-600 dark:text-stone-300 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors flex items-center gap-1"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="6" />
+                  <circle cx="8" cy="8" r="3" />
+                  <circle cx="8" cy="8" r="1" />
+                </svg>
+                Set as focus
+              </button>
+            )
+          )}
           <button
             onClick={() => setStatus.mutate(goal.status === 'completed' ? 'active' : 'completed')}
             disabled={setStatus.isPending}

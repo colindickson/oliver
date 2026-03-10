@@ -3,7 +3,9 @@ import type { Goal } from '../api/client'
 interface Props {
   goal: Goal
   isSelected: boolean
+  isFocusGoal?: boolean
   onClick: () => void
+  onSetFocus?: () => void
 }
 
 function isOverdue(targetDate: string | null): boolean {
@@ -11,9 +13,14 @@ function isOverdue(targetDate: string | null): boolean {
   return new Date(targetDate) < new Date(new Date().toISOString().slice(0, 10))
 }
 
-export function GoalCard({ goal, isSelected, onClick }: Props) {
+export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus }: Props) {
   const overdue = goal.status === 'active' && isOverdue(goal.target_date)
   const isCompleted = goal.status === 'completed'
+
+  function handleSetFocus(e: React.MouseEvent) {
+    e.stopPropagation()
+    onSetFocus?.()
+  }
 
   return (
     <button
@@ -26,20 +33,46 @@ export function GoalCard({ goal, isSelected, onClick }: Props) {
     >
       {/* Title row */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className={`text-sm font-medium leading-snug ${
-          isCompleted
-            ? 'text-stone-400 line-through dark:text-stone-500'
-            : 'text-stone-800 dark:text-stone-100'
-        }`}>
-          {goal.title}
-        </span>
-        {isCompleted && (
-          <span className="flex-shrink-0 mt-0.5">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" className="text-moss-500 dark:text-moss-400">
-              <path d="M2 7l4 4 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`text-sm font-medium leading-snug truncate ${
+            isCompleted
+              ? 'text-stone-400 line-through dark:text-stone-500'
+              : 'text-stone-800 dark:text-stone-100'
+          }`}>
+            {goal.title}
           </span>
-        )}
+          {isFocusGoal && (
+            <span className="flex-shrink-0" title="Focus goal">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-terracotta-500 dark:text-terracotta-400">
+                <circle cx="8" cy="8" r="6" />
+                <circle cx="8" cy="8" r="3" fill="white" />
+                <circle cx="8" cy="8" r="1.5" />
+              </svg>
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {isCompleted && (
+            <span className="flex-shrink-0 mt-0.5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" className="text-moss-500 dark:text-moss-400">
+                <path d="M2 7l4 4 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          )}
+          {onSetFocus && !isFocusGoal && goal.status === 'active' && (
+            <button
+              onClick={handleSetFocus}
+              className="p-1 rounded hover:bg-terracotta-100 dark:hover:bg-terracotta-900/30 text-stone-400 hover:text-terracotta-500 dark:hover:text-terracotta-400 transition-colors"
+              title="Set as focus goal"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="8" cy="8" r="6" />
+                <circle cx="8" cy="8" r="3" />
+                <circle cx="8" cy="8" r="1" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}

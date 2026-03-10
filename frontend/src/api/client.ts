@@ -118,6 +118,10 @@ export const settingsApi = {
     api.get<{ enabled: boolean }>('/settings/timer-display').then(r => r.data),
   setTimerDisplay: (enabled: boolean) =>
     api.put<{ enabled: boolean }>('/settings/timer-display', { enabled }).then(r => r.data),
+  getFocusGoal: () =>
+    api.get<{ goal_id: number | null }>('/settings/focus-goal').then(r => r.data),
+  setFocusGoal: (goal_id: number | null) =>
+    api.put<{ goal_id: number | null }>('/settings/focus-goal', { goal_id }).then(r => r.data),
 }
 
 export const taskApi = {
