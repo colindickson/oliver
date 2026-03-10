@@ -49,7 +49,11 @@ export function Today() {
 
   const createTask = useMutation({
     mutationFn: taskApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['goal'] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
   })
 
   const upsertNotes = useMutation({
@@ -73,12 +77,20 @@ export function Today() {
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: Task['status'] }) =>
       taskApi.setStatus(id, status),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['goal'] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
   })
 
   const deleteTask = useMutation({
     mutationFn: taskApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['goal'] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
   })
 
   const reorderTasks = useMutation({
