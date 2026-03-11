@@ -38,7 +38,9 @@ async def client(db_session: AsyncSession) -> AsyncClient:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -56,7 +58,13 @@ async def day(db_session: AsyncSession) -> Day:
 @pytest.fixture
 async def task(db_session: AsyncSession, day: Day) -> Task:
     """Insert a Task on the test day."""
-    t = Task(day_id=day.id, category="short_task", title="Test task", status="pending", order_index=0)
+    t = Task(
+        day_id=day.id,
+        category="short_task",
+        title="Test task",
+        status="pending",
+        order_index=0,
+    )
     db_session.add(t)
     await db_session.commit()
     await db_session.refresh(t)
@@ -91,13 +99,17 @@ async def test_create_goal(client: AsyncClient) -> None:
     assert data["tags"] == []
 
 
-async def test_create_goal_with_tags(client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession) -> None:
+async def test_create_goal_with_tags(
+    client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession
+) -> None:
     """Goal created with tag_names links those tags."""
     # Link tag to task so it shows up in progress
     task.tags = [tag]
     await db_session.commit()
 
-    resp = await client.post("/api/goals", json={"title": "Tagged goal", "tag_names": ["work"]})
+    resp = await client.post(
+        "/api/goals", json={"title": "Tagged goal", "tag_names": ["work"]}
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert "work" in data["tags"]
@@ -110,12 +122,71 @@ async def test_create_goal_with_tags(client: AsyncClient, task: Task, tag: Tag, 
 # ---------------------------------------------------------------------------
 
 
-async def test_goal_progress_via_tags(client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession) -> None:
+async def test_goal_requires_all_tags(
+    client: AsyncClient, day: Day, db_session: AsyncSession
+) -> None:
+    """A task must have ALL of a goal's tags to be included in progress."""
+    # Create two tags
+    tag_a = Tag(name="work")
+    tag_b = Tag(name="urgent")
+    db_session.add_all([tag_a, tag_b])
+    await db_session.commit()
+    await db_session.refresh(tag_a)
+    await db_session.refresh(tag_b)
+
+    # Create three tasks with different tag combinations
+    task_both = Task(
+        day_id=day.id,
+        category="short_task",
+        title="Has both",
+        status="pending",
+        order_index=0,
+    )
+    task_a_only = Task(
+        day_id=day.id,
+        category="short_task",
+        title="Has work only",
+        status="pending",
+        order_index=1,
+    )
+    task_b_only = Task(
+        day_id=day.id,
+        category="short_task",
+        title="Has urgent only",
+        status="pending",
+        order_index=2,
+    )
+    db_session.add_all([task_both, task_a_only, task_b_only])
+    await db_session.commit()
+    await db_session.refresh(task_both)
+    await db_session.refresh(task_a_only)
+    await db_session.refresh(task_b_only)
+
+    task_both.tags = [tag_a, tag_b]
+    task_a_only.tags = [tag_a]
+    task_b_only.tags = [tag_b]
+    await db_session.commit()
+
+    # Create goal requiring BOTH tags
+    resp = await client.post(
+        "/api/goals", json={"title": "Multi-tag goal", "tag_names": ["work", "urgent"]}
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    # Only the task with BOTH tags should count
+    assert data["total_tasks"] == 1
+
+
+async def test_goal_progress_via_tags(
+    client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession
+) -> None:
     """Tasks linked via a shared tag appear in goal progress."""
     task.tags = [tag]
     await db_session.commit()
 
-    resp = await client.post("/api/goals", json={"title": "Tag goal", "tag_names": ["work"]})
+    resp = await client.post(
+        "/api/goals", json={"title": "Tag goal", "tag_names": ["work"]}
+    )
     data = resp.json()
     assert data["total_tasks"] == 1
     assert data["completed_tasks"] == 0
@@ -124,14 +195,18 @@ async def test_goal_progress_via_tags(client: AsyncClient, task: Task, tag: Tag,
 
 async def test_goal_progress_via_direct_tasks(client: AsyncClient, task: Task) -> None:
     """Tasks linked directly appear in goal progress."""
-    resp = await client.post("/api/goals", json={"title": "Direct goal", "task_ids": [task.id]})
+    resp = await client.post(
+        "/api/goals", json={"title": "Direct goal", "task_ids": [task.id]}
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["total_tasks"] == 1
     assert data["completed_tasks"] == 0
 
 
-async def test_deduplication(client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession) -> None:
+async def test_deduplication(
+    client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession
+) -> None:
     """A task linked via both tag and direct_tasks is counted once."""
     task.tags = [tag]
     await db_session.commit()
@@ -149,10 +224,14 @@ async def test_deduplication(client: AsyncClient, task: Task, tag: Tag, db_sessi
 # ---------------------------------------------------------------------------
 
 
-async def test_auto_complete(client: AsyncClient, task: Task, db_session: AsyncSession) -> None:
+async def test_auto_complete(
+    client: AsyncClient, task: Task, db_session: AsyncSession
+) -> None:
     """Completing all linked tasks auto-completes the goal."""
     # Create goal with direct task
-    create_resp = await client.post("/api/goals", json={"title": "Auto complete", "task_ids": [task.id]})
+    create_resp = await client.post(
+        "/api/goals", json={"title": "Auto complete", "task_ids": [task.id]}
+    )
     goal_id = create_resp.json()["id"]
 
     # Complete the task
@@ -160,7 +239,9 @@ async def test_auto_complete(client: AsyncClient, task: Task, db_session: AsyncS
     await db_session.commit()
 
     # Update goal (trigger auto-complete check)
-    update_resp = await client.put(f"/api/goals/{goal_id}", json={"title": "Auto complete"})
+    update_resp = await client.put(
+        f"/api/goals/{goal_id}", json={"title": "Auto complete"}
+    )
     assert update_resp.status_code == 200
     data = update_resp.json()
     assert data["status"] == "completed"
@@ -177,7 +258,9 @@ async def test_manual_complete(client: AsyncClient) -> None:
     create_resp = await client.post("/api/goals", json={"title": "Manual done"})
     goal_id = create_resp.json()["id"]
 
-    resp = await client.patch(f"/api/goals/{goal_id}/status", json={"status": "completed"})
+    resp = await client.patch(
+        f"/api/goals/{goal_id}/status", json={"status": "completed"}
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "completed"
@@ -204,7 +287,9 @@ async def test_reopen_goal(client: AsyncClient) -> None:
 
 async def test_update_goal_tags(client: AsyncClient, tag: Tag) -> None:
     """Updating tag_names replaces the goal's tag list."""
-    create_resp = await client.post("/api/goals", json={"title": "Tag update", "tag_names": ["work"]})
+    create_resp = await client.post(
+        "/api/goals", json={"title": "Tag update", "tag_names": ["work"]}
+    )
     goal_id = create_resp.json()["id"]
     assert "work" in create_resp.json()["tags"]
 
@@ -219,7 +304,9 @@ async def test_update_goal_tags(client: AsyncClient, tag: Tag) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_delete_goal(client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession) -> None:
+async def test_delete_goal(
+    client: AsyncClient, task: Task, tag: Tag, db_session: AsyncSession
+) -> None:
     """Deleting a goal removes it but NOT the linked tasks or tags."""
     task.tags = [tag]
     await db_session.commit()
@@ -240,6 +327,7 @@ async def test_delete_goal(client: AsyncClient, task: Task, tag: Tag, db_session
 
     # Tasks and tags still exist
     from sqlalchemy import select
+
     task_result = await db_session.execute(select(Task).where(Task.id == task.id))
     assert task_result.scalar_one_or_none() is not None
 
@@ -264,7 +352,9 @@ async def test_list_goals(client: AsyncClient) -> None:
 
 async def test_get_goal_detail(client: AsyncClient, task: Task) -> None:
     """GET /api/goals/{id} returns full task list."""
-    create_resp = await client.post("/api/goals", json={"title": "Detail goal", "task_ids": [task.id]})
+    create_resp = await client.post(
+        "/api/goals", json={"title": "Detail goal", "task_ids": [task.id]}
+    )
     goal_id = create_resp.json()["id"]
 
     resp = await client.get(f"/api/goals/{goal_id}")

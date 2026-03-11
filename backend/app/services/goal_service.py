@@ -7,7 +7,13 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.goal import Goal, STATUS_GOAL_ACTIVE, STATUS_GOAL_COMPLETED, goal_tags_table, goal_tasks_table
+from app.models.goal import (
+    Goal,
+    STATUS_GOAL_ACTIVE,
+    STATUS_GOAL_COMPLETED,
+    goal_tags_table,
+    goal_tasks_table,
+)
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.schemas.goal import GoalCreate, GoalDetailResponse, GoalResponse, GoalUpdate
@@ -124,6 +130,7 @@ class GoalService:
                 goal.target_date = None
             else:
                 from datetime import date
+
                 goal.target_date = date.fromisoformat(payload.target_date)
         if payload.tag_names is not None:
             goal.tags = await self._resolve_tags(payload.tag_names)
@@ -213,6 +220,8 @@ class GoalService:
 
     async def _get_effective_tasks(self, goal: Goal) -> list[Task]:
         """Return the deduped union of tag-linked and directly-linked tasks."""
+        from sqlalchemy import func
+
         tag_ids = [tag.id for tag in goal.tags]
         direct_task_ids = {t.id for t in goal.direct_tasks}
 
@@ -221,6 +230,8 @@ class GoalService:
             stmt = (
                 select(task_tags_table.c.task_id)
                 .where(task_tags_table.c.tag_id.in_(tag_ids))
+                .group_by(task_tags_table.c.task_id)
+                .having(func.count(task_tags_table.c.tag_id) == len(tag_ids))
             )
             rows = await self._db.execute(stmt)
             tag_task_ids = {row[0] for row in rows}
