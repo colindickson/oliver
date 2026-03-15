@@ -32,6 +32,7 @@ interface Props {
   onReorder: (taskIds: number[]) => void
   onMoveToBacklog?: (task: Task) => void
   onContinueTomorrow?: (task: Task) => void
+  onRollForward?: (task: Task) => void
   onScheduleFromBacklog?: (task: Task) => void
   onInstantiateFromTemplate?: (template: TaskTemplate) => void
 }
@@ -54,9 +55,10 @@ interface SortableTaskCardProps {
   onDelete: (id: number) => void
   onMoveToBacklog?: (task: Task) => void
   onContinueTomorrow?: (task: Task) => void
+  onRollForward?: (task: Task) => void
 }
 
-function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow }: SortableTaskCardProps) {
+function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow, onRollForward }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
 
@@ -86,7 +88,7 @@ function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onConti
         </svg>
       </button>
       <div className="flex-1 min-w-0">
-        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} onMoveToBacklog={onMoveToBacklog} onContinueTomorrow={onContinueTomorrow} />
+        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} onMoveToBacklog={onMoveToBacklog} onContinueTomorrow={onContinueTomorrow} onRollForward={onRollForward} />
       </div>
     </div>
   )
@@ -103,6 +105,7 @@ export function TaskColumn({
   onReorder,
   onMoveToBacklog,
   onContinueTomorrow,
+  onRollForward,
   onScheduleFromBacklog,
   onInstantiateFromTemplate,
 }: Props) {
@@ -227,6 +230,7 @@ export function TaskColumn({
                 onDelete={onDelete}
                 onMoveToBacklog={onMoveToBacklog}
                 onContinueTomorrow={onContinueTomorrow}
+                onRollForward={onRollForward}
               />
             ))}
           </div>

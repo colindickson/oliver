@@ -6,11 +6,13 @@ All database access uses async SQLAlchemy so the routes remain non-blocking.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.task import Task
@@ -28,9 +30,27 @@ from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETE
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
+class RollForwardPayload(BaseModel):
+    """Payload for rolling a task forward to a future date."""
+
+    target_date: date
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def build_task_response(task: Task) -> dict:
+    """Build an enriched TaskResponse dict including roll relationship dates."""
+    base = TaskResponse.model_validate(task).model_dump()
+    if task.rolled_from and task.rolled_from.day:
+        base["rolled_from_date"] = task.rolled_from.day.date.isoformat()
+    if task.rolled_to:
+        base["rolled_to_task_id"] = task.rolled_to.id
+        if task.rolled_to.day:
+            base["rolled_to_date"] = task.rolled_to.day.date.isoformat()
+    return base
 
 
 async def _get_task_or_404(task_id: int, db: AsyncSession) -> Task:
@@ -348,3 +368,83 @@ async def continue_task_tomorrow(
     await db.commit()
     await db.refresh(new_task)
     return new_task
+
+
+@router.post("/{task_id}/roll-forward", response_model=TaskResponse)
+async def roll_forward_task(
+    task_id: int, body: RollForwardPayload, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Create a new task on a future date as a roll-forward of an incomplete task.
+
+    The original task is left incomplete as a historical record. The new task
+    has ``rolled_from_task_id`` set to the original, creating a traceable chain.
+
+    Args:
+        task_id: Primary key of the source Task to roll forward.
+        body: Contains ``target_date`` (must be in the future).
+        db: Injected async database session.
+
+    Returns:
+        The newly created TaskResponse with ``rolled_from_date`` populated.
+
+    Raises:
+        HTTPException: 404 if no Task with ``task_id`` exists.
+        HTTPException: 422 if task is completed, already rolled, or target_date is not future.
+    """
+    result = await db.execute(
+        select(Task)
+        .where(Task.id == task_id)
+        .options(
+            selectinload(Task.rolled_from).selectinload(Task.day),
+            selectinload(Task.rolled_to).selectinload(Task.day),
+        )
+    )
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status == STATUS_COMPLETED:
+        raise HTTPException(status_code=422, detail="Cannot roll forward a completed task")
+
+    if task.rolled_to is not None:
+        raise HTTPException(status_code=422, detail="Task has already been rolled forward")
+
+    if body.target_date <= date.today():
+        raise HTTPException(status_code=422, detail="target_date must be in the future")
+
+    tag_names = [tag.name for tag in task.tags]
+
+    day_service = DayService(db)
+    target_day = await day_service.get_or_create_by_date(body.target_date)
+
+    tag_objects = []
+    if tag_names:
+        tag_service = TagService(db)
+        for name in tag_names:
+            tag_objects.append(await tag_service.get_or_create_tag(name))
+
+    new_task = Task(
+        day_id=target_day.id,
+        category=task.category,
+        title=task.title,
+        description=task.description,
+        status=STATUS_PENDING,
+        order_index=0,
+        rolled_from_task_id=task.id,
+    )
+    new_task.tags = tag_objects
+    db.add(new_task)
+
+    await db.commit()
+
+    # Reload with roll relationships to build enriched response
+    result2 = await db.execute(
+        select(Task)
+        .where(Task.id == new_task.id)
+        .options(
+            selectinload(Task.rolled_from).selectinload(Task.day),
+            selectinload(Task.rolled_to).selectinload(Task.day),
+        )
+    )
+    loaded = result2.scalar_one()
+    return build_task_response(loaded)

@@ -125,6 +125,10 @@ class TaskResponse(BaseModel):
     order_index: int
     completed_at: datetime | None
     tags: list[str] = []
+    rolled_from_task_id: int | None = None
+    rolled_from_date: str | None = None
+    rolled_to_task_id: int | None = None
+    rolled_to_date: str | None = None
 
     @field_validator("tags", mode="before")
     @classmethod

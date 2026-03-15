@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from app.database import Base
 from app.models.tag import Tag, task_tags_table
@@ -44,6 +44,11 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    rolled_from_task_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     day_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("days.id", ondelete="CASCADE"),
@@ -56,6 +61,13 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default=STATUS_PENDING)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    rolled_from: Mapped[Task | None] = relationship(
+        "Task",
+        foreign_keys=[rolled_from_task_id],
+        remote_side="Task.id",
+        backref=backref("rolled_to", uselist=False),
+    )
 
     day: Mapped[Day] = relationship("Day", back_populates="tasks")
     timer_sessions: Mapped[list[TimerSession]] = relationship(

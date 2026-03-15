@@ -22,6 +22,7 @@ from app.models.task import (
     STATUS_IN_PROGRESS,
     STATUS_COMPLETED,
 )
+from oliver_shared import CATEGORY_MAINTENANCE  # noqa: F401
 from app.services.day_service import DayService
 
 
@@ -538,3 +539,183 @@ async def test_continue_tomorrow_skips_individual_day_off(
     day_resp = await client.get(f"/api/days/{wednesday}")
     assert day_resp.status_code == 200
     assert day_resp.json()["id"] == resp.json()["day_id"]
+
+
+# ---------------------------------------------------------------------------
+# POST /api/tasks/{id}/roll-forward
+# ---------------------------------------------------------------------------
+
+
+async def test_roll_forward_creates_task_on_target_day(
+    client: AsyncClient, day: Day
+) -> None:
+    """Roll forward creates a new task on the specified future date."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Pending task",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    future_date = (date.today() + timedelta(days=3)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "Pending task"
+    assert body["status"] == STATUS_PENDING
+    assert body["rolled_from_task_id"] == task_id
+    assert body["rolled_from_date"] is not None
+
+
+async def test_roll_forward_preserves_original_as_incomplete(
+    client: AsyncClient, day: Day
+) -> None:
+    """The original task remains incomplete after rolling forward."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Incomplete task",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    future_date = (date.today() + timedelta(days=2)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+
+    original_resp = await client.get(f"/api/tasks/{task_id}")
+    assert original_resp.status_code == 200
+    assert original_resp.json()["status"] == STATUS_PENDING
+
+
+async def test_roll_forward_sets_rolled_from_task_id(
+    client: AsyncClient, day: Day
+) -> None:
+    """New task has rolled_from_task_id pointing to the original."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_DEEP_WORK,
+        "title": "Original",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    future_date = (date.today() + timedelta(days=1)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+
+    assert resp.json()["rolled_from_task_id"] == task_id
+
+
+async def test_roll_forward_rejects_completed_task(
+    client: AsyncClient, day: Day
+) -> None:
+    """Rolling forward a completed task returns 422."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Done task",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/tasks/{task_id}/status", json={"status": STATUS_COMPLETED})
+
+    future_date = (date.today() + timedelta(days=1)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+
+    assert resp.status_code == 422
+
+
+async def test_roll_forward_rejects_past_date(
+    client: AsyncClient, day: Day
+) -> None:
+    """Rolling forward to a past or today's date returns 422."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Task",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    past_date = (date.today() - timedelta(days=1)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": past_date})
+
+    assert resp.status_code == 422
+
+
+async def test_roll_forward_rejects_already_rolled_task(
+    client: AsyncClient, day: Day
+) -> None:
+    """Rolling forward a task that already has a rolled-to child returns 422."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Source",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    future_date = (date.today() + timedelta(days=2)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+
+    # Try to roll the same source task again
+    further_date = (date.today() + timedelta(days=4)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": further_date})
+
+    assert resp.status_code == 422
+
+
+async def test_roll_forward_chain(
+    client: AsyncClient, day: Day
+) -> None:
+    """A → B → C chaining: rolled task can itself be rolled forward."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_MAINTENANCE,
+        "title": "Chain start",
+        "order_index": 0,
+    })
+    task_a_id = create_resp.json()["id"]
+
+    date_b = (date.today() + timedelta(days=1)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp_b = await client.post(f"/api/tasks/{task_a_id}/roll-forward", json={"target_date": date_b})
+
+    assert resp_b.status_code == 200
+    task_b_id = resp_b.json()["id"]
+    assert task_b_id != task_a_id
+
+    date_c = (date.today() + timedelta(days=3)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        resp_c = await client.post(f"/api/tasks/{task_b_id}/roll-forward", json={"target_date": date_c})
+
+    assert resp_c.status_code == 200
+    task_c = resp_c.json()
+    assert task_c["rolled_from_task_id"] == task_b_id

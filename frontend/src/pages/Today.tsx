@@ -7,6 +7,7 @@ import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
+import { RollForwardModal } from '../components/RollForwardModal'
 import { useTheme } from '../contexts/ThemeContext'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
@@ -41,6 +42,7 @@ export function Today() {
   const isMobile = useMobile()
   const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
+  const [rollForwardTask, setRollForwardTask] = useState<Task | null>(null)
 
   const { data: day, isLoading } = useQuery({
     queryKey: ['day', 'today'],
@@ -111,6 +113,15 @@ export function Today() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
+  const rollForward = useMutation({
+    mutationFn: ({ id, targetDate }: { id: number; targetDate: string }) =>
+      taskApi.rollForward(id, targetDate),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['day'] })
+    },
+  })
+
   const scheduleFromBacklog = useMutation({
     mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
       backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
@@ -179,6 +190,16 @@ export function Today() {
 
   function handleContinueTomorrow(task: Task) {
     continueTomorrow.mutate(task.id)
+  }
+
+  function handleRollForward(task: Task) {
+    setRollForwardTask(task)
+  }
+
+  function handleRollForwardConfirm(targetDate: string) {
+    if (!rollForwardTask) return
+    rollForward.mutate({ id: rollForwardTask.id, targetDate })
+    setRollForwardTask(null)
   }
 
   function handleScheduleFromBacklog(task: Task, category: NonNullable<Task['category']>) {
@@ -285,6 +306,7 @@ export function Today() {
             onReorder={handleReorder}
             onMoveToBacklog={handleMoveToBacklog}
             onContinueTomorrow={handleContinueTomorrow}
+            onRollForward={handleRollForward}
             onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeColumn.category)}
             onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeColumn.category)}
           />
@@ -314,6 +336,12 @@ export function Today() {
         {showTimer && <MobileTimerStrip />}
         <BottomTabBar />
         <NotificationBanner />
+        {rollForwardTask && (
+          <RollForwardModal
+            onConfirm={handleRollForwardConfirm}
+            onCancel={() => setRollForwardTask(null)}
+          />
+        )}
       </div>
     )
   }
@@ -388,6 +416,7 @@ export function Today() {
                 onReorder={handleReorder}
                 onMoveToBacklog={handleMoveToBacklog}
                 onContinueTomorrow={handleContinueTomorrow}
+                onRollForward={handleRollForward}
                 onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
                 onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, col.category)}
               />
@@ -425,6 +454,13 @@ export function Today() {
 
       {/* Notification banner */}
       <NotificationBanner />
+
+      {rollForwardTask && (
+        <RollForwardModal
+          onConfirm={handleRollForwardConfirm}
+          onCancel={() => setRollForwardTask(null)}
+        />
+      )}
     </div>
   )
 }

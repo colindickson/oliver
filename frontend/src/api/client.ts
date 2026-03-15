@@ -12,6 +12,10 @@ export interface Task {
   order_index: number
   completed_at: string | null
   tags: string[]
+  rolled_from_task_id: number | null
+  rolled_from_date: string | null
+  rolled_to_task_id: number | null
+  rolled_to_date: string | null
 }
 
 export interface CreateBacklogTaskPayload {
@@ -139,6 +143,8 @@ export const taskApi = {
     api.post<Task>(`/tasks/${id}/move-to-backlog`).then(r => r.data),
   continueTomorrow: (id: number) =>
     api.post<Task>(`/tasks/${id}/continue-tomorrow`).then(r => r.data),
+  rollForward: (id: number, targetDate: string) =>
+    api.post<Task>(`/tasks/${id}/roll-forward`, { target_date: targetDate }).then(r => r.data),
 }
 
 export interface TimerState {
