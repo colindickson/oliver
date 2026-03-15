@@ -8,6 +8,7 @@ from oliver_shared.constants import (
     STATUS_COMPLETED,
     STATUS_IN_PROGRESS,
     STATUS_PENDING,
+    STATUS_ROLLED_FORWARD,
     VALID_CATEGORIES,
     VALID_STATUSES,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "STATUS_COMPLETED",
     "STATUS_IN_PROGRESS",
     "STATUS_PENDING",
+    "STATUS_ROLLED_FORWARD",
     "VALID_CATEGORIES",
     "VALID_STATUSES",
     "normalize_tag_name",

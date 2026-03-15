@@ -25,7 +25,7 @@ from app.schemas.task import (
 )
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
-from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETED, STATUS_PENDING, validate_tag_count
+from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD, validate_tag_count
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -403,8 +403,8 @@ async def roll_forward_task(
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.status == STATUS_COMPLETED:
-        raise HTTPException(status_code=422, detail="Cannot roll forward a completed task")
+    if task.status in (STATUS_COMPLETED, STATUS_ROLLED_FORWARD):
+        raise HTTPException(status_code=422, detail="Cannot roll forward a completed or already-rolled task")
 
     if task.rolled_to is not None:
         raise HTTPException(status_code=422, detail="Task has already been rolled forward")
@@ -434,6 +434,8 @@ async def roll_forward_task(
     )
     new_task.tags = tag_objects
     db.add(new_task)
+
+    task.status = STATUS_ROLLED_FORWARD
 
     await db.commit()
 

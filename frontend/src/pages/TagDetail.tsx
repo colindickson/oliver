@@ -96,12 +96,18 @@ export function TagDetail() {
       groups = filterDaysToWindow(groups, periodDays)
     }
 
+    // Always exclude rolled_forward tasks (superseded by their successor)
+    groups = groups.map(g => ({
+      ...g,
+      tasks: g.tasks.filter(t => t.status !== 'rolled_forward')
+    })).filter(g => g.tasks.length > 0)
+
     // Filter tasks within groups by incomplete status
     if (showIncompleteOnly) {
       groups = groups.map(g => ({
         ...g,
         tasks: g.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress')
-      })).filter(g => g.tasks.length > 0) // Remove empty groups
+      })).filter(g => g.tasks.length > 0)
     }
 
     return groups

@@ -16,15 +16,23 @@ import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
+import { RollForwardModal } from '../components/RollForwardModal'
+
+function formatRollDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 interface TaskItemProps {
   task: Task
   isFuture: boolean
   onToggleStatus: (task: Task) => void
   onDelete: (id: number) => void
+  onRollForward?: (task: Task) => void
 }
 
-function TaskItem({ task, isFuture, onToggleStatus, onDelete }: TaskItemProps) {
+function TaskItem({ task, isFuture, onToggleStatus, onDelete, onRollForward }: TaskItemProps) {
   const {
     editing,
     editTitle,
@@ -129,6 +137,16 @@ function TaskItem({ task, isFuture, onToggleStatus, onDelete }: TaskItemProps) {
             ))}
           </div>
         )}
+        {task.rolled_from_date && (
+          <p className="text-xs text-stone-400 mt-1 dark:text-stone-500">
+            ← from {formatRollDate(task.rolled_from_date)}
+          </p>
+        )}
+        {task.rolled_to_date && (
+          <p className="text-xs text-stone-400 mt-1 dark:text-stone-500">
+            → rolled to {formatRollDate(task.rolled_to_date)}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         <button
@@ -140,6 +158,18 @@ function TaskItem({ task, isFuture, onToggleStatus, onDelete }: TaskItemProps) {
             <path d="M9 2L11 4L5 10H3V8L9 2Z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+        {onRollForward && !isCompleted && !task.rolled_to_task_id && (
+          <button
+            onClick={() => onRollForward(task)}
+            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-moss-300 dark:hover:bg-stone-700"
+            aria-label="Roll forward"
+            title="Roll forward"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 7h9M8 4l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         <span className="opacity-0 group-hover:opacity-100 transition-opacity">
           <ConfirmableDelete onConfirm={() => onDelete(task.id)} />
         </span>
@@ -487,6 +517,27 @@ export function DayDetail() {
     },
   })
 
+  const [rollForwardTask, setRollForwardTask] = useState<Task | null>(null)
+
+  const rollForward = useMutation({
+    mutationFn: ({ id, targetDate }: { id: number; targetDate: string }) =>
+      taskApi.rollForward(id, targetDate),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['day'] })
+    },
+  })
+
+  function handleRollForward(task: Task) {
+    setRollForwardTask(task)
+  }
+
+  function handleRollForwardConfirm(targetDate: string) {
+    if (!rollForwardTask) return
+    rollForward.mutate({ id: rollForwardTask.id, targetDate })
+    setRollForwardTask(null)
+  }
+
   function handleAddTask(category: Task['category']) {
     if (!newTaskTitle.trim() || !day) return
     createTask.mutate(category)
@@ -598,6 +649,7 @@ export function DayDetail() {
                         isFuture={isFuture}
                         onToggleStatus={(t) => toggleStatus.mutate(t)}
                         onDelete={(id) => deleteTask.mutate(id)}
+                        onRollForward={!isFuture ? handleRollForward : undefined}
                       />
                     ))}
                     <AddTaskForm
@@ -713,6 +765,12 @@ export function DayDetail() {
         {showTimer && <MobileTimerStrip />}
         <NotificationBanner />
         <BottomTabBar />
+        {rollForwardTask && (
+          <RollForwardModal
+            onConfirm={handleRollForwardConfirm}
+            onCancel={() => setRollForwardTask(null)}
+          />
+        )}
       </div>
     )
   }
@@ -860,6 +918,7 @@ export function DayDetail() {
                           isFuture={isFuture}
                           onToggleStatus={(task) => toggleStatus.mutate(task)}
                           onDelete={(id) => deleteTask.mutate(id)}
+                          onRollForward={!isFuture ? handleRollForward : undefined}
                         />
                       ))}
                       <AddTaskForm
@@ -994,6 +1053,12 @@ export function DayDetail() {
           )}
         </main>
       </div>
+      {rollForwardTask && (
+        <RollForwardModal
+          onConfirm={handleRollForwardConfirm}
+          onCancel={() => setRollForwardTask(null)}
+        />
+      )}
     </div>
   )
 }

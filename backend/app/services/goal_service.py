@@ -18,7 +18,7 @@ from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.schemas.goal import GoalCreate, GoalDetailResponse, GoalResponse, GoalUpdate
 from app.services.tag_service import TagService
-from oliver_shared import STATUS_COMPLETED
+from oliver_shared import STATUS_COMPLETED, STATUS_ROLLED_FORWARD
 
 
 class GoalService:
@@ -246,6 +246,7 @@ class GoalService:
     async def _compute_progress(self, goal: Goal) -> tuple[int, int, int]:
         """Return (total_tasks, completed_tasks, progress_pct) for the goal."""
         tasks = await self._get_effective_tasks(goal)
+        tasks = [t for t in tasks if t.status != STATUS_ROLLED_FORWARD]
         total = len(tasks)
         if total == 0:
             return 0, 0, 0

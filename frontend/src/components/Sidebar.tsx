@@ -310,7 +310,8 @@ export function Sidebar() {
             if (!cellDate) return <div key={i} className="aspect-square" />
             const dateStr = cellDate.toISOString().slice(0, 10)
             const dayData = dayMap.get(dateStr)
-            const tasks = dayData?.tasks ?? []
+            const allTasks = dayData?.tasks ?? []
+            const tasks = allTasks.filter(t => t.status !== 'rolled_forward')
             const isToday = dateStr === todayStr
             const isSelected = dateStr === selectedDateStr
             const hasTasks = tasks.length > 0

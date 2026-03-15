@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.models.day import Day
-from oliver_shared import normalize_tag_name
+from oliver_shared import STATUS_ROLLED_FORWARD, normalize_tag_name
 
 
 class TagService:
@@ -29,10 +29,12 @@ class TagService:
         return tag
 
     async def get_all_tags(self) -> list[tuple[Tag, int]]:
-        """Return tags that have at least one associated task, with usage counts."""
+        """Return tags that have at least one associated non-rolled-forward task, with usage counts."""
         stmt = (
             select(Tag, func.count(task_tags_table.c.task_id).label("task_count"))
             .join(task_tags_table, Tag.id == task_tags_table.c.tag_id)
+            .join(Task, Task.id == task_tags_table.c.task_id)
+            .where(Task.status != STATUS_ROLLED_FORWARD)
             .group_by(Tag.id)
             .having(func.count(task_tags_table.c.task_id) > 0)
             .order_by(Tag.name)
@@ -57,6 +59,7 @@ class TagService:
             .join(task_tags_table, Task.id == task_tags_table.c.task_id)
             .outerjoin(Day, Task.day_id == Day.id)
             .where(task_tags_table.c.tag_id == tag.id)
+            .where(Task.status != STATUS_ROLLED_FORWARD)
             .order_by(Day.date.desc().nulls_last())
         )
         rows = (await self._db.execute(stmt)).all()

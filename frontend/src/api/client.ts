@@ -8,7 +8,7 @@ export interface Task {
   category: 'deep_work' | 'short_task' | 'maintenance' | null  // nullable for backlog
   title: string
   description: string | null
-  status: 'pending' | 'in_progress' | 'completed'
+  status: 'pending' | 'in_progress' | 'completed' | 'rolled_forward'
   order_index: number
   completed_at: string | null
   tags: string[]
