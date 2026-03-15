@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { backlogApi, dayApi, taskApi, tagApi, type Task, type TagResponse } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
@@ -8,6 +8,7 @@ import { ConfirmableDelete } from '../components/ConfirmableDelete'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
+import { CalendarPicker } from '../components/CalendarPicker'
 
 // Category badge colors
 const categoryColors: Record<string, string> = {
@@ -168,35 +169,24 @@ interface MoveToDayModalProps {
 }
 
 function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
-  // Get today's date string
   const todayStr = new Date().toISOString().slice(0, 10)
 
   const [selectedDay, setSelectedDay] = useState<string>(todayStr)
-  const [selectedCategory, setSelectedCategory] = useState<'deep_work' | 'short_task' | 'maintenance'>(task.category ?? 'short_task')
+  const [selectedCategory, setSelectedCategory] = useState<'deep_work' | 'short_task' | 'maintenance'>(
+    task.category ?? 'short_task'
+  )
   const [isMoving, setIsMoving] = useState(false)
 
-  // Build list of next 7 days
-  const recentDays = useMemo(() => {
-    const result: Array<{ date: string; label: string }> = [
-      { date: todayStr, label: 'Today' },
-    ]
-    // Add next 6 days
-    for (let i = 1; i <= 6; i++) {
-      const d = new Date()
-      d.setDate(d.getDate() + i)
-      const dateStr = d.toISOString().slice(0, 10)
-      result.push({
-        date: dateStr,
-        label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      })
-    }
-    return result
-  }, [todayStr])
+  function formatMoveDate(isoDate: string): string {
+    const [year, month, day] = isoDate.split('-').map(Number)
+    const d = new Date(year, month - 1, day)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   async function handleMove() {
+    if (!selectedDay) return
     setIsMoving(true)
     try {
-      // getByDate creates the day if it doesn't exist yet
       const day = await dayApi.getByDate(selectedDay)
       onMove(task.id, day.id, selectedCategory)
       onClose()
@@ -206,70 +196,59 @@ function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 dark:bg-black/50">
-      <div className="bg-white rounded-2xl shadow-soft-lg max-w-md w-full mx-4 overflow-hidden dark:bg-stone-800">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700">
-          <h3 className="text-base font-semibold text-stone-800 dark:text-stone-100">Move to Day</h3>
-          <p className="text-xs text-stone-400 mt-0.5">{task.title}</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-stone-800 rounded-2xl shadow-xl p-5 w-96 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-stone-200">Move to day…</h2>
+          <p className="text-xs text-stone-400 mt-0.5 truncate">{task.title}</p>
         </div>
 
-        {/* Body */}
-        <div className="p-5 space-y-4">
-          {/* Day selector */}
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-2 dark:text-stone-300">Select Day</label>
-            <select
-              value={selectedDay}
-              onChange={e => setSelectedDay(e.target.value)}
-              className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100"
-            >
-              {recentDays.map(d => (
-                <option key={d.date} value={d.date}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <CalendarPicker
+          selectedDate={selectedDay}
+          onSelectDate={setSelectedDay}
+          minDate={todayStr}
+        />
 
-          {/* Category selector */}
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-2 dark:text-stone-300">Category</label>
-            <div className="flex gap-2">
-              {(['deep_work', 'short_task', 'maintenance'] as const).map(cat => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
-                    selectedCategory === cat
-                      ? 'border-terracotta-300 bg-terracotta-50 text-terracotta-700 dark:border-terracotta-600 dark:bg-terracotta-900/30 dark:text-terracotta-300'
-                      : 'border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700'
-                  }`}
-                >
-                  {categoryLabels[cat]}
-                </button>
-              ))}
-            </div>
+        {/* Category selector */}
+        <div>
+          <p className="text-xs font-medium text-stone-400 mb-2">Category</p>
+          <div className="flex gap-2">
+            {(['deep_work', 'short_task', 'maintenance'] as const).map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                  selectedCategory === cat
+                    ? 'border-terracotta-600 bg-terracotta-900/30 text-terracotta-300'
+                    : 'border-stone-600 text-stone-400 hover:bg-stone-700'
+                }`}
+              >
+                {categoryLabels[cat]}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-stone-100 flex justify-end gap-2 dark:border-stone-700">
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
           <button
             type="button"
-            onClick={onClose}
-            className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-3 py-1.5 dark:text-stone-500 dark:hover:text-stone-300"
+            disabled={!selectedDay || isMoving}
+            onClick={() => void handleMove()}
+            className="flex-1 text-sm bg-stone-700 text-white rounded-lg px-4 py-2 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
-            Cancel
+            {isMoving ? 'Moving…' : selectedDay ? `Move to ${formatMoveDate(selectedDay)}` : 'Move to Day'}
           </button>
           <button
             type="button"
-            onClick={() => void handleMove()}
-            disabled={isMoving}
-            className="text-xs bg-terracotta-500 text-white rounded-lg px-4 py-1.5 hover:bg-terracotta-600 transition-all disabled:opacity-50"
+            onClick={onClose}
+            className="text-sm text-stone-400 hover:text-stone-200 transition-colors px-3"
           >
-            {isMoving ? 'Moving…' : 'Move Task'}
+            Cancel
           </button>
         </div>
       </div>
