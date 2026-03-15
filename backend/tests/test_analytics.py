@@ -279,28 +279,45 @@ async def test_streaks_counts_consecutive_complete_days(
 async def test_streaks_breaks_on_incomplete_day(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """A day with incomplete tasks breaks the current streak."""
+    """A day with incomplete tasks breaks the current streak.
+
+    Uses workday arithmetic (same pattern as test_streaks_counts_consecutive_complete_days)
+    so the test is correct regardless of which day of the week it runs on.
+    """
     today = date.today()
-    # Today: all complete -> excluded (in progress)
+
+    # Collect the 2 most recent past workdays (skipping weekends)
+    past_workdays: list[date] = []
+    cursor = today - timedelta(days=1)
+    while len(past_workdays) < 2:
+        if cursor.weekday() < 5:  # Monday=0 … Friday=4
+            past_workdays.append(cursor)
+        cursor -= timedelta(days=1)
+
+    most_recent_workday = past_workdays[0]   # "yesterday" as a workday
+    prev_workday = past_workdays[1]           # workday before that
+
+    # Today: all complete -> excluded as in-progress (seed only on weekdays)
+    if today.weekday() < 5:
+        await _seed_day_with_tasks(
+            db_session,
+            today,
+            categories=["deep_work"],
+            completed_count=1,
+        )
+
+    # Most recent past workday: incomplete -> breaks streak
     await _seed_day_with_tasks(
         db_session,
-        today,
-        categories=["deep_work"],
-        completed_count=1,
-    )
-    # Yesterday: incomplete -> breaks streak
-    yesterday = today - timedelta(days=1)
-    await _seed_day_with_tasks(
-        db_session,
-        yesterday,
+        most_recent_workday,
         categories=["deep_work", "short_task"],
         completed_count=0,  # nothing done
     )
-    # Two days ago: all complete
-    two_days_ago = today - timedelta(days=2)
+
+    # Workday before that: all complete
     await _seed_day_with_tasks(
         db_session,
-        two_days_ago,
+        prev_workday,
         categories=["deep_work"],
         completed_count=1,
     )
@@ -309,9 +326,9 @@ async def test_streaks_breaks_on_incomplete_day(
 
     assert response.status_code == 200
     payload = response.json()
-    # current streak is 0 (yesterday broke it, today excluded)
+    # current streak is 0 (most recent workday broke it, today excluded)
     assert payload["current_streak"] == 0
-    # longest streak is 1 (two_days_ago)
+    # longest streak is 1 (prev_workday alone)
     assert payload["longest_streak"] == 1
 
 
