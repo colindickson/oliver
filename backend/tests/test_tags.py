@@ -185,6 +185,31 @@ async def test_get_tasks_for_tag(client: AsyncClient, day: Day, day2: Day) -> No
     assert len(groups[1]["tasks"]) == 1
 
 
+async def test_get_tasks_for_tag_includes_backlog(client: AsyncClient, day: Day) -> None:
+    """Backlog tasks (no day_id) with a given tag appear under a 'backlog' group."""
+    # Day-assigned task
+    await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Day Task", "tags": ["ai"]},
+    )
+    # Backlog task via backlog endpoint (day_id=NULL)
+    await client.post(
+        "/api/backlog",
+        json={"title": "Backlog Task", "tags": ["ai"]},
+    )
+
+    response = await client.get("/api/tags/ai/tasks")
+    assert response.status_code == 200
+    groups = response.json()
+
+    dates = [g["date"] for g in groups]
+    assert "backlog" in dates
+
+    backlog_group = next(g for g in groups if g["date"] == "backlog")
+    assert len(backlog_group["tasks"]) == 1
+    assert backlog_group["tasks"][0]["title"] == "Backlog Task"
+
+
 async def test_get_nonexistent_tag(client: AsyncClient) -> None:
     """GET /api/tags/{tag_name}/tasks returns 404 for an unknown tag."""
     response = await client.get("/api/tags/nonexistent/tasks")

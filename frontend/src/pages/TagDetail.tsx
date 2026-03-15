@@ -14,7 +14,9 @@ function filterDaysToWindow<T extends { date: string }>(items: T[], windowDays: 
   cutoff.setDate(cutoff.getDate() - windowDays)
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   const todayStr = new Date().toISOString().slice(0, 10)
-  return items.filter(item => item.date >= cutoffStr && item.date < todayStr)
+  return items.filter(item =>
+    item.date === 'backlog' || (item.date >= cutoffStr && item.date < todayStr)
+  )
 }
 
 const PERIOD_OPTIONS: { label: string; value: PeriodOption }[] = [
@@ -146,17 +148,23 @@ export function TagDetail() {
               <div className="space-y-6 animate-fade-in">
                 {filteredGroups.map(group => (
                   <div key={group.date}>
-                    <Link
-                      to={`/day/${group.date}`}
-                      className="text-xs font-semibold uppercase tracking-wide text-stone-400 hover:text-terracotta-500 transition-colors mb-2 inline-block dark:text-stone-500 dark:hover:text-terracotta-400"
-                    >
-                      {new Date(group.date + 'T12:00:00').toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </Link>
+                    {group.date === 'backlog' ? (
+                      <span className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2 inline-block dark:text-stone-500">
+                        Backlog
+                      </span>
+                    ) : (
+                      <Link
+                        to={`/day/${group.date}`}
+                        className="text-xs font-semibold uppercase tracking-wide text-stone-400 hover:text-terracotta-500 transition-colors mb-2 inline-block dark:text-stone-500 dark:hover:text-terracotta-400"
+                      >
+                        {new Date(group.date + 'T12:00:00').toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </Link>
+                    )}
                     <div className="space-y-2">
                       {group.tasks.map(task => (
                         <div
@@ -273,17 +281,23 @@ export function TagDetail() {
             <div className="space-y-6 animate-fade-in">
               {filteredGroups.map(group => (
                 <div key={group.date}>
-                  <Link
-                    to={`/day/${group.date}`}
-                    className="text-xs font-semibold uppercase tracking-wide text-stone-400 hover:text-terracotta-500 transition-colors mb-2 inline-block dark:text-stone-500 dark:hover:text-terracotta-400"
-                  >
-                    {new Date(group.date + 'T12:00:00').toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </Link>
+                  {group.date === 'backlog' ? (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2 inline-block dark:text-stone-500">
+                      Backlog
+                    </span>
+                  ) : (
+                    <Link
+                      to={`/day/${group.date}`}
+                      className="text-xs font-semibold uppercase tracking-wide text-stone-400 hover:text-terracotta-500 transition-colors mb-2 inline-block dark:text-stone-500 dark:hover:text-terracotta-400"
+                    >
+                      {new Date(group.date + 'T12:00:00').toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Link>
+                  )}
                   <div className="space-y-2">
                     {group.tasks.map(task => (
                       <div

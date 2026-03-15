@@ -55,15 +55,15 @@ class TagService:
         stmt = (
             select(Task, Day.date)
             .join(task_tags_table, Task.id == task_tags_table.c.task_id)
-            .join(Day, Task.day_id == Day.id)
+            .outerjoin(Day, Task.day_id == Day.id)
             .where(task_tags_table.c.tag_id == tag.id)
-            .order_by(Day.date.desc())
+            .order_by(Day.date.desc().nulls_last())
         )
         rows = (await self._db.execute(stmt)).all()
 
         groups: dict[str, list[Task]] = {}
         for task, day_date in rows:
-            date_str = day_date.isoformat()
+            date_str = day_date.isoformat() if day_date is not None else "backlog"
             groups.setdefault(date_str, []).append(task)
 
         return [{"date": date_str, "tasks": tasks} for date_str, tasks in groups.items()]
