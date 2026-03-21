@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import select
+from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.goal import (
@@ -129,8 +130,6 @@ class GoalService:
             if payload.target_date == "CLEAR":
                 goal.target_date = None
             else:
-                from datetime import date
-
                 goal.target_date = date.fromisoformat(payload.target_date)
         if payload.tag_names is not None:
             goal.tags = await self._resolve_tags(payload.tag_names)
@@ -196,8 +195,6 @@ class GoalService:
     # ------------------------------------------------------------------
 
     async def _get_goal_or_raise(self, goal_id: int) -> Goal:
-        from fastapi import HTTPException
-
         result = await self._db.execute(select(Goal).where(Goal.id == goal_id))
         goal = result.scalar_one_or_none()
         if goal is None:
@@ -220,8 +217,6 @@ class GoalService:
 
     async def _get_effective_tasks(self, goal: Goal) -> list[Task]:
         """Return the deduped union of tag-linked and directly-linked tasks."""
-        from sqlalchemy import func
-
         tag_ids = [tag.id for tag in goal.tags]
         direct_task_ids = {t.id for t in goal.direct_tasks}
 

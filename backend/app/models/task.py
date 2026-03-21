@@ -69,7 +69,7 @@ class Task(Base):
         backref=backref("rolled_to", uselist=False),
     )
 
-    day: Mapped[Day] = relationship("Day", back_populates="tasks")
+    day: Mapped[Day | None] = relationship("Day", back_populates="tasks")
     timer_sessions: Mapped[list[TimerSession]] = relationship(
         "TimerSession",
         back_populates="task",
