@@ -8,16 +8,11 @@ from models.day_off import DayOff
 from models.setting import Setting
 from tools.daily import _get_or_create_day, get_session
 from tools.log_utils import log_call
+from oliver_shared import RECURRING_DAYS_OFF_KEY, VALID_WEEKDAYS
 
 VALID_REASONS = frozenset(
     {"weekend", "personal_day", "vacation", "holiday", "sick_day"}
 )
-
-VALID_WEEKDAYS = frozenset(
-    {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-)
-
-RECURRING_DAYS_OFF_KEY = "recurring_days_off"
 
 
 def mark_day_off(date_str: str, reason: str, note: str = "") -> str:

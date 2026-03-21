@@ -9,6 +9,7 @@ from models.task import Task
 from models.timer_session import TimerSession
 from tools.daily import get_session
 from tools.log_utils import log_call
+from oliver_shared import CATEGORY_DEEP_WORK, CATEGORY_MAINTENANCE, CATEGORY_SHORT_TASK, STATUS_COMPLETED
 
 
 def get_analytics(days: int = 30) -> str:
@@ -42,15 +43,15 @@ def get_analytics(days: int = 30) -> str:
             completed_tasks = 0
             total_tasks = 0
             category_seconds: dict[str, int] = {
-                "deep_work": 0,
-                "short_task": 0,
-                "maintenance": 0,
+                CATEGORY_DEEP_WORK: 0,
+                CATEGORY_SHORT_TASK: 0,
+                CATEGORY_MAINTENANCE: 0,
             }
 
             for day in day_rows:
                 tasks = session.query(Task).filter(Task.day_id == day.id).all()
                 total_tasks += len(tasks)
-                completed_tasks += sum(1 for t in tasks if t.status == "completed")
+                completed_tasks += sum(1 for t in tasks if t.status == STATUS_COMPLETED)
                 for task in tasks:
                     timer_sessions = (
                         session.query(TimerSession)

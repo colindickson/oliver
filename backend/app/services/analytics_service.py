@@ -15,9 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_off import DayOff
-from app.models.task import Task, STATUS_COMPLETED
+from app.models.task import Task
 from app.models.timer_session import TimerSession
-from oliver_shared import CATEGORY_DEEP_WORK, DEEP_WORK_GOAL_SECONDS
+from oliver_shared import CATEGORY_DEEP_WORK, DEEP_WORK_GOAL_SECONDS, STATUS_COMPLETED
 
 
 class AnalyticsService:

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import InvalidOperationError
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.models.day import Day
@@ -44,9 +44,8 @@ class TagService:
             HTTPException: 400 if the tag count exceeds MAX_TAGS_PER_TASK.
         """
         if len(names) > MAX_TAGS_PER_TASK:
-            raise HTTPException(
-                status_code=400,
-                detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags",
+            raise InvalidOperationError(
+                f"A task may have at most {MAX_TAGS_PER_TASK} tags", http_status_code=400
             )
 
         tag_objects = []

@@ -5,9 +5,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from app.exceptions import InvalidOperationError, TaskNotFoundError
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
@@ -48,6 +50,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(TaskNotFoundError)
+async def task_not_found_handler(request: Request, exc: TaskNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(InvalidOperationError)
+async def invalid_operation_handler(request: Request, exc: InvalidOperationError) -> JSONResponse:
+    return JSONResponse(status_code=exc.http_status_code, content={"detail": exc.detail})
 
 
 app.include_router(analytics_router.router)

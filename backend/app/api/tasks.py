@@ -26,7 +26,7 @@ from app.schemas.task import (
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
 from app.services.task_service import TaskService
-from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD, validate_tag_count
+from oliver_shared import STATUS_COMPLETED
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -314,7 +314,19 @@ async def continue_task_tomorrow(
         HTTPException: 422 if the task is not a deep_work task.
     """
     service = TaskService(db)
-    return await service.continue_tomorrow(task_id)
+    new_task = await service.continue_tomorrow(task_id)
+
+    # Reload with roll relationships to match roll_forward's enriched response shape
+    result = await db.execute(
+        select(Task)
+        .where(Task.id == new_task.id)
+        .options(
+            selectinload(Task.rolled_from).selectinload(Task.day),
+            selectinload(Task.rolled_to).selectinload(Task.day),
+        )
+    )
+    loaded = result.scalar_one()
+    return build_task_response(loaded)
 
 
 @router.post("/{task_id}/roll-forward", response_model=TaskResponse)

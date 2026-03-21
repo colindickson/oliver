@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.task import Task, CATEGORY_DEEP_WORK
-from app.models.day import Day
-from oliver_shared import STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD
+from app.exceptions import InvalidOperationError, TaskNotFoundError
+from app.models.task import Task
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
+from oliver_shared import CATEGORY_DEEP_WORK, STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD
 
 
 class TaskService:
@@ -42,13 +41,10 @@ class TaskService:
         result = await self._db.execute(select(Task).where(Task.id == task_id))
         task = result.scalar_one_or_none()
         if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise TaskNotFoundError(task_id)
 
         if task.category != CATEGORY_DEEP_WORK:
-            raise HTTPException(
-                status_code=422,
-                detail="Only deep_work tasks can be continued tomorrow",
-            )
+            raise InvalidOperationError("Only deep_work tasks can be continued tomorrow")
 
         # Read tag names before any mutations (already loaded)
         tag_names = [tag.name for tag in task.tags]
@@ -111,19 +107,16 @@ class TaskService:
         )
         task = result.scalar_one_or_none()
         if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise TaskNotFoundError(task_id)
 
         if task.status in (STATUS_COMPLETED, STATUS_ROLLED_FORWARD):
-            raise HTTPException(
-                status_code=422,
-                detail="Cannot roll forward a completed or already-rolled task",
-            )
+            raise InvalidOperationError("Cannot roll forward a completed or already-rolled task")
 
         if task.rolled_to is not None:
-            raise HTTPException(status_code=422, detail="Task has already been rolled forward")
+            raise InvalidOperationError("Task has already been rolled forward")
 
         if target_date <= date.today():
-            raise HTTPException(status_code=422, detail="target_date must be in the future")
+            raise InvalidOperationError("target_date must be in the future")
 
         # Read tag names
         tag_names = [tag.name for tag in task.tags]

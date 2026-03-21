@@ -277,13 +277,26 @@ async def test_resolve_tags_reuses_existing_tags(db_session: AsyncSession) -> No
 
 
 async def test_resolve_tags_enforces_max_tags_limit(db_session: AsyncSession) -> None:
-    """resolve_tags raises HTTPException when tag count exceeds MAX_TAGS_PER_TASK."""
+    """resolve_tags raises InvalidOperationError when tag count exceeds MAX_TAGS_PER_TASK."""
+    from app.exceptions import InvalidOperationError
     from app.services.tag_service import TagService
 
     service = TagService(db_session)
     tag_names = [f"tag{i}" for i in range(6)]  # MAX_TAGS_PER_TASK is 5
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(InvalidOperationError) as exc_info:
         await service.resolve_tags(tag_names)
 
     assert "tag" in str(exc_info.value).lower() or "max" in str(exc_info.value).lower()
+
+
+async def test_resolve_tags_raises_invalid_operation_error(db_session: AsyncSession) -> None:
+    """resolve_tags raises InvalidOperationError (not HTTPException) when over the tag limit."""
+    from app.exceptions import InvalidOperationError
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+    tag_names = [f"tag{i}" for i in range(6)]  # MAX_TAGS_PER_TASK is 5
+
+    with pytest.raises(InvalidOperationError):
+        await service.resolve_tags(tag_names)

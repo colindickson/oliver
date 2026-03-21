@@ -821,7 +821,8 @@ async def test_task_service_continue_tomorrow_copies_tags(
 async def test_task_service_continue_tomorrow_rejects_non_deep_work(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.continue_tomorrow() raises HTTPException for non-deep_work tasks."""
+    """TaskService.continue_tomorrow() raises InvalidOperationError for non-deep_work tasks."""
+    from app.exceptions import InvalidOperationError
     from app.services.task_service import TaskService
 
     task = Task(
@@ -837,7 +838,7 @@ async def test_task_service_continue_tomorrow_rejects_non_deep_work(
 
     service = TaskService(db_session)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(InvalidOperationError) as exc_info:
         await service.continue_tomorrow(task.id)
 
     assert "deep_work" in str(exc_info.value).lower()
@@ -925,7 +926,8 @@ async def test_task_service_roll_forward_sets_relationship(
 async def test_task_service_roll_forward_rejects_completed_task(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.roll_forward() raises HTTPException for completed tasks."""
+    """TaskService.roll_forward() raises InvalidOperationError for completed tasks."""
+    from app.exceptions import InvalidOperationError
     from app.services.task_service import TaskService
 
     task = Task(
@@ -943,7 +945,7 @@ async def test_task_service_roll_forward_rejects_completed_task(
     service = TaskService(db_session)
     target_date = date.today() + timedelta(days=2)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(InvalidOperationError) as exc_info:
         await service.roll_forward(task.id, target_date)
 
     assert "completed" in str(exc_info.value).lower() or "rolled" in str(exc_info.value).lower()
@@ -952,7 +954,8 @@ async def test_task_service_roll_forward_rejects_completed_task(
 async def test_task_service_roll_forward_rejects_past_date(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.roll_forward() raises HTTPException for past dates."""
+    """TaskService.roll_forward() raises InvalidOperationError for past dates."""
+    from app.exceptions import InvalidOperationError
     from app.services.task_service import TaskService
 
     task = Task(
@@ -969,7 +972,7 @@ async def test_task_service_roll_forward_rejects_past_date(
     service = TaskService(db_session)
     past_date = date.today() - timedelta(days=1)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(InvalidOperationError) as exc_info:
         await service.roll_forward(task.id, past_date)
 
     assert "future" in str(exc_info.value).lower() or "past" in str(exc_info.value).lower()
@@ -1006,8 +1009,8 @@ async def test_roll_forward_response_includes_roll_dates(client: AsyncClient, da
     assert rolled_task["rolled_from_date"] == day.date.isoformat()
 
 
-async def test_continue_tomorrow_returns_plain_response(client: AsyncClient, day: Day) -> None:
-    """continue_tomorrow response is plain TaskResponse without roll relationship fields."""
+async def test_continue_tomorrow_returns_consistent_response(client: AsyncClient, day: Day) -> None:
+    """continue_tomorrow response is a consistent enriched TaskResponse (same shape as roll_forward)."""
     # Create a deep_work task
     create_resp = await client.post(
         "/api/tasks",
@@ -1030,3 +1033,55 @@ async def test_continue_tomorrow_returns_plain_response(client: AsyncClient, day
     # (it doesn't have rolled_from_task_id, so rolled_from_date should not be present)
     assert new_task.get("rolled_from_task_id") is None
     assert "rolled_from_date" not in new_task or new_task.get("rolled_from_date") is None
+
+
+# ---------------------------------------------------------------------------
+# Domain exceptions — services raise typed exceptions, not HTTPException
+# ---------------------------------------------------------------------------
+
+
+async def test_task_service_continue_tomorrow_raises_task_not_found_error(
+    db_session: AsyncSession,
+) -> None:
+    """TaskService.continue_tomorrow() raises TaskNotFoundError for a missing task id."""
+    from app.exceptions import TaskNotFoundError
+    from app.services.task_service import TaskService
+
+    service = TaskService(db_session)
+    with pytest.raises(TaskNotFoundError):
+        await service.continue_tomorrow(99999)
+
+
+async def test_task_service_roll_forward_raises_task_not_found_error(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.roll_forward() raises TaskNotFoundError for a missing task id."""
+    from app.exceptions import TaskNotFoundError
+    from app.services.task_service import TaskService
+
+    service = TaskService(db_session)
+    with pytest.raises(TaskNotFoundError):
+        await service.roll_forward(99999, date.today() + timedelta(days=2))
+
+
+async def test_task_service_continue_tomorrow_raises_invalid_operation_for_non_deep_work(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.continue_tomorrow() raises InvalidOperationError for non-deep_work tasks."""
+    from app.exceptions import InvalidOperationError
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_SHORT_TASK,
+        title="Quick task",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    with pytest.raises(InvalidOperationError):
+        await service.continue_tomorrow(task.id)
