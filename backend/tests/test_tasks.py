@@ -973,3 +973,60 @@ async def test_task_service_roll_forward_rejects_past_date(
         await service.roll_forward(task.id, past_date)
 
     assert "future" in str(exc_info.value).lower() or "past" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Response building consistency — ensure roll relationships are enriched
+# ---------------------------------------------------------------------------
+
+
+async def test_roll_forward_response_includes_roll_dates(client: AsyncClient, day: Day) -> None:
+    """roll_forward response includes rolled_from_date when task has roll relationship."""
+    # Create a task on today
+    create_resp = await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Work", "tags": []},
+    )
+    task_id = create_resp.json()["id"]
+
+    # Roll forward to future date
+    future_date = (date.today() + timedelta(days=2)).isoformat()
+
+    with patch("app.api.tasks.date") as mock_date:
+        mock_date.today.return_value = date.today()
+        roll_resp = await client.post(
+            f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date}
+        )
+
+    assert roll_resp.status_code == 200
+    rolled_task = roll_resp.json()
+
+    # Verify the rolled task includes rolled_from_date
+    assert "rolled_from_date" in rolled_task
+    assert rolled_task["rolled_from_date"] == day.date.isoformat()
+
+
+async def test_continue_tomorrow_returns_plain_response(client: AsyncClient, day: Day) -> None:
+    """continue_tomorrow response is plain TaskResponse without roll relationship fields."""
+    # Create a deep_work task
+    create_resp = await client.post(
+        "/api/tasks",
+        json={
+            "day_id": day.id,
+            "category": CATEGORY_DEEP_WORK,
+            "title": "Deep work",
+            "tags": [],
+        },
+    )
+    task_id = create_resp.json()["id"]
+
+    # Continue to tomorrow
+    continue_resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+
+    assert continue_resp.status_code == 200
+    new_task = continue_resp.json()
+
+    # The new task has no roll relationships, so these fields should be absent or null
+    # (it doesn't have rolled_from_task_id, so rolled_from_date should not be present)
+    assert new_task.get("rolled_from_task_id") is None
+    assert "rolled_from_date" not in new_task or new_task.get("rolled_from_date") is None
