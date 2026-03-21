@@ -2,66 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.schemas.settings import (
+    FocusGoalResponse,
+    FocusGoalUpdate,
+    RecurringDaysOffResponse,
+    RecurringDaysOffUpsert,
+    TimerDisplayResponse,
+    TimerDisplayUpdate,
+)
 from app.services.day_service import DayService
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
-
-VALID_WEEKDAYS = frozenset(
-    {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-)
-
-
-class RecurringDaysOffResponse(BaseModel):
-    """Response schema for recurring days-off setting."""
-
-    days: list[str]
-
-
-class RecurringDaysOffUpsert(BaseModel):
-    """Request schema for updating recurring days-off setting."""
-
-    days: list[str]
-
-    @field_validator("days")
-    @classmethod
-    def validate_weekday_names(cls, v: list[str]) -> list[str]:
-        invalid = [d for d in v if d not in VALID_WEEKDAYS]
-        if invalid:
-            raise ValueError(
-                f"Invalid weekday name(s): {invalid}. Must be one of: {sorted(VALID_WEEKDAYS)}"
-            )
-        return v
-
-
-class TimerDisplayResponse(BaseModel):
-    """Response schema for timer display setting."""
-
-    enabled: bool
-
-
-class TimerDisplayUpdate(BaseModel):
-    """Request schema for updating timer display setting."""
-
-    enabled: bool
-
-
-class FocusGoalResponse(BaseModel):
-    """Response schema for focus goal setting."""
-
-    goal_id: int | None
-
-
-class FocusGoalUpdate(BaseModel):
-    """Request schema for updating focus goal setting."""
-
-    goal_id: int | None
 
 
 @router.get("/timer-display", response_model=TimerDisplayResponse)

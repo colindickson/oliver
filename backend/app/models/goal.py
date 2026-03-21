@@ -9,6 +9,7 @@ from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Tabl
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from oliver_shared import STATUS_GOAL_ACTIVE, STATUS_GOAL_COMPLETED
 
 if TYPE_CHECKING:
     from app.models.tag import Tag
@@ -29,9 +30,6 @@ goal_tasks_table = Table(
     Column("goal_id", Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True),
     Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
 )
-
-STATUS_GOAL_ACTIVE = "active"
-STATUS_GOAL_COMPLETED = "completed"
 
 
 class Goal(Base):

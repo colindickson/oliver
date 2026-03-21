@@ -20,8 +20,8 @@ from app.models.setting import Setting
 from app.models.tag import Tag
 from app.models.task import Task
 from app.models.timer_session import TimerSession
+from oliver_shared import RECURRING_DAYS_OFF_KEY
 
-_RECURRING_DAYS_OFF_KEY = "recurring_days_off"
 _ACTIVE_TIMER_KEY = "active_timer"
 
 # Type alias for revert handler
@@ -179,13 +179,13 @@ async def _revert_set_recurring_days_off(db: AsyncSession, log: MCPLog) -> None:
     before = json.loads(log.before_state) if log.before_state else {}
     days = before.get("days", [])
     result = await db.execute(
-        select(Setting).where(Setting.key == _RECURRING_DAYS_OFF_KEY)
+        select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
     )
     setting = result.scalar_one_or_none()
     if setting:
         setting.value = json.dumps(days)
     else:
-        db.add(Setting(key=_RECURRING_DAYS_OFF_KEY, value=json.dumps(days)))
+        db.add(Setting(key=RECURRING_DAYS_OFF_KEY, value=json.dumps(days)))
 
 
 async def _revert_set_day_metadata(db: AsyncSession, log: MCPLog) -> None:

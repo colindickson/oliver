@@ -17,6 +17,7 @@ from app.models.day import Day
 from app.models.day_off import DayOff
 from app.models.task import Task, STATUS_COMPLETED
 from app.models.timer_session import TimerSession
+from oliver_shared import CATEGORY_DEEP_WORK, DEEP_WORK_GOAL_SECONDS
 
 
 class AnalyticsService:
@@ -247,16 +248,16 @@ class AnalyticsService:
         day = day_result.scalar_one_or_none()
 
         if not day:
-            return {"total_seconds": 0, "goal_seconds": 10800}
+            return {"total_seconds": 0, "goal_seconds": DEEP_WORK_GOAL_SECONDS}
 
         # Sum all timer session durations for deep_work tasks on this day
         result = await self._db.execute(
             select(func.coalesce(func.sum(TimerSession.duration_seconds), 0))
             .join(Task, TimerSession.task_id == Task.id)
             .where(Task.day_id == day.id)
-            .where(Task.category == "deep_work")
+            .where(Task.category == CATEGORY_DEEP_WORK)
             .where(TimerSession.duration_seconds.is_not(None))
         )
         total_seconds = int(result.scalar_one() or 0)
 
-        return {"total_seconds": total_seconds, "goal_seconds": 10800}
+        return {"total_seconds": total_seconds, "goal_seconds": DEEP_WORK_GOAL_SECONDS}

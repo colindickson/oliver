@@ -23,10 +23,7 @@ from app.models.roadblock import Roadblock
 from app.models.setting import Setting
 from app.models.task_template import TaskTemplate, TemplateSchedule
 from app.services.template_service import compute_next_run, TemplateService
-
-RECURRING_DAYS_OFF_KEY = "recurring_days_off"
-TIMER_DISPLAY_KEY = "timer_display"
-FOCUS_GOAL_KEY = "focus_goal_id"
+from oliver_shared import FOCUS_GOAL_KEY, RECURRING_DAYS_OFF_KEY, TIMER_DISPLAY_KEY
 
 
 class DayService:
