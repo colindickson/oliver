@@ -25,6 +25,7 @@ from app.schemas.task import (
 )
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
+from app.services.task_service import TaskService
 from oliver_shared import CATEGORY_DEEP_WORK, MAX_TAGS_PER_TASK, STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD, validate_tag_count
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -310,52 +311,10 @@ async def continue_task_tomorrow(
 
     Raises:
         HTTPException: 404 if no Task with ``task_id`` exists.
+        HTTPException: 422 if the task is not a deep_work task.
     """
-    task = await _get_task_or_404(task_id, db)
-
-    if task.category != CATEGORY_DEEP_WORK:
-        raise HTTPException(
-            status_code=422,
-            detail="Only deep_work tasks can be continued tomorrow",
-        )
-
-    # Read tag names before any mutations (selectin-loaded, already available)
-    tag_names = [tag.name for tag in task.tags]
-
-    # Get or create the next working day first — DayService uses flush so we
-    # have a day_id before building the continuation task, and all three writes
-    # (day insert if new, status change, new task) commit together below.
-    day_service = DayService(db)
-    next_day = await day_service.get_next_working_day()
-    tomorrow_day = await day_service.get_or_create_by_date(next_day)
-
-    # Mark original completed
-    task.status = STATUS_COMPLETED
-    task.completed_at = datetime.now(timezone.utc)
-
-    # Resolve tag objects for the new task
-    tag_objects = []
-    if tag_names:
-        tag_service = TagService(db)
-        for name in tag_names:
-            tag_objects.append(await tag_service.get_or_create_tag(name))
-
-    # Create continuation task
-    new_task = Task(
-        day_id=tomorrow_day.id,
-        category=CATEGORY_DEEP_WORK,
-        title=task.title,
-        description=task.description,
-        status=STATUS_PENDING,
-        order_index=0,
-    )
-    new_task.tags = tag_objects
-    db.add(new_task)
-
-    # Single commit: atomically marks original completed and creates the copy
-    await db.commit()
-    await db.refresh(new_task)
-    return new_task
+    service = TaskService(db)
+    return await service.continue_tomorrow(task_id)
 
 
 @router.post("/{task_id}/roll-forward", response_model=TaskResponse)
@@ -364,7 +323,7 @@ async def roll_forward_task(
 ) -> dict:
     """Create a new task on a future date as a roll-forward of an incomplete task.
 
-    The original task is left incomplete as a historical record. The new task
+    The original task is marked as rolled_forward as a historical record. The new task
     has ``rolled_from_task_id`` set to the original, creating a traceable chain.
 
     Args:
@@ -379,56 +338,11 @@ async def roll_forward_task(
         HTTPException: 404 if no Task with ``task_id`` exists.
         HTTPException: 422 if task is completed, already rolled, or target_date is not future.
     """
-    result = await db.execute(
-        select(Task)
-        .where(Task.id == task_id)
-        .options(
-            selectinload(Task.rolled_from).selectinload(Task.day),
-            selectinload(Task.rolled_to).selectinload(Task.day),
-        )
-    )
-    task = result.scalar_one_or_none()
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if task.status in (STATUS_COMPLETED, STATUS_ROLLED_FORWARD):
-        raise HTTPException(status_code=422, detail="Cannot roll forward a completed or already-rolled task")
-
-    if task.rolled_to is not None:
-        raise HTTPException(status_code=422, detail="Task has already been rolled forward")
-
-    if body.target_date <= date.today():
-        raise HTTPException(status_code=422, detail="target_date must be in the future")
-
-    tag_names = [tag.name for tag in task.tags]
-
-    day_service = DayService(db)
-    target_day = await day_service.get_or_create_by_date(body.target_date)
-
-    tag_objects = []
-    if tag_names:
-        tag_service = TagService(db)
-        for name in tag_names:
-            tag_objects.append(await tag_service.get_or_create_tag(name))
-
-    new_task = Task(
-        day_id=target_day.id,
-        category=task.category,
-        title=task.title,
-        description=task.description,
-        status=STATUS_PENDING,
-        order_index=0,
-        rolled_from_task_id=task.id,
-    )
-    new_task.tags = tag_objects
-    db.add(new_task)
-
-    task.status = STATUS_ROLLED_FORWARD
-
-    await db.commit()
+    service = TaskService(db)
+    new_task = await service.roll_forward(task_id, body.target_date)
 
     # Reload with roll relationships to build enriched response
-    result2 = await db.execute(
+    result = await db.execute(
         select(Task)
         .where(Task.id == new_task.id)
         .options(
@@ -436,5 +350,5 @@ async def roll_forward_task(
             selectinload(Task.rolled_to).selectinload(Task.day),
         )
     )
-    loaded = result2.scalar_one()
+    loaded = result.scalar_one()
     return build_task_response(loaded)

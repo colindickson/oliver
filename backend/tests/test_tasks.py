@@ -728,3 +728,248 @@ async def test_roll_forward_chain(
     # Task B should be rolled_forward after being superseded by C
     task_b_resp = await client.get(f"/api/tasks/{task_b_id}")
     assert task_b_resp.json()["status"] == STATUS_ROLLED_FORWARD
+
+
+# ---------------------------------------------------------------------------
+# TaskService.continue_tomorrow() — service-level method
+# ---------------------------------------------------------------------------
+
+
+async def test_task_service_continue_tomorrow_creates_task(db_session: AsyncSession, day: Day) -> None:
+    """TaskService.continue_tomorrow() creates a new task on the next working day."""
+    from app.services.task_service import TaskService
+
+    # Create a deep_work task
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Deep focus",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    new_task = await service.continue_tomorrow(task.id)
+
+    assert new_task.id != task.id
+    assert new_task.title == task.title
+    assert new_task.status == STATUS_PENDING
+    assert new_task.day_id != task.day_id
+
+
+async def test_task_service_continue_tomorrow_marks_original_completed(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.continue_tomorrow() marks original task completed."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    await service.continue_tomorrow(task.id)
+
+    # Verify original is marked completed
+    await db_session.refresh(task)
+    assert task.status == STATUS_COMPLETED
+    assert task.completed_at is not None
+
+
+async def test_task_service_continue_tomorrow_copies_tags(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.continue_tomorrow() preserves tags on the new task."""
+    from app.models.tag import Tag
+    from app.services.task_service import TaskService
+
+    # Create tags
+    tag1 = Tag(name="focus")
+    tag2 = Tag(name="urgent")
+    db_session.add(tag1)
+    db_session.add(tag2)
+    await db_session.flush()
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Tagged work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    task.tags = [tag1, tag2]
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    new_task = await service.continue_tomorrow(task.id)
+
+    assert {t.name for t in new_task.tags} == {"focus", "urgent"}
+
+
+async def test_task_service_continue_tomorrow_rejects_non_deep_work(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.continue_tomorrow() raises HTTPException for non-deep_work tasks."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_SHORT_TASK,
+        title="Quick task",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+
+    with pytest.raises(Exception) as exc_info:
+        await service.continue_tomorrow(task.id)
+
+    assert "deep_work" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# TaskService.roll_forward() — service-level method
+# ---------------------------------------------------------------------------
+
+
+async def test_task_service_roll_forward_creates_task(db_session: AsyncSession, day: Day) -> None:
+    """TaskService.roll_forward() creates a new task on the target date."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Incomplete work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    target_date = date.today() + timedelta(days=2)
+    new_task = await service.roll_forward(task.id, target_date)
+
+    assert new_task.id != task.id
+    assert new_task.title == task.title
+    assert new_task.status == STATUS_PENDING
+
+
+async def test_task_service_roll_forward_marks_original_rolled_forward(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.roll_forward() marks original task as rolled_forward."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    target_date = date.today() + timedelta(days=2)
+    await service.roll_forward(task.id, target_date)
+
+    # Verify original is marked rolled_forward
+    await db_session.refresh(task)
+    assert task.status == STATUS_ROLLED_FORWARD
+
+
+async def test_task_service_roll_forward_sets_relationship(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.roll_forward() sets rolled_from_task_id on the new task."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    target_date = date.today() + timedelta(days=2)
+    new_task = await service.roll_forward(task.id, target_date)
+
+    assert new_task.rolled_from_task_id == task.id
+
+
+async def test_task_service_roll_forward_rejects_completed_task(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.roll_forward() raises HTTPException for completed tasks."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Done work",
+        status=STATUS_COMPLETED,
+        order_index=0,
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    target_date = date.today() + timedelta(days=2)
+
+    with pytest.raises(Exception) as exc_info:
+        await service.roll_forward(task.id, target_date)
+
+    assert "completed" in str(exc_info.value).lower() or "rolled" in str(exc_info.value).lower()
+
+
+async def test_task_service_roll_forward_rejects_past_date(
+    db_session: AsyncSession, day: Day
+) -> None:
+    """TaskService.roll_forward() raises HTTPException for past dates."""
+    from app.services.task_service import TaskService
+
+    task = Task(
+        day_id=day.id,
+        category=CATEGORY_DEEP_WORK,
+        title="Work",
+        status=STATUS_PENDING,
+        order_index=0,
+    )
+    db_session.add(task)
+    await db_session.commit()
+    await db_session.refresh(task)
+
+    service = TaskService(db_session)
+    past_date = date.today() - timedelta(days=1)
+
+    with pytest.raises(Exception) as exc_info:
+        await service.roll_forward(task.id, past_date)
+
+    assert "future" in str(exc_info.value).lower() or "past" in str(exc_info.value).lower()
