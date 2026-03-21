@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Day, Tag, Task  # ensure all tables are registered
@@ -212,3 +213,77 @@ async def test_orphaned_tags_not_listed(client: AsyncClient, day: Day) -> None:
     list_resp = await client.get("/api/tags")
     tag_names = [t["name"] for t in list_resp.json()]
     assert "temporary" not in tag_names
+
+
+# ---------------------------------------------------------------------------
+# TagService.resolve_tags() — utility method for resolving multiple tag names
+# ---------------------------------------------------------------------------
+
+
+async def test_resolve_tags_creates_and_returns_tags(db_session: AsyncSession) -> None:
+    """resolve_tags returns Tag objects for given names, creating missing ones."""
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+    tags = await service.resolve_tags(["focus", "urgent"])
+
+    assert len(tags) == 2
+    assert {t.name for t in tags} == {"focus", "urgent"}
+
+
+async def test_resolve_tags_empty_list(db_session: AsyncSession) -> None:
+    """resolve_tags with empty list returns empty list."""
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+    tags = await service.resolve_tags([])
+
+    assert tags == []
+
+
+async def test_resolve_tags_normalizes_tag_names(db_session: AsyncSession) -> None:
+    """resolve_tags normalizes tag names (lowercase, trim)."""
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+    tags = await service.resolve_tags(["  Focus  ", "URGENT"])
+
+    assert len(tags) == 2
+    assert {t.name for t in tags} == {"focus", "urgent"}
+
+
+async def test_resolve_tags_reuses_existing_tags(db_session: AsyncSession) -> None:
+    """resolve_tags returns existing tags, creating only missing ones."""
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+
+    # Create first tag
+    tags1 = await service.resolve_tags(["focus"])
+    await db_session.commit()
+
+    # Resolve with both existing and new
+    tags2 = await service.resolve_tags(["focus", "urgent"])
+    await db_session.commit()
+
+    assert len(tags2) == 2
+    assert tags2[0].name == "focus"
+    assert tags2[1].name == "urgent"
+
+    # Verify no duplicate "focus" tag was created
+    result = await db_session.execute(select(Tag))
+    all_tags = list(result.scalars().all())
+    assert len(all_tags) == 2
+
+
+async def test_resolve_tags_enforces_max_tags_limit(db_session: AsyncSession) -> None:
+    """resolve_tags raises HTTPException when tag count exceeds MAX_TAGS_PER_TASK."""
+    from app.services.tag_service import TagService
+
+    service = TagService(db_session)
+    tag_names = [f"tag{i}" for i in range(6)]  # MAX_TAGS_PER_TASK is 5
+
+    with pytest.raises(Exception) as exc_info:
+        await service.resolve_tags(tag_names)
+
+    assert "tag" in str(exc_info.value).lower() or "max" in str(exc_info.value).lower()

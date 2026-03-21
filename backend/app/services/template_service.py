@@ -68,7 +68,7 @@ class TemplateService:
     ) -> TaskTemplate:
         """Create and persist a new TaskTemplate."""
         tag_service = TagService(self._db)
-        tag_objects = [await tag_service.get_or_create_tag(name) for name in tag_names]
+        tag_objects = await tag_service.resolve_tags(tag_names)
 
         template = TaskTemplate(
             title=title,
@@ -98,7 +98,7 @@ class TemplateService:
             template.category = category
         if tag_names is not None:
             tag_service = TagService(self._db)
-            template.tags = [await tag_service.get_or_create_tag(n) for n in tag_names]
+            template.tags = await tag_service.resolve_tags(tag_names)
 
         await self._db.commit()
         await self._db.refresh(template)
@@ -139,7 +139,8 @@ class TemplateService:
 
         # Copy tag objects from template
         tag_service = TagService(self._db)
-        tag_objects = [await tag_service.get_or_create_tag(tag.name) for tag in template.tags]
+        tag_names = [tag.name for tag in template.tags]
+        tag_objects = await tag_service.resolve_tags(tag_names)
 
         task = Task(
             day_id=day_id,

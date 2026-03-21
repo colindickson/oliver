@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.models.day import Day
-from oliver_shared import STATUS_ROLLED_FORWARD, normalize_tag_name
+from oliver_shared import STATUS_ROLLED_FORWARD, MAX_TAGS_PER_TASK, normalize_tag_name
 
 
 class TagService:
@@ -27,6 +28,33 @@ class TagService:
             self._db.add(tag)
             await self._db.flush()
         return tag
+
+    async def resolve_tags(self, names: list[str]) -> list[Tag]:
+        """Resolve tag names to Tag ORM objects, creating any that are missing.
+
+        Validates that the tag count does not exceed MAX_TAGS_PER_TASK.
+
+        Args:
+            names: List of tag names to resolve.
+
+        Returns:
+            List of Tag ORM objects in the order of the input names.
+
+        Raises:
+            HTTPException: 400 if the tag count exceeds MAX_TAGS_PER_TASK.
+        """
+        if len(names) > MAX_TAGS_PER_TASK:
+            raise HTTPException(
+                status_code=400,
+                detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags",
+            )
+
+        tag_objects = []
+        for name in names:
+            tag = await self.get_or_create_tag(name)
+            tag_objects.append(tag)
+
+        return tag_objects
 
     async def get_all_tags(self) -> list[tuple[Tag, int]]:
         """Return tags that have at least one associated non-rolled-forward task, with usage counts."""

@@ -89,14 +89,8 @@ async def create_backlog_task(
     Raises:
         HTTPException: 400 if more than MAX_TAGS_PER_TASK tags are provided.
     """
-    if len(body.tags) > MAX_TAGS_PER_TASK:
-        raise HTTPException(status_code=400, detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags")
-
-    tag_objects = []
-    if body.tags:
-        service = TagService(db)
-        for tag_name in body.tags:
-            tag_objects.append(await service.get_or_create_tag(tag_name))
+    service = TagService(db)
+    tag_objects = await service.resolve_tags(body.tags)
 
     task = Task(
         day_id=None,

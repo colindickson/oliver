@@ -120,16 +120,10 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> T
     Raises:
         HTTPException: 400 if more than MAX_TAGS_PER_TASK tags are provided.
     """
-    if len(body.tags) > MAX_TAGS_PER_TASK:
-        raise HTTPException(status_code=400, detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags")
-
     # Resolve tags before creating the task so we can set them on the
     # transient object — avoids a lazy-load in async context.
-    tag_objects = []
-    if body.tags:
-        service = TagService(db)
-        for tag_name in body.tags:
-            tag_objects.append(await service.get_or_create_tag(tag_name))
+    service = TagService(db)
+    tag_objects = await service.resolve_tags(body.tags)
 
     task = Task(
         day_id=body.day_id,
@@ -213,14 +207,8 @@ async def update_task(
         task.order_index = body.order_index
 
     if body.tags is not None:
-        if len(body.tags) > MAX_TAGS_PER_TASK:
-            raise HTTPException(status_code=400, detail=f"A task may have at most {MAX_TAGS_PER_TASK} tags")
-        new_tag_objects = []
-        if body.tags:
-            service = TagService(db)
-            for tag_name in body.tags:
-                new_tag_objects.append(await service.get_or_create_tag(tag_name))
-        task.tags = new_tag_objects
+        service = TagService(db)
+        task.tags = await service.resolve_tags(body.tags)
 
     await db.commit()
     await db.refresh(task)

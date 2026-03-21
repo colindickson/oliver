@@ -203,10 +203,8 @@ class GoalService:
 
     async def _resolve_tags(self, tag_names: list[str]) -> list[Tag]:
         """Return Tag ORM objects for the given names, creating any that are missing."""
-        if not tag_names:
-            return []
         tag_svc = TagService(self._db)
-        return [await tag_svc.get_or_create_tag(name) for name in tag_names]
+        return await tag_svc.resolve_tags(tag_names)
 
     async def _resolve_tasks(self, task_ids: list[int]) -> list[Task]:
         """Return Task ORM objects for the given IDs (silently skips missing IDs)."""
