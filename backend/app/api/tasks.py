@@ -107,7 +107,7 @@ async def reorder_tasks(
 # ---------------------------------------------------------------------------
 
 
-@router.post("", response_model=TaskResponse)
+@router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> TaskResponse:
     """Create a new Task associated with an existing Day.
 
@@ -262,6 +262,8 @@ async def update_task_status(
     task.status = body.status
     if body.status == STATUS_COMPLETED:
         task.completed_at = datetime.now(timezone.utc)
+    else:
+        task.completed_at = None
     await db.commit()
     await db.refresh(task)
     return task

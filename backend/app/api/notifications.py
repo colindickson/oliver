@@ -32,7 +32,9 @@ async def create_notification(
         The newly created notification.
     """
     service = NotificationService(db)
-    return await service.create(body.source, body.content)
+    notification = await service.create(body.source, body.content)
+    await db.commit()
+    return notification
 
 
 # NOTE: /unread must appear before /{id}/read to avoid path-parameter collision.
@@ -86,6 +88,7 @@ async def mark_notification_read(
         HTTPException: 404 if the notification does not exist.
     """
     notification = await NotificationService(db).mark_read(notification_id)
+    await db.commit()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification

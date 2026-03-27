@@ -39,7 +39,7 @@ class NotificationService:
             is_read=False,
         )
         self._db.add(notification)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(notification)
         return notification
 
@@ -87,6 +87,6 @@ class NotificationService:
         notification = result.scalar_one_or_none()
         if notification:
             notification.is_read = True
-            await self._db.commit()
+            await self._db.flush()
             await self._db.refresh(notification)
         return notification

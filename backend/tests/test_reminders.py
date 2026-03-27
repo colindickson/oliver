@@ -203,3 +203,24 @@ async def test_due_reminders_excludes_delivered(client: AsyncClient, task: Task)
 
     assert due_resp.status_code == 200
     assert due_resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# 404 handling
+# ---------------------------------------------------------------------------
+
+
+async def test_mark_delivered_returns_404_for_missing_reminder(
+    client: AsyncClient,
+) -> None:
+    """PATCH /api/reminders/{nonexistent_id}/delivered returns 404."""
+    response = await client.patch("/api/reminders/99999/delivered")
+    assert response.status_code == 404
+
+
+async def test_delete_reminder_returns_404_for_missing_id(
+    client: AsyncClient,
+) -> None:
+    """DELETE /api/reminders/{nonexistent_id} returns 404."""
+    response = await client.delete("/api/reminders/99999")
+    assert response.status_code == 404

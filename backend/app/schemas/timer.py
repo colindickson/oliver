@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,7 +40,7 @@ class TimerState(BaseModel):
         accumulated_seconds: Seconds accumulated from completed intervals only.
     """
 
-    status: str  # "idle" | "running" | "paused"
+    status: Literal["idle", "running", "paused"]
     task_id: int | None = None
     elapsed_seconds: int = 0
     accumulated_seconds: int = 0

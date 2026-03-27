@@ -66,7 +66,7 @@ class TimerService:
             self._db.add(setting)
         else:
             setting.value = json.dumps(state)
-        await self._db.commit()
+        await self._db.flush()
 
     async def _clear_state(self) -> None:
         """Remove the active timer entry from the settings table."""
@@ -76,7 +76,7 @@ class TimerService:
         setting = result.scalar_one_or_none()
         if setting:
             await self._db.delete(setting)
-            await self._db.commit()
+            await self._db.flush()
 
     # ------------------------------------------------------------------
     # Public API
@@ -217,7 +217,7 @@ class TimerService:
             duration_seconds=total,
         )
         self._db.add(session)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(session)
         await self._clear_state()
         return session
@@ -273,6 +273,6 @@ class TimerService:
             duration_seconds=seconds,
         )
         self._db.add(session)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(session)
         return session

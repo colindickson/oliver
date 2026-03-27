@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.task_template import TaskTemplate
 from app.schemas.task import TaskResponse
 from app.schemas.task_template import InstantiatePayload, ScheduleCreate, ScheduleResponse, TemplateCreate, TemplateResponse, TemplateUpdate
 from app.services.template_service import TemplateService
@@ -13,7 +14,7 @@ from app.services.template_service import TemplateService
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
-async def _get_template_or_404(template_id: int, service: TemplateService) -> object:
+async def _get_template_or_404(template_id: int, service: TemplateService) -> TaskTemplate:
     """Return a TaskTemplate or raise 404."""
     template = await service.get_template(template_id)
     if template is None:
@@ -38,12 +39,14 @@ async def create_template(
 ) -> TemplateResponse:
     """Create a new task template."""
     service = TemplateService(db)
-    return await service.create_template(
+    template = await service.create_template(
         title=body.title,
         description=body.description,
         category=body.category,
         tag_names=body.tags,
     )
+    await db.commit()
+    return template
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -65,13 +68,15 @@ async def update_template(
     """Update a template. Only provided fields are changed."""
     service = TemplateService(db)
     template = await _get_template_or_404(template_id, service)
-    return await service.update_template(
+    result = await service.update_template(
         template=template,
         title=body.title,
         description=body.description,
         category=body.category,
         tag_names=body.tags,
     )
+    await db.commit()
+    return result
 
 
 @router.delete("/{template_id}")
@@ -83,6 +88,7 @@ async def delete_template(
     service = TemplateService(db)
     template = await _get_template_or_404(template_id, service)
     await service.delete_template(template)
+    await db.commit()
     return {"deleted": True}
 
 
@@ -103,6 +109,7 @@ async def instantiate_template(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    await db.commit()
     return task
 
 
@@ -126,11 +133,13 @@ async def create_schedule(
     """Create a new recurrence schedule for a template."""
     service = TemplateService(db)
     await _get_template_or_404(template_id, service)
-    return await service.create_schedule(
+    schedule = await service.create_schedule(
         template_id=template_id,
         recurrence=body.recurrence,
         anchor_date=body.anchor_date,
     )
+    await db.commit()
+    return schedule
 
 
 @router.delete("/{template_id}/schedules/{schedule_id}")
@@ -143,6 +152,7 @@ async def delete_schedule(
     service = TemplateService(db)
     await _get_template_or_404(template_id, service)
     deleted = await service.delete_schedule(template_id, schedule_id)
+    await db.commit()
     if not deleted:
         raise HTTPException(status_code=404, detail="Schedule not found")
     return {"deleted": True}

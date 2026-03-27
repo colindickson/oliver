@@ -3,28 +3,30 @@
 from __future__ import annotations
 
 from datetime import date as date_type, datetime
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas._shared import TagCoercionMixin
 
 RecurrenceType = Literal["weekly", "bi_weekly", "monthly"]
 
 
 class TemplateCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    category: str | None = None
+    category: Literal["deep_work", "short_task", "maintenance"] | None = None
     tags: list[str] = []
 
 
 class TemplateUpdate(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=255)
     description: str | None = None
     category: str | None = None
     tags: list[str] | None = None
 
 
-class TemplateResponse(BaseModel):
+class TemplateResponse(TagCoercionMixin):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -34,18 +36,6 @@ class TemplateResponse(BaseModel):
     tags: list[str] = []
     created_at: datetime
     updated_at: datetime
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def coerce_tags(cls, v: Any) -> list[str]:
-        """Convert ORM Tag objects to plain name strings."""
-        result = []
-        for item in v:
-            if isinstance(item, str):
-                result.append(item)
-            else:
-                result.append(item.name)
-        return result
 
 
 class InstantiatePayload(BaseModel):

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas._shared import TagCoercionMixin
 
 
 class TaskCreate(BaseModel):
@@ -21,8 +23,8 @@ class TaskCreate(BaseModel):
     """
 
     day_id: int
-    category: str
-    title: str
+    category: Literal["deep_work", "short_task", "maintenance"]
+    title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     order_index: int = 0
     tags: list[str] = []
@@ -41,7 +43,7 @@ class TaskUpdate(BaseModel):
         tags: Replacement tag list. None = don't touch; [] = remove all.
     """
 
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=255)
     description: str | None = None
     order_index: int | None = None
     tags: list[str] | None = None
@@ -54,7 +56,7 @@ class TaskStatusUpdate(BaseModel):
         status: One of ``pending``, ``in_progress``, or ``completed``.
     """
 
-    status: str
+    status: Literal["pending", "in_progress", "completed"]
 
 
 class TaskReorder(BaseModel):
@@ -79,9 +81,9 @@ class BacklogTaskCreate(BaseModel):
         tags: Tag names to apply (max 5, stored lowercase without #).
     """
 
-    title: str
+    title: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    category: str | None = Field(default=None, validation_alias="suggested_category")
+    category: Literal["deep_work", "short_task", "maintenance"] | None = Field(default=None, validation_alias="suggested_category")
     tags: list[str] = []
 
     model_config = ConfigDict(populate_by_name=True)
@@ -99,7 +101,7 @@ class MoveToDayPayload(BaseModel):
     category: str | None = None
 
 
-class TaskResponse(BaseModel):
+class TaskResponse(TagCoercionMixin):
     """Serialised representation of a Task returned by the API.
 
     Attributes:
@@ -129,15 +131,3 @@ class TaskResponse(BaseModel):
     rolled_from_date: str | None = None
     rolled_to_task_id: int | None = None
     rolled_to_date: str | None = None
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def coerce_tags(cls, v: Any) -> list[str]:
-        """Convert ORM Tag objects to plain name strings."""
-        result = []
-        for item in v:
-            if isinstance(item, str):
-                result.append(item)
-            else:
-                result.append(item.name)
-        return result

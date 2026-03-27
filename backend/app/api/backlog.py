@@ -19,7 +19,6 @@ from app.schemas.task import (
     TaskResponse,
 )
 from app.services.tag_service import TagService
-from oliver_shared import MAX_TAGS_PER_TASK
 
 router = APIRouter(prefix="/api/backlog", tags=["backlog"])
 
@@ -66,14 +65,15 @@ async def list_backlog(
         query = query.join(Task.tags).where(Task.tags.any(name=tag.lower()))
 
     if search:
-        query = query.where(Task.title.ilike(f"%{search}%"))
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.where(Task.title.ilike(f"%{escaped}%", escape="\\"))
 
     query = query.order_by(Task.order_index)
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
-@router.post("", response_model=TaskResponse)
+@router.post("", response_model=TaskResponse, status_code=201)
 async def create_backlog_task(
     body: BacklogTaskCreate, db: AsyncSession = Depends(get_db)
 ) -> TaskResponse:

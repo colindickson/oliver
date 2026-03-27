@@ -330,3 +330,32 @@ async def test_get_goal_detail(client: AsyncClient, task: Task) -> None:
     assert "tasks" in data
     assert len(data["tasks"]) == 1
     assert data["tasks"][0]["id"] == task.id
+
+
+# ---------------------------------------------------------------------------
+# 404 handling
+# ---------------------------------------------------------------------------
+
+
+async def test_get_goal_returns_404(client: AsyncClient) -> None:
+    """GET /api/goals/99999 returns 404 for a non-existent goal."""
+    response = await client.get("/api/goals/99999")
+    assert response.status_code == 404
+
+
+async def test_update_goal_returns_404(client: AsyncClient) -> None:
+    """PUT /api/goals/99999 returns 404 for a non-existent goal."""
+    response = await client.put("/api/goals/99999", json={"title": "Ghost"})
+    assert response.status_code == 404
+
+
+async def test_set_goal_status_returns_404(client: AsyncClient) -> None:
+    """PATCH /api/goals/99999/status returns 404 for a non-existent goal."""
+    response = await client.patch("/api/goals/99999/status", json={"status": "completed"})
+    assert response.status_code == 404
+
+
+async def test_delete_goal_returns_404(client: AsyncClient) -> None:
+    """DELETE /api/goals/99999 returns 404 for a non-existent goal."""
+    response = await client.delete("/api/goals/99999")
+    assert response.status_code == 404

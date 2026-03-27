@@ -233,3 +233,245 @@ async def test_upsert_metadata_rejects_invalid_condition(
     )
 
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/days/{day_id}/notes
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_notes_creates_when_absent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/notes creates a daily note and returns it."""
+    day = Day(date=date(2025, 7, 10), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/notes",
+        json={"content": "Focused morning session"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["day_id"] == day.id
+    assert payload["content"] == "Focused morning session"
+    assert "id" in payload
+    assert "updated_at" in payload
+
+
+async def test_upsert_notes_updates_when_present(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/notes overwrites an existing daily note."""
+    day = Day(date=date(2025, 7, 11), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/notes",
+        json={"content": "First note"},
+    )
+    response = await client.put(
+        f"/api/days/{day.id}/notes",
+        json={"content": "Updated note"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "Updated note"
+
+
+async def test_get_day_includes_notes_when_set(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /days/{date} includes notes field when a note has been saved."""
+    day = Day(date=date(2025, 7, 12), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/notes",
+        json={"content": "Today's reflections"},
+    )
+
+    db_session.expire(day)
+
+    response = await client.get("/api/days/2025-07-12")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["notes"] is not None
+    assert payload["notes"]["content"] == "Today's reflections"
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/days/{day_id}/roadblocks
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_roadblocks_creates_when_absent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/roadblocks creates a roadblock and returns it."""
+    day = Day(date=date(2025, 7, 13), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/roadblocks",
+        json={"content": "Blocked by missing API credentials"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["day_id"] == day.id
+    assert payload["content"] == "Blocked by missing API credentials"
+    assert "id" in payload
+    assert "updated_at" in payload
+
+
+async def test_upsert_roadblocks_updates_when_present(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/roadblocks overwrites an existing roadblock."""
+    day = Day(date=date(2025, 7, 14), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/roadblocks",
+        json={"content": "Original blocker"},
+    )
+    response = await client.put(
+        f"/api/days/{day.id}/roadblocks",
+        json={"content": "Resolved, new blocker found"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "Resolved, new blocker found"
+
+
+async def test_get_day_includes_roadblocks_when_set(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /days/{date} includes roadblocks field when set."""
+    day = Day(date=date(2025, 7, 15), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/roadblocks",
+        json={"content": "Deploy pipeline broken"},
+    )
+
+    db_session.expire(day)
+
+    response = await client.get("/api/days/2025-07-15")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["roadblocks"] is not None
+    assert payload["roadblocks"]["content"] == "Deploy pipeline broken"
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/days/{day_id}/rating
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_rating_creates_when_absent(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/rating creates a rating and returns it."""
+    day = Day(date=date(2025, 7, 16), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/rating",
+        json={"focus": 4, "energy": 3, "satisfaction": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["day_id"] == day.id
+    assert payload["focus"] == 4
+    assert payload["energy"] == 3
+    assert payload["satisfaction"] == 5
+    assert "id" in payload
+
+
+async def test_upsert_rating_updates_when_present(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/rating overwrites an existing rating."""
+    day = Day(date=date(2025, 7, 17), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/rating",
+        json={"focus": 2, "energy": 2, "satisfaction": 2},
+    )
+    response = await client.put(
+        f"/api/days/{day.id}/rating",
+        json={"focus": 5, "energy": 4, "satisfaction": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["focus"] == 5
+    assert payload["energy"] == 4
+    assert payload["satisfaction"] == 5
+
+
+async def test_get_day_includes_rating_when_set(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /days/{date} includes rating field when set."""
+    day = Day(date=date(2025, 7, 18), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    await client.put(
+        f"/api/days/{day.id}/rating",
+        json={"focus": 4, "energy": 4, "satisfaction": 3},
+    )
+
+    db_session.expire(day)
+
+    response = await client.get("/api/days/2025-07-18")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rating"] is not None
+    assert payload["rating"]["focus"] == 4
+    assert payload["rating"]["energy"] == 4
+    assert payload["rating"]["satisfaction"] == 3
+
+
+async def test_upsert_rating_rejects_value_out_of_range(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """PUT /{day_id}/rating returns 422 for ratings outside 1-5."""
+    day = Day(date=date(2025, 7, 19), created_at=datetime.now(timezone.utc))
+    db_session.add(day)
+    await db_session.commit()
+    await db_session.refresh(day)
+
+    response = await client.put(
+        f"/api/days/{day.id}/rating",
+        json={"focus": 0, "energy": 6, "satisfaction": 3},
+    )
+
+    assert response.status_code == 422

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 DayOffReason = Literal["weekend", "personal_day", "vacation", "holiday", "sick_day"]
 
@@ -13,7 +13,7 @@ class DayOffUpsert(BaseModel):
     """Payload for creating or updating a day-off record."""
 
     reason: DayOffReason
-    note: Optional[str] = None
+    note: Optional[str] = Field(default=None, max_length=1000)
 
 
 class DayOffResponse(BaseModel):

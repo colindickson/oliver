@@ -15,6 +15,14 @@ class TaskNotFoundError(Exception):
         self.task_id = task_id
 
 
+class GoalNotFoundError(Exception):
+    """Raised when a Goal with the requested primary key does not exist."""
+
+    def __init__(self, goal_id: int) -> None:
+        super().__init__(f"Goal with id {goal_id} not found")
+        self.goal_id = goal_id
+
+
 class InvalidOperationError(Exception):
     """Raised when a business-rule constraint is violated.
 

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field
-
-from app.services.mcp_log_service import REVERT_HANDLERS
+from pydantic import BaseModel, ConfigDict
 
 
 class MCPLogResponse(BaseModel):
@@ -20,13 +18,5 @@ class MCPLogResponse(BaseModel):
     result: str | None
     status: str
     is_reverted: bool
+    is_revertible: bool = False
     created_at: datetime
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def is_revertible(self) -> bool:
-        return (
-            self.status == "success"
-            and not self.is_reverted
-            and self.tool_name in REVERT_HANDLERS
-        )

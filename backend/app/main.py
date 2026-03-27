@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.exceptions import InvalidOperationError, TaskNotFoundError
+from app.exceptions import GoalNotFoundError, InvalidOperationError, TaskNotFoundError
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
@@ -54,6 +54,11 @@ app.add_middleware(
 
 @app.exception_handler(TaskNotFoundError)
 async def task_not_found_handler(request: Request, exc: TaskNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(GoalNotFoundError)
+async def goal_not_found_handler(request: Request, exc: GoalNotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 

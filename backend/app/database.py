@@ -37,9 +37,17 @@ Base = declarative_base()
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency that yields a database session per request.
 
+    The explicit rollback in the ``finally`` block is a safety net: if the
+    route handler raises before committing, any unflushed changes are
+    discarded.  Rollback after commit is a no-op in SQLAlchemy, so this
+    is harmless when the handler succeeds.
+
     Yields:
         An open ``AsyncSession`` that is closed automatically when the
         request context exits.
     """
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.rollback()

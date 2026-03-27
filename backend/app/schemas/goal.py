@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas._shared import TagCoercionMixin
 from app.schemas.task import TaskResponse
 
 
 class GoalCreate(BaseModel):
     """Payload required to create a new Goal."""
 
-    title: str
+    title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     target_date: date | None = None
     tag_names: list[str] = []
@@ -26,7 +27,7 @@ class GoalUpdate(BaseModel):
     Pass ``target_date="CLEAR"`` to remove the target date.
     """
 
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=255)
     description: str | None = None
     target_date: str | None = None  # ISO date string, or "CLEAR" sentinel
     tag_names: list[str] | None = None
@@ -36,10 +37,10 @@ class GoalUpdate(BaseModel):
 class GoalStatusUpdate(BaseModel):
     """Payload for changing a Goal's status."""
 
-    status: str  # 'active' | 'completed'
+    status: Literal["active", "completed"]
 
 
-class GoalResponse(BaseModel):
+class GoalResponse(TagCoercionMixin):
     """Serialised representation of a Goal returned by the API."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -55,18 +56,6 @@ class GoalResponse(BaseModel):
     total_tasks: int
     completed_tasks: int
     progress_pct: int  # 0-100
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def coerce_tags(cls, v: Any) -> list[str]:
-        """Convert ORM Tag objects to plain name strings."""
-        result = []
-        for item in v:
-            if isinstance(item, str):
-                result.append(item)
-            else:
-                result.append(item.name)
-        return result
 
 
 class GoalDetailResponse(GoalResponse):

@@ -32,7 +32,9 @@ async def create_reminder(
         The newly created reminder.
     """
     service = ReminderService(db)
-    return await service.create(body.task_id, body.remind_at, body.message)
+    reminder = await service.create(body.task_id, body.remind_at, body.message)
+    await db.commit()
+    return reminder
 
 
 @router.get("", response_model=list[ReminderResponse])
@@ -86,6 +88,7 @@ async def mark_delivered(
         HTTPException: 404 if the reminder does not exist.
     """
     reminder = await ReminderService(db).mark_delivered(reminder_id)
+    await db.commit()
     if not reminder:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return reminder
@@ -109,6 +112,7 @@ async def delete_reminder(
         HTTPException: 404 if the reminder does not exist.
     """
     deleted = await ReminderService(db).delete(reminder_id)
+    await db.commit()
     if not deleted:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return {"deleted": True}

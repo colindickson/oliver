@@ -21,7 +21,9 @@ router = APIRouter(prefix="/api/goals", tags=["goals"])
 @router.post("", response_model=GoalResponse, status_code=201)
 async def create_goal(body: GoalCreate, db: AsyncSession = Depends(get_db)) -> GoalResponse:
     """Create a new goal."""
-    return await GoalService(db).create_goal(body)
+    result = await GoalService(db).create_goal(body)
+    await db.commit()
+    return result
 
 
 @router.get("", response_model=list[GoalResponse])
@@ -41,7 +43,9 @@ async def update_goal(
     goal_id: int, body: GoalUpdate, db: AsyncSession = Depends(get_db)
 ) -> GoalResponse:
     """Update mutable fields on a goal."""
-    return await GoalService(db).update_goal(goal_id, body)
+    result = await GoalService(db).update_goal(goal_id, body)
+    await db.commit()
+    return result
 
 
 @router.patch("/{goal_id}/status", response_model=GoalResponse)
@@ -49,11 +53,14 @@ async def set_goal_status(
     goal_id: int, body: GoalStatusUpdate, db: AsyncSession = Depends(get_db)
 ) -> GoalResponse:
     """Manually set a goal's status (complete or reopen)."""
-    return await GoalService(db).set_goal_status(goal_id, body.status)
+    result = await GoalService(db).set_goal_status(goal_id, body.status)
+    await db.commit()
+    return result
 
 
 @router.delete("/{goal_id}")
 async def delete_goal(goal_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
     """Delete a goal (tasks and tags are unaffected)."""
     await GoalService(db).delete_goal(goal_id)
+    await db.commit()
     return {"deleted": True}

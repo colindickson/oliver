@@ -270,3 +270,34 @@ async def test_add_time_invalid_task_returns_404(client: AsyncClient) -> None:
         "/api/timer/add-time", json={"task_id": 999999, "seconds": 900}
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Pause -> Stop flow
+# ---------------------------------------------------------------------------
+
+
+async def test_pause_then_stop_creates_session(
+    client: AsyncClient, task: Task, db_session: AsyncSession
+) -> None:
+    """Start -> pause -> stop returns 200 and creates a timer session."""
+    from sqlalchemy import select
+
+    await client.post("/api/timer/start", json={"task_id": task.id})
+    await client.post("/api/timer/pause")
+
+    response = await client.post("/api/timer/stop")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task_id"] == task.id
+    assert body["duration_seconds"] >= 0
+    assert "id" in body
+
+    # Confirm the session was persisted
+    result = await db_session.execute(
+        select(TimerSession).where(TimerSession.task_id == task.id)
+    )
+    sessions = list(result.scalars().all())
+    assert len(sessions) == 1
+    assert sessions[0].duration_seconds >= 0

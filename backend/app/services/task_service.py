@@ -74,8 +74,8 @@ class TaskService:
         new_task.tags = tag_objects
         self._db.add(new_task)
 
-        # Single commit: atomically marks original completed and creates the copy
-        await self._db.commit()
+        # Flush to make changes visible within the session; route handler commits.
+        await self._db.flush()
         await self._db.refresh(new_task)
         return new_task
 
@@ -145,6 +145,6 @@ class TaskService:
         # Mark original as rolled_forward
         task.status = STATUS_ROLLED_FORWARD
 
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(new_task)
         return new_task

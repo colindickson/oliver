@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DailyNoteUpsert(BaseModel):
@@ -14,7 +14,7 @@ class DailyNoteUpsert(BaseModel):
         content: The note text to save.
     """
 
-    content: str
+    content: str = Field(max_length=10000)
 
 
 class DailyNoteResponse(BaseModel):

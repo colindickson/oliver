@@ -124,7 +124,7 @@ async def test_create_backlog_task(client: AsyncClient) -> None:
     }
     response = await client.post("/api/backlog", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["title"] == "Future task"
     assert body["description"] == "Something to do later"
@@ -145,7 +145,7 @@ async def test_create_backlog_task_with_category(client: AsyncClient) -> None:
     }
     response = await client.post("/api/backlog", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["title"] == "Suggested deep work"
     # Category should be stored as suggested_category
@@ -160,7 +160,7 @@ async def test_create_backlog_task_with_tags(client: AsyncClient) -> None:
     }
     response = await client.post("/api/backlog", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["title"] == "Tagged backlog task"
     assert set(body["tags"]) == {"focus", "project-x"}

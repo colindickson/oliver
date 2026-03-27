@@ -39,6 +39,7 @@ async def start_timer(
     """
     try:
         state = await TimerService(db).start(body.task_id)
+        await db.commit()
         return TimerState(**state)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -59,6 +60,7 @@ async def pause_timer(db: AsyncSession = Depends(get_db)) -> TimerState:
     """
     try:
         state = await TimerService(db).pause()
+        await db.commit()
         return TimerState(**state)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -79,6 +81,7 @@ async def stop_timer(db: AsyncSession = Depends(get_db)) -> TimerSessionResponse
     """
     try:
         session = await TimerService(db).stop()
+        await db.commit()
         return session
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -134,6 +137,7 @@ async def add_time(
     """
     try:
         session = await TimerService(db).add_time(body.task_id, body.seconds)
+        await db.commit()
         return session
     except (IntegrityError, ValueError):
         raise HTTPException(status_code=404, detail="Task not found")

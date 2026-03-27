@@ -63,7 +63,7 @@ async def test_create_task_with_tags(client: AsyncClient, day: Day) -> None:
         "tags": ["focus"],
     }
     response = await client.post("/api/tasks", json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["tags"] == ["focus"]
 
@@ -77,7 +77,7 @@ async def test_tags_normalized(client: AsyncClient, day: Day) -> None:
         "tags": ["  Focus  "],
     }
     response = await client.post("/api/tasks", json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["tags"] == ["focus"]
 
 
@@ -197,7 +197,7 @@ async def test_orphaned_tags_not_listed(client: AsyncClient, day: Day) -> None:
         "/api/tasks",
         json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "T", "tags": ["temporary"]},
     )
-    assert create_resp.status_code == 200
+    assert create_resp.status_code == 201
 
     # Verify tag appears in list
     list_resp = await client.get("/api/tags")

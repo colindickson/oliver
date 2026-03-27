@@ -51,7 +51,7 @@ async def test_create_task(client: AsyncClient, day: Day) -> None:
     }
     response = await client.post("/api/tasks", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["day_id"] == day.id
     assert body["category"] == CATEGORY_DEEP_WORK
@@ -73,7 +73,7 @@ async def test_create_task_without_optional_fields(client: AsyncClient, day: Day
     }
     response = await client.post("/api/tasks", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["description"] is None
     assert body["order_index"] == 0
@@ -488,7 +488,7 @@ async def test_continue_tomorrow_skips_individual_day_off(
 
     day_service = DayService(db_session)
     tomorrow_day = await day_service.get_or_create_by_date(tomorrow)
-    await day_service.upsert_day_off(tomorrow_day.id, "sick", None)
+    await day_service.upsert_day_off(tomorrow_day.id, "sick_day", None)
     await db_session.commit()
 
     create_resp = await client.post("/api/tasks", json={

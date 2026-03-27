@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReminderCreate(BaseModel):
@@ -18,7 +18,7 @@ class ReminderCreate(BaseModel):
 
     task_id: int
     remind_at: datetime
-    message: str
+    message: str = Field(max_length=500)
 
 
 class ReminderResponse(BaseModel):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DayRatingUpsert(BaseModel):
@@ -19,9 +19,9 @@ class DayRatingUpsert(BaseModel):
         satisfaction: Satisfaction score 1-5, or None to clear.
     """
 
-    focus: Optional[int] = None
-    energy: Optional[int] = None
-    satisfaction: Optional[int] = None
+    focus: Optional[int] = Field(default=None, ge=1, le=5)
+    energy: Optional[int] = Field(default=None, ge=1, le=5)
+    satisfaction: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class DayRatingResponse(BaseModel):

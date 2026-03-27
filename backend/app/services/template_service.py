@@ -48,7 +48,8 @@ class TemplateService:
         """Return all templates, optionally filtered by title substring."""
         stmt = select(TaskTemplate).order_by(TaskTemplate.title)
         if search:
-            stmt = stmt.where(TaskTemplate.title.ilike(f"%{search}%"))
+            escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            stmt = stmt.where(TaskTemplate.title.ilike(f"%{escaped}%", escape="\\"))
         result = await self._db.execute(stmt)
         return list(result.scalars().all())
 
@@ -77,7 +78,7 @@ class TemplateService:
         )
         template.tags = tag_objects
         self._db.add(template)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(template)
         return template
 
@@ -100,14 +101,14 @@ class TemplateService:
             tag_service = TagService(self._db)
             template.tags = await tag_service.resolve_tags(tag_names)
 
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(template)
         return template
 
     async def delete_template(self, template: TaskTemplate) -> None:
         """Delete a template."""
         await self._db.delete(template)
-        await self._db.commit()
+        await self._db.flush()
 
     async def instantiate(
         self,
@@ -155,7 +156,7 @@ class TemplateService:
         if flush_only:
             await self._db.flush()
         else:
-            await self._db.commit()
+            await self._db.flush()
             await self._db.refresh(task)
         return task
 
@@ -182,7 +183,7 @@ class TemplateService:
             next_run_date=anchor_date,
         )
         self._db.add(schedule)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(schedule)
         return schedule
 
@@ -198,5 +199,5 @@ class TemplateService:
         if schedule is None:
             return False
         await self._db.delete(schedule)
-        await self._db.commit()
+        await self._db.flush()
         return True

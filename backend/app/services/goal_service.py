@@ -4,17 +4,16 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import GoalNotFoundError
 from app.models.goal import (
     Goal,
-    STATUS_GOAL_ACTIVE,
-    STATUS_GOAL_COMPLETED,
     goal_tags_table,
     goal_tasks_table,
 )
+from oliver_shared import STATUS_GOAL_ACTIVE, STATUS_GOAL_COMPLETED
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.schemas.goal import GoalCreate, GoalDetailResponse, GoalResponse, GoalUpdate
@@ -101,7 +100,7 @@ class GoalService:
         await self._db.refresh(goal)
 
         total, completed, pct = await self._compute_progress(goal)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(goal)
 
         return GoalResponse(
@@ -139,7 +138,7 @@ class GoalService:
         await self._db.flush()
         await self._maybe_auto_complete(goal)
 
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(goal)
 
         total, completed, pct = await self._compute_progress(goal)
@@ -166,7 +165,7 @@ class GoalService:
         else:
             goal.completed_at = None
 
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(goal)
 
         total, completed, pct = await self._compute_progress(goal)
@@ -188,7 +187,7 @@ class GoalService:
         """Delete a goal (cascade removes junction rows; tasks/tags are unaffected)."""
         goal = await self._get_goal_or_raise(goal_id)
         await self._db.delete(goal)
-        await self._db.commit()
+        await self._db.flush()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -198,7 +197,7 @@ class GoalService:
         result = await self._db.execute(select(Goal).where(Goal.id == goal_id))
         goal = result.scalar_one_or_none()
         if goal is None:
-            raise HTTPException(status_code=404, detail="Goal not found")
+            raise GoalNotFoundError(goal_id)
         return goal
 
     async def _resolve_tags(self, tag_names: list[str]) -> list[Tag]:

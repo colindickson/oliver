@@ -43,7 +43,7 @@ class ReminderService:
             is_delivered=False,
         )
         self._db.add(reminder)
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(reminder)
         return reminder
 
@@ -92,7 +92,7 @@ class ReminderService:
         reminder = result.scalar_one_or_none()
         if reminder:
             reminder.is_delivered = True
-            await self._db.commit()
+            await self._db.flush()
             await self._db.refresh(reminder)
         return reminder
 
@@ -111,6 +111,6 @@ class ReminderService:
         reminder = result.scalar_one_or_none()
         if reminder:
             await self._db.delete(reminder)
-            await self._db.commit()
+            await self._db.flush()
             return True
         return False
