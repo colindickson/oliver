@@ -15,18 +15,19 @@ import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { FocusGoalBanner } from '../components/FocusGoalBanner'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
+import { CATEGORIES, CATEGORY_LIST, type CategoryKey } from '../constants/categories'
 
 interface ColumnConfig {
   title: string
-  category: NonNullable<Task['category']>
-  color: 'blue' | 'amber' | 'green'
+  category: CategoryKey
+  color: CategoryKey
 }
 
-const columns: ColumnConfig[] = [
-  { title: 'Deep Work', category: 'deep_work', color: 'blue' },
-  { title: 'Short Tasks', category: 'short_task', color: 'amber' },
-  { title: 'Maintenance', category: 'maintenance', color: 'green' },
-]
+const columns: ColumnConfig[] = CATEGORY_LIST.map(c => ({
+  title: c.label,
+  category: c.key,
+  color: c.key,
+}))
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
@@ -280,11 +281,7 @@ export function Today() {
               onClick={() => setActiveTab(col.category)}
               className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
                 activeTab === col.category
-                  ? col.color === 'blue'
-                    ? 'text-ocean-400 border-b-2 border-ocean-400'
-                    : col.color === 'amber'
-                      ? 'text-terracotta-400 border-b-2 border-terracotta-400'
-                      : 'text-moss-400 border-b-2 border-moss-400'
+                  ? CATEGORIES[col.color].tab
                   : 'text-stone-500'
               }`}
             >

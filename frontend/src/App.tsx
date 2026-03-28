@@ -1,13 +1,15 @@
+import React, { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { Today } from './pages/Today'
-import { Analytics } from './pages/Analytics'
-import { DayDetail } from './pages/DayDetail'
-import { Tags } from './pages/Tags'
-import { TagDetail } from './pages/TagDetail'
-import { Backlog } from './pages/Backlog'
-import { Goals } from './pages/Goals'
-import { Settings } from './pages/Settings'
 import { NotificationPopup } from './components/NotificationPopup'
+
+const Today = lazy(() => import('./pages/Today').then(m => ({ default: m.Today })))
+const Analytics = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })))
+const DayDetail = lazy(() => import('./pages/DayDetail').then(m => ({ default: m.DayDetail })))
+const Tags = lazy(() => import('./pages/Tags').then(m => ({ default: m.Tags })))
+const TagDetail = lazy(() => import('./pages/TagDetail').then(m => ({ default: m.TagDetail })))
+const Backlog = lazy(() => import('./pages/Backlog').then(m => ({ default: m.Backlog })))
+const Goals = lazy(() => import('./pages/Goals').then(m => ({ default: m.Goals })))
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 import { useNotifications } from './hooks/useNotifications'
 import { useNotificationMute } from './hooks/useNotificationMute'
 
@@ -30,16 +32,18 @@ export default function App() {
   return (
     <>
       <GlobalNotifications />
-      <Routes>
-        <Route path="/" element={<Today />} />
-        <Route path="/day/:date" element={<DayDetail />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/tags" element={<Tags />} />
-        <Route path="/tags/:tagName" element={<TagDetail />} />
-        <Route path="/backlog" element={<Backlog />} />
-        <Route path="/goals" element={<Goals />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
+      <Suspense fallback={<div className="flex items-center justify-center h-screen text-stone-400">Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Today />} />
+          <Route path="/day/:date" element={<DayDetail />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/tags" element={<Tags />} />
+          <Route path="/tags/:tagName" element={<TagDetail />} />
+          <Route path="/backlog" element={<Backlog />} />
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </Suspense>
     </>
   )
 }

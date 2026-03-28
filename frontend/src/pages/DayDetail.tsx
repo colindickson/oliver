@@ -17,12 +17,8 @@ import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { RollForwardModal } from '../components/RollForwardModal'
-
-function formatRollDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+import { CATEGORIES, CATEGORY_LIST, type CategoryKey } from '../constants/categories'
+import { formatRollDate } from '../utils/format'
 
 interface TaskItemProps {
   task: Task
@@ -395,12 +391,6 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
   )
 }
 
-const categories = [
-  { key: 'deep_work', label: 'Deep Work', color: 'text-ocean-600 dark:text-ocean-400', bg: 'bg-ocean-50 dark:bg-ocean-900/20', border: 'border-ocean-200 dark:border-ocean-800/30' },
-  { key: 'short_task', label: 'Short Tasks', color: 'text-terracotta-600 dark:text-terracotta-400', bg: 'bg-terracotta-50 dark:bg-terracotta-900/20', border: 'border-terracotta-200 dark:border-terracotta-800/30' },
-  { key: 'maintenance', label: 'Maintenance', color: 'text-moss-600 dark:text-moss-400', bg: 'bg-moss-50 dark:bg-moss-900/20', border: 'border-moss-200 dark:border-moss-800/30' },
-] as const
-
 export function DayDetail() {
   const { date } = useParams<{ date: string }>()
   const navigate = useNavigate()
@@ -497,7 +487,7 @@ export function DayDetail() {
 
   const isMobile = useMobile()
   const { showTimer } = useTimerDisplay()
-  const [activeTab, setActiveTab] = useState<typeof categories[number]['key']>('deep_work')
+  const [activeTab, setActiveTab] = useState<CategoryKey>('deep_work')
 
   const upsertDayOff = useMutation({
     mutationFn: ({ reason, note }: { reason: DayOffReason; note?: string }) =>
@@ -571,7 +561,7 @@ export function DayDetail() {
 
   // Mobile layout
   if (isMobile) {
-    const activeCat = categories.find(c => c.key === activeTab)!
+    const activeCat = CATEGORY_LIST.find(c => c.key === activeTab)!
     const catTasks = day?.tasks.filter(t => t.category === activeTab) ?? []
 
     return (
@@ -605,7 +595,7 @@ export function DayDetail() {
 
         {/* Tab strip */}
         <div className="flex border-b border-stone-700/50 flex-shrink-0">
-          {categories.map(cat => (
+          {CATEGORY_LIST.map(cat => (
             <button
               key={cat.key}
               onClick={() => setActiveTab(cat.key)}
@@ -869,7 +859,7 @@ export function DayDetail() {
 
           {day && (
             <div className="space-y-8 animate-fade-in">
-              {categories.map(cat => {
+              {CATEGORY_LIST.map(cat => {
                 const tasks = day.tasks.filter(t => t.category === cat.key)
                 if (tasks.length === 0) {
                   return (

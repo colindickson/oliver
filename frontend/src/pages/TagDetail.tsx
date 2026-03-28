@@ -6,7 +6,9 @@ import { Sidebar } from '../components/Sidebar'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
-import { useTagFilters, type PeriodOption } from '../hooks/useTagFilters'
+import { useTagFilters } from '../hooks/useTagFilters'
+import { PeriodSelector } from '../components/PeriodSelector'
+import { IncompleteToggle } from '../components/IncompleteToggle'
 
 // Filter groups to a date window (excluding today, matching Tags behavior)
 function filterDaysToWindow<T extends { date: string }>(items: T[], windowDays: number): T[] {
@@ -16,63 +18,6 @@ function filterDaysToWindow<T extends { date: string }>(items: T[], windowDays: 
   const todayStr = new Date().toISOString().slice(0, 10)
   return items.filter(item =>
     item.date === 'backlog' || (item.date >= cutoffStr && item.date < todayStr)
-  )
-}
-
-const PERIOD_OPTIONS: { label: string; value: PeriodOption }[] = [
-  { label: '7d', value: 7 },
-  { label: '30d', value: 30 },
-  { label: '90d', value: 90 },
-  { label: 'All', value: 'all' },
-]
-
-interface PeriodSelectorProps {
-  value: PeriodOption
-  onChange: (value: PeriodOption) => void
-}
-
-function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
-  return (
-    <div className="flex items-center bg-stone-100 dark:bg-stone-700 rounded-xl p-1 gap-0.5">
-      {PERIOD_OPTIONS.map(({ label, value: optValue }) => (
-        <button
-          key={label}
-          onClick={() => onChange(optValue)}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-            value === optValue
-              ? 'bg-white dark:bg-stone-600 text-stone-800 dark:text-stone-100 shadow-soft'
-              : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-interface IncompleteToggleProps {
-  checked: boolean
-  onChange: (checked: boolean) => void
-}
-
-function IncompleteToggle({ checked, onChange }: IncompleteToggleProps) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer select-none">
-      <div
-        className={`relative w-9 h-5 rounded-full transition-colors ${
-          checked ? 'bg-terracotta-500' : 'bg-stone-300 dark:bg-stone-600'
-        }`}
-        onClick={() => onChange(!checked)}
-      >
-        <div
-          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0'
-          }`}
-        />
-      </div>
-      <span className="text-sm text-stone-600 dark:text-stone-300">Incomplete only</span>
-    </label>
   )
 }
 

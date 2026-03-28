@@ -18,14 +18,13 @@ import { useQuery } from '@tanstack/react-query'
 import { backlogApi, templatesApi, type Task, type TaskTemplate } from '../api/client'
 import { TaskCard } from './TaskCard'
 import { TagInput } from './TagInput'
-
-type ColorKey = 'blue' | 'amber' | 'green'
+import { CATEGORIES, type CategoryKey } from '../constants/categories'
 
 interface Props {
   title: string
   category: Task['category']
   tasks: Task[]
-  colorClass: ColorKey
+  colorClass: CategoryKey
   onAddTask: (title: string, description: string, tags: string[]) => Promise<void>
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
@@ -37,16 +36,16 @@ interface Props {
   onInstantiateFromTemplate?: (template: TaskTemplate) => void
 }
 
-const headerColors: Record<ColorKey, string> = {
-  blue: 'border-ocean-400 text-ocean-700 dark:text-ocean-400',
-  amber: 'border-terracotta-400 text-terracotta-700 dark:text-terracotta-400',
-  green: 'border-moss-400 text-moss-700 dark:text-moss-400',
+const headerColors: Record<CategoryKey, string> = {
+  deep_work: CATEGORIES.deep_work.header,
+  short_task: CATEGORIES.short_task.header,
+  maintenance: CATEGORIES.maintenance.header,
 }
 
-const buttonColors: Record<ColorKey, string> = {
-  blue: 'bg-ocean-50 text-ocean-600 hover:bg-ocean-100 border-ocean-200 dark:bg-ocean-900/20 dark:text-ocean-300 dark:hover:bg-ocean-900/30 dark:border-ocean-800/30',
-  amber: 'bg-terracotta-50 text-terracotta-600 hover:bg-terracotta-100 border-terracotta-200 dark:bg-terracotta-900/20 dark:text-terracotta-300 dark:hover:bg-terracotta-900/30 dark:border-terracotta-800/30',
-  green: 'bg-moss-50 text-moss-600 hover:bg-moss-100 border-moss-200 dark:bg-moss-900/20 dark:text-moss-300 dark:hover:bg-moss-900/30 dark:border-moss-800/30',
+const buttonColors: Record<CategoryKey, string> = {
+  deep_work: CATEGORIES.deep_work.button,
+  short_task: CATEGORIES.short_task.button,
+  maintenance: CATEGORIES.maintenance.button,
 }
 
 interface SortableTaskCardProps {

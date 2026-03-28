@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, templatesApi, dayApi, mcpLogsApi, type TaskTemplate, type MCPLogResponse } from '../api/client'
@@ -9,18 +9,7 @@ import { ScheduleModal } from '../components/ScheduleModal'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  deep_work: 'Deep Work',
-  short_task: 'Short Task',
-  maintenance: 'Maintenance',
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  deep_work: 'bg-ocean-100 text-ocean-700 dark:bg-ocean-900/30 dark:text-ocean-300',
-  short_task: 'bg-terracotta-100 text-terracotta-700 dark:bg-terracotta-900/30 dark:text-terracotta-300',
-  maintenance: 'bg-moss-100 text-moss-700 dark:bg-moss-900/30 dark:text-moss-300',
-}
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../constants/categories'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const LABELS: Record<string, string> = {
@@ -37,6 +26,10 @@ const READ_ONLY_TOOLS = new Set([
   'get_daily_plan', 'list_days_off', 'is_day_off',
   'get_recurring_days_off', 'get_analytics',
 ])
+
+function safeFormatJson(str: string): string {
+  try { return JSON.stringify(JSON.parse(str), null, 2) } catch { return str }
+}
 
 function formatRelativeTime(isoStr: string): string {
   const diff = Date.now() - new Date(isoStr).getTime()
@@ -128,21 +121,21 @@ function MCPLogCard() {
                     <div>
                       <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Params</p>
                       <pre className="text-xs text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
-                        {JSON.stringify(JSON.parse(log.params), null, 2)}
+                        {safeFormatJson(log.params)}
                       </pre>
                     </div>
                     {log.result && (
                       <div>
                         <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Result</p>
                         <pre className="text-xs text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
-                          {JSON.stringify(JSON.parse(log.result), null, 2)}
+                          {safeFormatJson(log.result)}
                         </pre>
                       </div>
                     )}
                     {log.is_revertible && (
                       <button
                         type="button"
-                        onClick={() => revert.mutate(log.id)}
+                        onClick={() => { if (!confirm('Revert this action?')) return; revert.mutate(log.id) }}
                         disabled={revert.isPending}
                         className="text-xs px-3 py-1.5 rounded-lg bg-terracotta-500 text-white hover:bg-terracotta-600 disabled:opacity-50 transition-colors"
                       >
@@ -255,17 +248,17 @@ function MCPLogCardMobile() {
                 {isExpanded && (
                   <div className="px-3 pb-3 space-y-2">
                     <pre className="text-xs text-stone-300 bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
-                      {JSON.stringify(JSON.parse(log.params), null, 2)}
+                      {safeFormatJson(log.params)}
                     </pre>
                     {log.result && (
                       <pre className="text-xs text-stone-300 bg-stone-900/40 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">
-                        {JSON.stringify(JSON.parse(log.result), null, 2)}
+                        {safeFormatJson(log.result)}
                       </pre>
                     )}
                     {log.is_revertible && (
                       <button
                         type="button"
-                        onClick={() => revert.mutate(log.id)}
+                        onClick={() => { if (!confirm('Revert this action?')) return; revert.mutate(log.id) }}
                         disabled={revert.isPending}
                         className="text-xs px-3 py-1.5 rounded-lg bg-terracotta-500 text-white hover:bg-terracotta-600 disabled:opacity-50 transition-colors"
                       >
@@ -332,8 +325,9 @@ export function Settings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
   })
 
+  const scheduleKey = useMemo(() => templates.map(t => t.id), [templates])
   const { data: scheduleCounts = {} } = useQuery({
-    queryKey: ['schedule-counts', templates.map(t => t.id).join(',')],
+    queryKey: ['schedule-counts', scheduleKey],
     queryFn: async () => {
       const results = await Promise.all(
         templates.map(t => templatesApi.listSchedules(t.id).then(s => [t.id, s.length] as const))

@@ -32,6 +32,12 @@ function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
         <circle cx="7" cy="7" r="6" />
       </svg>
     ),
+    rolled_forward: (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-stone-300 dark:text-stone-600">
+        <circle cx="7" cy="7" r="6" />
+        <path d="M5 5l4 4M9 5l-4 4" strokeLinecap="round" />
+      </svg>
+    ),
   }
 
   return (

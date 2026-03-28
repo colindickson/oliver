@@ -2,14 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type TaskTemplate } from '../api/client'
 import { TagInput } from './TagInput'
+import { CATEGORY_LABELS, type CategoryKey } from '../constants/categories'
 
-type Category = 'deep_work' | 'short_task' | 'maintenance'
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  deep_work: 'Deep Work',
-  short_task: 'Short Task',
-  maintenance: 'Maintenance',
-}
+type Category = CategoryKey
 
 interface Props {
   template: TaskTemplate | null  // null = create mode
@@ -69,12 +64,12 @@ export function TemplateModal({ template, onClose }: Props) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
       onClick={onClose}
     >
       <div
-        role="dialog"
-        aria-modal="true"
         aria-labelledby="template-modal-title"
         className="bg-white rounded-2xl shadow-soft-lg p-6 w-full max-w-sm mx-4 animate-slide-up dark:bg-stone-700"
         onClick={e => e.stopPropagation()}

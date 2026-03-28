@@ -9,8 +9,9 @@ const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void }>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('oliver-theme') as Theme | null
-    if (saved) return saved
+    const saved = localStorage.getItem('oliver-theme')
+    const isValidTheme = saved === 'light' || saved === 'dark'
+    if (isValidTheme) return saved as Theme
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
 

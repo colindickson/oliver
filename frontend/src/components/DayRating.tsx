@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { DayRating } from '../api/client'
 
 interface DayRatingProps {
@@ -65,6 +65,12 @@ export function DayRating({ dayId, initialRating, onSave }: DayRatingProps) {
   const [satisfaction, setSatisfaction] = useState<number | null>(
     initialRating?.satisfaction ?? null,
   )
+
+  useEffect(() => {
+    setFocus(initialRating?.focus ?? null)
+    setEnergy(initialRating?.energy ?? null)
+    setSatisfaction(initialRating?.satisfaction ?? null)
+  }, [initialRating])
 
   async function handleChange(dimension: Dimension, value: number | null) {
     const next = { focus, energy, satisfaction, [dimension]: value }

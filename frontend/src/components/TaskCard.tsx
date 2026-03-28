@@ -5,6 +5,7 @@ import { useTaskEdit } from '../hooks/useTaskEdit'
 import { ConfirmableDelete } from './ConfirmableDelete'
 import { ReminderDialog } from './ReminderDialog'
 import { TagInput } from './TagInput'
+import { formatRollDate } from '../utils/format'
 
 interface Props {
   task: Task
@@ -13,12 +14,6 @@ interface Props {
   onMoveToBacklog?: (task: Task) => void
   onContinueTomorrow?: (task: Task) => void
   onRollForward?: (task: Task) => void
-}
-
-function formatRollDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow, onRollForward }: Props) {
@@ -151,7 +146,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
           <button
             type="button"
             onClick={openEdit}
-            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
+            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-stone-500 hover:bg-stone-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-stone-300 dark:hover:bg-stone-700"
             aria-label="Edit task"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -163,7 +158,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
           <button
             type="button"
             onClick={() => setShowReminder(true)}
-            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-amber-400 hover:bg-amber-50 rounded transition-colors dark:text-stone-600 dark:hover:text-amber-300 dark:hover:bg-stone-700"
+            className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-amber-400 hover:bg-amber-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-amber-300 dark:hover:bg-stone-700"
             aria-label="Set reminder"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -177,7 +172,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             <button
               type="button"
               onClick={() => onMoveToBacklog(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-ocean-400 hover:bg-ocean-50 rounded transition-colors dark:text-stone-600 dark:hover:text-ocean-300 dark:hover:bg-stone-700"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-ocean-400 hover:bg-ocean-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-ocean-300 dark:hover:bg-stone-700"
               aria-label="Send to backlog"
               title="Send to backlog"
             >
@@ -193,7 +188,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             <button
               type="button"
               onClick={() => onContinueTomorrow(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
               aria-label="Continue tomorrow"
               title="Continue tomorrow"
             >
@@ -210,7 +205,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             <button
               type="button"
               onClick={() => onRollForward(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors dark:text-stone-600 dark:hover:text-moss-300 dark:hover:bg-stone-700"
+              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-moss-300 dark:hover:bg-stone-700"
               aria-label="Roll forward"
               title="Roll forward"
             >

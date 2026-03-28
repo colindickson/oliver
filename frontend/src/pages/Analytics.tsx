@@ -557,10 +557,15 @@ export function Analytics() {
     queryFn: dayApi.getAll,
   })
 
-  const windowedDays = filterDaysToWindow(allDays, periodDays)
-  const trendsData = buildTrendsData(windowedDays)
-  const taskVolumeData = buildTaskVolumeData(windowedDays)
-  const tagFrequencyData = buildTagFrequencyData(windowedDays)
+  const { windowedDays, trendsData, taskVolumeData, tagFrequencyData } = useMemo(() => {
+    const windowedDays = filterDaysToWindow(allDays, periodDays)
+    return {
+      windowedDays,
+      trendsData: buildTrendsData(windowedDays),
+      taskVolumeData: buildTaskVolumeData(windowedDays),
+      tagFrequencyData: buildTagFrequencyData(windowedDays),
+    }
+  }, [allDays, periodDays])
 
   const chartCard = 'bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-soft'
   const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'

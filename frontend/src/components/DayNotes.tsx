@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface DayNotesProps {
   label: string
@@ -10,20 +10,37 @@ interface DayNotesProps {
 export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps) {
   const [content, setContent] = useState(initialContent)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current)
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
+    }
+  }, [])
 
   function handleChange(value: string) {
     setContent(value)
     setSaved(false)
+    setError(false)
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
 
     debounceRef.current = setTimeout(async () => {
-      await onSave(dayId, value)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      try {
+        await onSave(dayId, value)
+        setSaved(true)
+        savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000)
+      } catch {
+        setError(true)
+        errorTimeoutRef.current = setTimeout(() => setError(false), 3000)
+      }
     }, 1000)
   }
 
@@ -34,11 +51,15 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
           {label}
         </h3>
         <span
-          className={`text-xs text-moss-600 dark:text-moss-400 transition-opacity duration-300 ${
-            saved ? 'opacity-100' : 'opacity-0'
+          className={`text-xs transition-opacity duration-300 ${
+            error
+              ? 'opacity-100 text-red-600 dark:text-red-400'
+              : saved
+                ? 'opacity-100 text-moss-600 dark:text-moss-400'
+                : 'opacity-0 text-moss-600 dark:text-moss-400'
           }`}
         >
-          Saved
+          {error ? 'Save failed' : 'Saved'}
         </span>
       </div>
       <textarea

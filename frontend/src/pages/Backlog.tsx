@@ -5,54 +5,39 @@ import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { TagInput } from '../components/TagInput'
 import { ConfirmableDelete } from '../components/ConfirmableDelete'
+import { useTaskEdit } from '../hooks/useTaskEdit'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { CalendarPicker } from '../components/CalendarPicker'
-
-// Category badge colors
-const categoryColors: Record<string, string> = {
-  deep_work: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  short_task: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  maintenance: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-}
-
-const categoryLabels: Record<string, string> = {
-  deep_work: 'Deep Work',
-  short_task: 'Short Task',
-  maintenance: 'Maintenance',
-}
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../constants/categories'
 
 // BacklogTaskCard component
 interface BacklogTaskCardProps {
   task: Task
-  onEdit: (id: number, title: string, description: string, tags: string[]) => void
   onMoveToDay: (task: Task) => void
   onDelete: (id: number) => void
 }
 
-function BacklogTaskCard({ task, onEdit, onMoveToDay, onDelete }: BacklogTaskCardProps) {
-  const [editing, setEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(task.title)
-  const [editDescription, setEditDescription] = useState(task.description ?? '')
-  const [editTags, setEditTags] = useState<string[]>(task.tags ?? [])
+function BacklogTaskCard({ task, onMoveToDay, onDelete }: BacklogTaskCardProps) {
+  const qc = useQueryClient()
 
-  function openEdit() {
-    setEditTitle(task.title)
-    setEditDescription(task.description ?? '')
-    setEditTags(task.tags ?? [])
-    setEditing(true)
-  }
-
-  function cancelEdit() {
-    setEditing(false)
-  }
-
-  function saveEdit() {
-    if (!editTitle.trim()) return
-    onEdit(task.id, editTitle.trim(), editDescription.trim(), editTags)
-    setEditing(false)
-  }
+  const {
+    editing,
+    editTitle,
+    editDescription,
+    editTags,
+    saving,
+    openEdit,
+    saveEdit,
+    cancelEdit,
+    setEditTitle,
+    setEditDescription,
+    setEditTags,
+  } = useTaskEdit({
+    task,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['backlog'] }),
+  })
 
   if (editing) {
     return (
@@ -63,7 +48,7 @@ function BacklogTaskCard({ task, onEdit, onMoveToDay, onDelete }: BacklogTaskCar
           value={editTitle}
           onChange={e => setEditTitle(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter') saveEdit()
+            if (e.key === 'Enter') void saveEdit()
             if (e.key === 'Escape') cancelEdit()
           }}
           className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-terracotta-300 focus:border-transparent dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100"
@@ -79,8 +64,8 @@ function BacklogTaskCard({ task, onEdit, onMoveToDay, onDelete }: BacklogTaskCar
         <div className="flex gap-2 pt-0.5">
           <button
             type="button"
-            onClick={saveEdit}
-            disabled={!editTitle.trim()}
+            onClick={() => void saveEdit()}
+            disabled={saving || !editTitle.trim()}
             className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
           >
             Save
@@ -110,8 +95,8 @@ function BacklogTaskCard({ task, onEdit, onMoveToDay, onDelete }: BacklogTaskCar
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
           {/* Category badge */}
           {task.category && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[task.category]}`}>
-              {categoryLabels[task.category]}
+            <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[task.category]}`}>
+              {CATEGORY_LABELS[task.category]}
             </span>
           )}
           {/* Tags */}
@@ -227,7 +212,7 @@ function MoveToDayModal({ task, onClose, onMove }: MoveToDayModalProps) {
                     : 'border-stone-600 text-stone-400 hover:bg-stone-700'
                 }`}
               >
-                {categoryLabels[cat]}
+                {CATEGORY_LABELS[cat]}
               </button>
             ))}
           </div>
@@ -370,16 +355,6 @@ export function Backlog() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['backlog'] }),
   })
 
-  // Update task
-  const updateTask = useMutation({
-    mutationFn: ({ id, title, description, tags }: { id: number; title: string; description: string; tags: string[] }) =>
-      taskApi.update(id, { title, description: description || null, tags }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['backlog'] })
-      qc.invalidateQueries({ queryKey: ['tags'] })
-    },
-  })
-
   // Move to day
   const moveToDay = useMutation({
     mutationFn: ({ taskId, dayId, category }: { taskId: number; dayId: number; category: 'deep_work' | 'short_task' | 'maintenance' }) =>
@@ -402,10 +377,6 @@ export function Backlog() {
       description: description || undefined,
       tags: tags.length > 0 ? tags : undefined,
     })
-  }
-
-  function handleEditTask(id: number, title: string, description: string, tags: string[]) {
-    updateTask.mutate({ id, title, description, tags })
   }
 
   function handleMoveToDay(taskId: number, dayId: number, category: 'deep_work' | 'short_task' | 'maintenance') {
@@ -513,7 +484,6 @@ export function Backlog() {
                     <BacklogTaskCard
                       key={task.id}
                       task={task}
-                      onEdit={handleEditTask}
                       onMoveToDay={setMoveTask}
                       onDelete={handleDelete}
                     />
@@ -644,7 +614,6 @@ export function Backlog() {
                   <BacklogTaskCard
                     key={task.id}
                     task={task}
-                    onEdit={handleEditTask}
                     onMoveToDay={setMoveTask}
                     onDelete={handleDelete}
                   />

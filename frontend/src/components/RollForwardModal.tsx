@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import { CalendarPicker } from './CalendarPicker'
+import { formatRollDate } from '../utils/format'
 
 interface Props {
   onConfirm: (targetDate: string) => void
   onCancel: () => void
-}
-
-function formatRollDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 export function RollForwardModal({ onConfirm, onCancel }: Props) {
@@ -20,7 +15,7 @@ export function RollForwardModal({ onConfirm, onCancel }: Props) {
   const [selectedDate, setSelectedDate] = useState('')
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
       <div
         className="bg-stone-800 rounded-2xl shadow-xl p-5 w-96 space-y-4"
         onClick={e => e.stopPropagation()}
