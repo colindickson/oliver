@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.daily_note import DailyNote
@@ -118,28 +118,32 @@ class AnalyticsService:
         Returns:
             A dict with keys ``current_streak`` and ``longest_streak``.
         """
-        days_result = await self._db.execute(
-            select(Day).order_by(Day.date.asc())
-        )
-        all_days = list(days_result.scalars().all())
-
-        if not all_days:
-            return {"current_streak": 0, "longest_streak": 0}
-
         today = date.today()
 
-        # Build a set of complete weekday dates (weekends, today, and off days excluded).
+        # Targeted query: only the data needed for streak computation.
+        # For each non-off-day before today, get the date and task completion counts.
+        off_day_ids_subq = select(DayOff.day_id)
+
+        days_result = await self._db.execute(
+            select(
+                Day.date,
+                func.count(Task.id).label("total_tasks"),
+                func.sum(
+                    func.cast(Task.status == STATUS_COMPLETED, Integer)
+                ).label("completed_tasks"),
+            )
+            .outerjoin(Task, Task.day_id == Day.id)
+            .where(Day.date < today)
+            .where(Day.id.not_in(off_day_ids_subq))
+            .group_by(Day.id, Day.date)
+        )
+
+        # Build set of dates where all tasks are completed (must have at least 1 task)
         complete_dates: set[date] = set()
-        for day in all_days:
-            if day.date >= today:  # exclude today — it's in progress
-                continue
-            if day.date.weekday() >= 5:  # Saturday=5, Sunday=6
-                continue
-            if day.day_off is not None:  # exclude explicit off days
-                continue
-            tasks = day.tasks  # loaded via selectin
-            if tasks and all(t.status == STATUS_COMPLETED for t in tasks):
-                complete_dates.add(day.date)
+        for row in days_result:
+            if row.total_tasks > 0 and row.total_tasks == row.completed_tasks:
+                if row.date.weekday() < 5:  # skip weekends
+                    complete_dates.add(row.date)
 
         if not complete_dates:
             return {"current_streak": 0, "longest_streak": 0}

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas._shared import TagCoercionMixin
 from app.schemas.task import TaskResponse
@@ -25,6 +25,7 @@ class GoalUpdate(BaseModel):
     """Payload for partial updates to a Goal.
 
     Pass ``target_date="CLEAR"`` to remove the target date.
+    Otherwise, pass an ISO date string (YYYY-MM-DD).
     """
 
     title: str | None = Field(default=None, max_length=255)
@@ -32,6 +33,21 @@ class GoalUpdate(BaseModel):
     target_date: str | None = None  # ISO date string, or "CLEAR" sentinel
     tag_names: list[str] | None = None
     task_ids: list[int] | None = None
+
+    @field_validator("target_date")
+    @classmethod
+    def validate_target_date(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v == "CLEAR":
+            return v
+        try:
+            date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(
+                f"target_date must be a valid ISO date (YYYY-MM-DD) or 'CLEAR', got '{v}'"
+            )
+        return v
 
 
 class GoalStatusUpdate(BaseModel):

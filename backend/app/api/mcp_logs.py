@@ -56,6 +56,7 @@ async def revert_mcp_log(
         log = await service.revert(log_id)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    await db.commit()
     return MCPLogResponse(
         id=log.id,
         tool_name=log.tool_name,

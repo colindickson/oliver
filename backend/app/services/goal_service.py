@@ -36,9 +36,11 @@ class GoalService:
         result = await self._db.execute(select(Goal))
         goals = list(result.scalars().all())
 
+        progress_map = await self._batch_compute_progress(goals)
+
         responses = []
         for goal in goals:
-            total, completed, pct = await self._compute_progress(goal)
+            total, completed, pct = progress_map[goal.id]
             responses.append(
                 GoalResponse(
                     id=goal.id,
@@ -211,6 +213,86 @@ class GoalService:
             return []
         result = await self._db.execute(select(Task).where(Task.id.in_(task_ids)))
         return list(result.scalars().all())
+
+    async def _batch_compute_progress(
+        self, goals: list[Goal]
+    ) -> dict[int, tuple[int, int, int]]:
+        """Compute progress for all goals in a few queries instead of 2N.
+
+        Returns:
+            Dict mapping goal_id to (total_tasks, completed_tasks, progress_pct).
+        """
+        if not goals:
+            return {}
+
+        goal_ids = [g.id for g in goals]
+
+        # Gather tag-linked task IDs per goal
+        goal_tag_task_ids: dict[int, set[int]] = {gid: set() for gid in goal_ids}
+        all_tag_ids: set[int] = set()
+        for g in goals:
+            for tag in g.tags:
+                all_tag_ids.add(tag.id)
+
+        if all_tag_ids:
+            tag_rows = await self._db.execute(
+                select(
+                    task_tags_table.c.task_id,
+                    task_tags_table.c.tag_id,
+                ).where(task_tags_table.c.tag_id.in_(all_tag_ids))
+            )
+            task_tag_map: dict[int, set[int]] = {}
+            for row in tag_rows:
+                task_tag_map.setdefault(row.task_id, set()).add(row.tag_id)
+
+            for goal in goals:
+                required = {tag.id for tag in goal.tags}
+                goal_tag_task_ids[goal.id] = {
+                    tid for tid, ttags in task_tag_map.items()
+                    if required.issubset(ttags)
+                }
+
+        # Gather direct task IDs per goal
+        direct_rows = await self._db.execute(
+            select(
+                goal_tasks_table.c.goal_id,
+                goal_tasks_table.c.task_id,
+            ).where(goal_tasks_table.c.goal_id.in_(goal_ids))
+        )
+        goal_direct_task_ids: dict[int, set[int]] = {gid: set() for gid in goal_ids}
+        for row in direct_rows:
+            goal_direct_task_ids[row.goal_id].add(row.task_id)
+
+        # Merge into effective task IDs
+        all_task_ids: set[int] = set()
+        goal_effective_ids: dict[int, set[int]] = {}
+        for goal in goals:
+            effective = goal_tag_task_ids[goal.id] | goal_direct_task_ids[goal.id]
+            goal_effective_ids[goal.id] = effective
+            all_task_ids.update(effective)
+
+        if not all_task_ids:
+            return {g.id: (0, 0, 0) for g in goals}
+
+        # Single query for all task statuses
+        task_rows = await self._db.execute(
+            select(Task.id, Task.status).where(Task.id.in_(all_task_ids))
+        )
+        task_statuses: dict[int, str] = {row.id: row.status for row in task_rows}
+
+        result: dict[int, tuple[int, int, int]] = {}
+        for goal in goals:
+            effective = goal_effective_ids[goal.id]
+            statuses = [task_statuses[tid] for tid in effective if tid in task_statuses]
+            statuses = [s for s in statuses if s != STATUS_ROLLED_FORWARD]
+            total = len(statuses)
+            if total == 0:
+                result[goal.id] = (0, 0, 0)
+            else:
+                completed = sum(1 for s in statuses if s == STATUS_COMPLETED)
+                pct = round(completed / total * 100)
+                result[goal.id] = (total, completed, pct)
+        return result
 
     async def _get_effective_tasks(self, goal: Goal) -> list[Task]:
         """Return the deduped union of tag-linked and directly-linked tasks."""

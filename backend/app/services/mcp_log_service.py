@@ -28,6 +28,24 @@ _ACTIVE_TIMER_KEY = "active_timer"
 _Handler = Callable[[AsyncSession, MCPLog], Awaitable[None]]
 
 
+async def _resolve_tags_for_revert(db: AsyncSession, tag_names: list[str]) -> list[Tag]:
+    """Resolve tag names to Tag objects, re-creating any that were deleted.
+
+    Unlike TagService.resolve_tags, this does NOT enforce MAX_TAGS_PER_TASK
+    because we are restoring a known-good prior state.
+    """
+    tags = []
+    for name in tag_names:
+        result = await db.execute(select(Tag).where(Tag.name == name))
+        tag = result.scalar_one_or_none()
+        if tag is None:
+            tag = Tag(name=name)
+            db.add(tag)
+            await db.flush()
+        tags.append(tag)
+    return tags
+
+
 async def _revert_create_task(db: AsyncSession, log: MCPLog) -> None:
     result_data = json.loads(log.result) if log.result else {}
     task_id = result_data.get("id")
@@ -50,15 +68,9 @@ async def _revert_update_task(db: AsyncSession, log: MCPLog) -> None:
     task.status = before.get("status", task.status)
     task.category = before.get("category", task.category)
 
-    # Restore tags
+    # Restore tags (re-create if deleted since original operation)
     tag_names: list[str] = before.get("tags", [])
-    tags = []
-    for name in tag_names:
-        tag_result = await db.execute(select(Tag).where(Tag.name == name))
-        tag = tag_result.scalar_one_or_none()
-        if tag:
-            tags.append(tag)
-    task.tags = tags
+    task.tags = await _resolve_tags_for_revert(db, tag_names)
 
 
 async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
@@ -89,13 +101,7 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
     await db.flush()
 
     tag_names: list[str] = before.get("tags", [])
-    tags = []
-    for name in tag_names:
-        tag_result = await db.execute(select(Tag).where(Tag.name == name))
-        tag = tag_result.scalar_one_or_none()
-        if tag:
-            tags.append(tag)
-    task.tags = tags
+    task.tags = await _resolve_tags_for_revert(db, tag_names)
 
 
 async def _revert_complete_task(db: AsyncSession, log: MCPLog) -> None:
@@ -298,7 +304,7 @@ class MCPLogService:
 
     async def revert(self, log_id: int) -> MCPLog:
         result = await self._db.execute(
-            select(MCPLog).where(MCPLog.id == log_id)
+            select(MCPLog).where(MCPLog.id == log_id).with_for_update()
         )
         log = result.scalar_one_or_none()
         if log is None:
@@ -312,6 +318,6 @@ class MCPLogService:
             raise ValueError(f"No revert handler for '{log.tool_name}'")
         await handler(self._db, log)
         log.is_reverted = True
-        await self._db.commit()
+        await self._db.flush()
         await self._db.refresh(log)
         return log

@@ -37,11 +37,11 @@ class TimerService:
     # Private state helpers
     # ------------------------------------------------------------------
 
-    async def _get_state(self) -> dict | None:
+    async def _get_state(self) -> tuple[dict, int] | None:
         """Read raw timer state from the settings table.
 
         Returns:
-            Parsed JSON dict if an active timer exists, otherwise ``None``.
+            Tuple of (parsed JSON dict, version) if an active timer exists, else None.
         """
         result = await self._db.execute(
             select(Setting).where(Setting.key == TIMER_KEY)
@@ -49,13 +49,15 @@ class TimerService:
         setting = result.scalar_one_or_none()
         if setting is None:
             return None
-        return json.loads(setting.value)
+        return json.loads(setting.value), setting.version
 
-    async def _set_state(self, state: dict) -> None:
-        """Persist timer state to the settings table.
+    async def _set_state(self, state: dict, expected_version: int | None = None) -> None:
+        """Persist timer state to the settings table with optimistic locking.
 
         Args:
             state: Dict to serialise and store under ``TIMER_KEY``.
+            expected_version: If provided, the update only succeeds if the
+                current version matches. Raises ValueError on mismatch.
         """
         result = await self._db.execute(
             select(Setting).where(Setting.key == TIMER_KEY)
@@ -65,7 +67,13 @@ class TimerService:
             setting = Setting(key=TIMER_KEY, value=json.dumps(state))
             self._db.add(setting)
         else:
+            if expected_version is not None and setting.version != expected_version:
+                raise ValueError(
+                    f"Timer state changed concurrently (expected version {expected_version}, "
+                    f"found {setting.version})"
+                )
             setting.value = json.dumps(state)
+            setting.version += 1
         await self._db.flush()
 
     async def _clear_state(self) -> None:
@@ -89,8 +97,8 @@ class TimerService:
             A dict with keys ``status``, ``task_id``, ``elapsed_seconds``,
             and ``accumulated_seconds``.
         """
-        state = await self._get_state()
-        if state is None:
+        state_with_version = await self._get_state()
+        if state_with_version is None:
             return {
                 "status": "idle",
                 "task_id": None,
@@ -98,6 +106,7 @@ class TimerService:
                 "accumulated_seconds": 0,
             }
 
+        state, _version = state_with_version
         accumulated = state.get("accumulated_seconds", 0)
         if state["status"] == "running":
             started_at = datetime.fromisoformat(state["started_at"])
@@ -129,19 +138,18 @@ class TimerService:
         Raises:
             ValueError: If a timer is already in the running state.
         """
-        state = await self._get_state()
+        state_with_version = await self._get_state()
         now = datetime.now(timezone.utc)
 
-        if state is not None and state["status"] == "running":
+        if state_with_version is not None and state_with_version[0]["status"] == "running":
             raise ValueError("Timer is already running")
 
         accumulated = 0
-        if (
-            state is not None
-            and state["status"] == "paused"
-            and state["task_id"] == task_id
-        ):
-            accumulated = state.get("accumulated_seconds", 0)
+        version = None
+        if state_with_version is not None:
+            state, version = state_with_version
+            if state["status"] == "paused" and state["task_id"] == task_id:
+                accumulated = state.get("accumulated_seconds", 0)
 
         await self._set_state(
             {
@@ -149,7 +157,8 @@ class TimerService:
                 "status": "running",
                 "started_at": now.isoformat(),
                 "accumulated_seconds": accumulated,
-            }
+            },
+            expected_version=version,
         )
         return await self.get_current()
 
@@ -165,10 +174,11 @@ class TimerService:
         Raises:
             ValueError: If no timer is currently running.
         """
-        state = await self._get_state()
-        if state is None or state["status"] != "running":
+        state_with_version = await self._get_state()
+        if state_with_version is None or state_with_version[0]["status"] != "running":
             raise ValueError("No timer is currently running")
 
+        state, version = state_with_version
         started_at = datetime.fromisoformat(state["started_at"])
         interval = int((datetime.now(timezone.utc) - started_at).total_seconds())
         accumulated = state.get("accumulated_seconds", 0) + interval
@@ -178,7 +188,8 @@ class TimerService:
                 "task_id": state["task_id"],
                 "status": "paused",
                 "accumulated_seconds": accumulated,
-            }
+            },
+            expected_version=version,
         )
         return await self.get_current()
 
@@ -194,10 +205,11 @@ class TimerService:
         Raises:
             ValueError: If no active timer exists (idle state).
         """
-        state = await self._get_state()
-        if state is None:
+        state_with_version = await self._get_state()
+        if state_with_version is None:
             raise ValueError("No timer is currently running or paused")
 
+        state, _version = state_with_version
         accumulated = state.get("accumulated_seconds", 0)
         now = datetime.now(timezone.utc)
 
@@ -260,10 +272,12 @@ class TimerService:
 
         # If the active timer belongs to this task, bump its accumulated_seconds
         # so the live timer display reflects the manually added time.
-        state = await self._get_state()
-        if state is not None and state.get("task_id") == task_id:
-            state["accumulated_seconds"] = state.get("accumulated_seconds", 0) + seconds
-            await self._set_state(state)
+        state_with_version = await self._get_state()
+        if state_with_version is not None:
+            state, version = state_with_version
+            if state.get("task_id") == task_id:
+                state["accumulated_seconds"] = state.get("accumulated_seconds", 0) + seconds
+                await self._set_state(state, expected_version=version)
 
         now = datetime.now(timezone.utc)
         session = TimerSession(

@@ -393,9 +393,9 @@ class DayService:
         is_day_off = day.day_off is not None
 
         result = await self._db.execute(
-            select(TemplateSchedule).where(
-                TemplateSchedule.next_run_date <= target_date
-            )
+            select(TemplateSchedule)
+            .where(TemplateSchedule.next_run_date <= target_date)
+            .with_for_update()
         )
         schedules = list(result.scalars().all())
 
