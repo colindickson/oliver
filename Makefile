@@ -1,4 +1,4 @@
-.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status db-backup db-restore update
+.PHONY: help install build up down stop start restart clean logs ps test mcp migrate migrate-status upgrade-db db-backup db-restore update
 
 COMPOSE := docker compose
 BACKEND := backend
@@ -91,8 +91,11 @@ db-restore: ## Restore database from backup file (usage: make db-restore FILE=ba
 test: ## Run all backend tests
 	$(COMPOSE) exec -T $(BACKEND) pytest -q
 
-migrate: ## Generate and run Alembic migrations
+migrate: ## Developer: generate and run Alembic migrations
 	$(COMPOSE) exec -T $(BACKEND) alembic revision --autogenerate -m "auto" 2>/dev/null || true
+	$(COMPOSE) exec -T $(BACKEND) alembic upgrade head
+
+upgrade-db: ## Run pending Alembic migrations (safe for end users)
 	$(COMPOSE) exec -T $(BACKEND) alembic upgrade head
 
 migrate-status: ## Show current Alembic migration status
@@ -111,9 +114,16 @@ restart: ## Restart backend and frontend services (with database backup)
 	$(COMPOSE) down $(BACKEND) $(FRONTEND)
 	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
 
-update: ## Pull latest code, backup DB, migrate, rebuild frontend/backend
+update: ## Pull latest code, backup DB, rebuild, and run migrations
 	git pull
-	$(MAKE) restart
+	$(MAKE) db-backup
+	$(MAKE) build
+	$(COMPOSE) down $(BACKEND) $(FRONTEND)
+	$(COMPOSE) up -d $(BACKEND)
+	@echo "Waiting for backend to start..."
+	@sleep 2
+	$(MAKE) upgrade-db
+	$(COMPOSE) up -d $(FRONTEND)
 
 install-mcp: install-mcp-claude-code install-mcp-claude-desktop ## Install Oliver MCP server for Claude Code and Claude Desktop
 
