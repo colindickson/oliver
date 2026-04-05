@@ -27,7 +27,7 @@ class TimerAddTime(BaseModel):
     """
 
     task_id: int
-    seconds: int = Field(gt=0)
+    seconds: int = Field(gt=0, le=86400)
 
 
 class TimerState(BaseModel):

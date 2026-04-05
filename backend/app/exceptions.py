@@ -23,6 +23,30 @@ class GoalNotFoundError(Exception):
         self.goal_id = goal_id
 
 
+class DayNotFoundError(Exception):
+    """Raised when a Day with the requested primary key does not exist."""
+
+    def __init__(self, day_id: int) -> None:
+        super().__init__(f"Day {day_id} not found")
+        self.day_id = day_id
+
+
+class TemplateNotFoundError(Exception):
+    """Raised when a TaskTemplate with the requested primary key does not exist."""
+
+    def __init__(self, template_id: int) -> None:
+        super().__init__(f"Template {template_id} not found")
+        self.template_id = template_id
+
+
+class ScheduleNotFoundError(Exception):
+    """Raised when a TemplateSchedule with the requested primary key does not exist."""
+
+    def __init__(self, schedule_id: int) -> None:
+        super().__init__(f"Schedule {schedule_id} not found")
+        self.schedule_id = schedule_id
+
+
 class InvalidOperationError(Exception):
     """Raised when a business-rule constraint is violated.
 

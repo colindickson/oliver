@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -39,3 +39,5 @@ class Reminder(Base):
     is_delivered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     task: Mapped[Task] = relationship("Task", back_populates="reminders")
+
+    __table_args__ = (Index("ix_reminders_delivered_remind_at", "is_delivered", "remind_at"),)

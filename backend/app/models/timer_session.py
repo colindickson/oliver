@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -40,3 +40,14 @@ class TimerSession(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     task: Mapped[Task] = relationship("Task", back_populates="timer_sessions")
+
+    __table_args__ = (
+        CheckConstraint(
+            "duration_seconds IS NULL OR duration_seconds >= 0",
+            name="ck_timer_sessions_duration_nonneg",
+        ),
+        CheckConstraint(
+            "ended_at IS NULL OR ended_at >= started_at",
+            name="ck_timer_sessions_ended_after_started",
+        ),
+    )

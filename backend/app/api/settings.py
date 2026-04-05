@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.goal import Goal
 from app.schemas.settings import (
     FocusGoalResponse,
     FocusGoalUpdate,
@@ -87,6 +89,10 @@ async def set_focus_goal(
         A FocusGoalResponse with the saved goal_id.
     """
     service = DayService(db)
+    if payload.goal_id is not None:
+        goal = await db.scalar(select(Goal).where(Goal.id == payload.goal_id))
+        if goal is None:
+            raise HTTPException(status_code=404, detail="Goal not found")
     goal_id = await service.set_focus_goal_id(payload.goal_id)
     await db.commit()
     return FocusGoalResponse(goal_id=goal_id)

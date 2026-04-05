@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import InvalidOperationError
@@ -26,7 +27,12 @@ class TagService:
         if tag is None:
             tag = Tag(name=normalised)
             self._db.add(tag)
-            await self._db.flush()
+            try:
+                await self._db.flush()
+            except IntegrityError:
+                await self._db.rollback()
+                result = await self._db.execute(select(Tag).where(Tag.name == normalised))
+                tag = result.scalar_one()
         return tag
 
     async def resolve_tags(self, names: list[str]) -> list[Tag]:

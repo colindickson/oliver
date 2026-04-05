@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,6 +21,7 @@ goal_tags_table = Table(
     Base.metadata,
     Column("goal_id", Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+    Index("ix_goal_tags_tag_id", "tag_id"),
 )
 
 # Association table: goal ↔ task (directly linked tasks)
@@ -29,6 +30,7 @@ goal_tasks_table = Table(
     Base.metadata,
     Column("goal_id", Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True),
     Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Index("ix_goal_tasks_task_id", "task_id"),
 )
 
 

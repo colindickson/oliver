@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -38,3 +38,5 @@ class MCPLog(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
+
+    __table_args__ = (Index("ix_mcp_logs_created_at", created_at.desc()),)

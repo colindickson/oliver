@@ -54,13 +54,18 @@ class TimerService:
     async def _set_state(self, state: dict, expected_version: int | None = None) -> None:
         """Persist timer state to the settings table with optimistic locking.
 
+        Uses ``with_for_update()`` to acquire a row-level lock on the SELECT,
+        preventing concurrent starts from both skipping the version check when
+        no row exists yet (the unique PK constraint on ``key`` then guards the
+        INSERT path).
+
         Args:
             state: Dict to serialise and store under ``TIMER_KEY``.
             expected_version: If provided, the update only succeeds if the
                 current version matches. Raises ValueError on mismatch.
         """
         result = await self._db.execute(
-            select(Setting).where(Setting.key == TIMER_KEY)
+            select(Setting).where(Setting.key == TIMER_KEY).with_for_update()
         )
         setting = result.scalar_one_or_none()
         if setting is None:
@@ -138,6 +143,11 @@ class TimerService:
         Raises:
             ValueError: If a timer is already in the running state.
         """
+        # Validate the task exists before starting the timer
+        task_result = await self._db.execute(select(Task).where(Task.id == task_id))
+        if task_result.scalar_one_or_none() is None:
+            raise ValueError(f"Task {task_id} not found")
+
         state_with_version = await self._get_state()
         now = datetime.now(timezone.utc)
 

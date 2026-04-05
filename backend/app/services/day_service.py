@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.daily_note import DailyNote
@@ -58,7 +59,12 @@ class DayService:
         if day is None:
             day = Day(date=target_date, created_at=datetime.now(timezone.utc))
             self._db.add(day)
-            await self._db.flush()
+            try:
+                await self._db.flush()
+            except IntegrityError:
+                await self._db.rollback()
+                result = await self._db.execute(select(Day).where(Day.date == target_date))
+                day = result.scalar_one()
             await self._db.refresh(day)
 
         await self.apply_due_schedules(day, target_date)

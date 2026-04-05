@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -13,6 +13,7 @@ task_tags_table = Table(
     Base.metadata,
     Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+    Index("ix_task_tags_tag_id", "tag_id"),
 )
 
 

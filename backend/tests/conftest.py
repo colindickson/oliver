@@ -14,6 +14,7 @@ import os
 
 import pytest
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
@@ -28,6 +29,13 @@ TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 async def db_session() -> AsyncSession:
     """Provide an isolated in-memory SQLite session per test."""
     engine = create_async_engine(TEST_DB_URL)
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)

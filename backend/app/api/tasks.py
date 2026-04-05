@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.models.day import Day
 from app.models.task import Task
 from app.schemas.task import (
     TaskCreate,
@@ -125,6 +126,11 @@ async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)) -> T
     # transient object — avoids a lazy-load in async context.
     service = TagService(db)
     tag_objects = await service.resolve_tags(body.tags)
+
+    # Verify the Day exists before associating the task.
+    day_exists = await db.scalar(select(Day).where(Day.id == body.day_id))
+    if not day_exists:
+        raise HTTPException(status_code=404, detail="Day not found")
 
     task = Task(
         day_id=body.day_id,
@@ -259,6 +265,15 @@ async def update_task_status(
         HTTPException: 404 if no Task with ``task_id`` exists.
     """
     task = await _get_task_or_404(task_id, db)
+
+    # Terminal states cannot be left.
+    TERMINAL_STATES = {"completed", "rolled_forward"}
+    if task.status in TERMINAL_STATES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot change status from terminal state '{task.status}'",
+        )
+
     task.status = body.status
     if body.status == STATUS_COMPLETED:
         task.completed_at = datetime.now(timezone.utc)

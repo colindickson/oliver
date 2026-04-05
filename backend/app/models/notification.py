@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -32,3 +32,5 @@ class Notification(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
+
+    __table_args__ = (Index("ix_notifications_created_at", created_at.desc()),)

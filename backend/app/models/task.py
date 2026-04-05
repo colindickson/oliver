@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from app.database import Base
@@ -56,7 +56,7 @@ class Task(Base):
         index=True,
     )
     category: Mapped[str | None] = mapped_column(String, nullable=True)
-    title: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default=STATUS_PENDING)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -88,4 +88,12 @@ class Task(Base):
         lazy="selectin",
     )
 
-    __table_args__ = (Index("ix_tasks_status", "status"),)
+    __table_args__ = (
+        Index("ix_tasks_status", "status"),
+        Index("ix_tasks_day_id_category", "day_id", "category"),
+        CheckConstraint(
+            "category IS NULL OR category IN ('deep_work', 'short_task', 'maintenance')",
+            name="ck_tasks_category_valid",
+        ),
+        CheckConstraint("order_index >= 0", name="ck_tasks_order_index_nonneg"),
+    )

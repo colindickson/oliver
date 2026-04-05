@@ -43,7 +43,7 @@ class TaskUpdate(BaseModel):
         tags: Replacement tag list. None = don't touch; [] = remove all.
     """
 
-    title: str | None = Field(default=None, max_length=255)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     order_index: int | None = None
     tags: list[str] | None = None
@@ -98,7 +98,7 @@ class MoveToDayPayload(BaseModel):
     """
 
     day_id: int
-    category: str | None = None
+    category: Literal["deep_work", "short_task", "maintenance"] | None = None
 
 
 class TaskResponse(TagCoercionMixin):

@@ -28,7 +28,7 @@ class GoalUpdate(BaseModel):
     Otherwise, pass an ISO date string (YYYY-MM-DD).
     """
 
-    title: str | None = Field(default=None, max_length=255)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     target_date: str | None = None  # ISO date string, or "CLEAR" sentinel
     tag_names: list[str] | None = None

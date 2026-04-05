@@ -9,7 +9,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.exceptions import GoalNotFoundError, InvalidOperationError, TaskNotFoundError
+from sqlalchemy.exc import IntegrityError
+
+from app.exceptions import (
+    DayNotFoundError,
+    GoalNotFoundError,
+    InvalidOperationError,
+    ScheduleNotFoundError,
+    TaskNotFoundError,
+    TemplateNotFoundError,
+)
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
@@ -65,6 +74,26 @@ async def goal_not_found_handler(request: Request, exc: GoalNotFoundError) -> JS
 @app.exception_handler(InvalidOperationError)
 async def invalid_operation_handler(request: Request, exc: InvalidOperationError) -> JSONResponse:
     return JSONResponse(status_code=exc.http_status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(DayNotFoundError)
+async def day_not_found_handler(request: Request, exc: DayNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(TemplateNotFoundError)
+async def template_not_found_handler(request: Request, exc: TemplateNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(ScheduleNotFoundError)
+async def schedule_not_found_handler(request: Request, exc: ScheduleNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": "Data conflict: the operation violated a database constraint"})
 
 
 app.include_router(analytics_router.router)

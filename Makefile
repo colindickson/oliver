@@ -91,8 +91,9 @@ db-restore: ## Restore database from backup file (usage: make db-restore FILE=ba
 test: ## Run all backend tests
 	$(COMPOSE) exec -T $(BACKEND) pytest -q
 
-migrate: ## Run Alembic migrations (alembic upgrade head)
-	$(COMPOSE) exec $(BACKEND) alembic upgrade head
+migrate: ## Generate and run Alembic migrations
+	$(COMPOSE) exec -T $(BACKEND) alembic revision --autogenerate -m "auto" 2>/dev/null || true
+	$(COMPOSE) exec -T $(BACKEND) alembic upgrade head
 
 migrate-status: ## Show current Alembic migration status
 	$(COMPOSE) exec $(BACKEND) alembic current
