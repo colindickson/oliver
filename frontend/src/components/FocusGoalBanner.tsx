@@ -39,6 +39,19 @@ export function FocusGoalBanner() {
         <span className={`font-medium text-stone-700 dark:text-stone-200 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>
           {focusGoal.title}
         </span>
+        {focusGoal.tags.slice(0, isMobile ? 2 : 3).map(tag => (
+          <span
+            key={tag}
+            className="text-[10px] px-1.5 py-0.5 rounded-full bg-terracotta-500/15 text-terracotta-700 dark:bg-terracotta-400/20 dark:text-terracotta-300 flex-shrink-0"
+          >
+            #{tag}
+          </span>
+        ))}
+        {focusGoal.tags.length > (isMobile ? 2 : 3) && (
+          <span className="text-[10px] text-stone-400 dark:text-stone-500 flex-shrink-0">
+            +{focusGoal.tags.length - (isMobile ? 2 : 3)}
+          </span>
+        )}
         {!isMobile && focusGoal.target_date && (
           <span className="text-xs text-stone-400 dark:text-stone-500 flex-shrink-0">
             {focusGoal.target_date}
