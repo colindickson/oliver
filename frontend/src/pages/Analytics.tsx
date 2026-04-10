@@ -552,7 +552,7 @@ export function Analytics() {
     queryFn: analyticsApi.getStreaks,
   })
 
-  const { data: allDays = [] } = useQuery({
+  const { data: allDays = [], isError } = useQuery({
     queryKey: ['days', 'all'],
     queryFn: dayApi.getAll,
   })
@@ -571,6 +571,28 @@ export function Analytics() {
   const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'
   const chartTitle = 'text-sm font-medium text-stone-600 dark:text-stone-300 mb-4'
   const emptyChart = 'text-sm text-stone-400 flex items-center justify-center'
+
+  if (isError) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col h-screen bg-stone-900">
+          <MobileHeader title="Analytics" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-stone-400 text-sm">Failed to load analytics.</p>
+          </div>
+          <BottomTabBar />
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <p className="text-stone-400 text-sm">Failed to load analytics.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (isMobile) {
     return (

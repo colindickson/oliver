@@ -13,13 +13,11 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
   const [error, setError] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current)
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
     }
   }, [])
 
@@ -39,7 +37,6 @@ export function DayNotes({ label, dayId, initialContent, onSave }: DayNotesProps
         savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000)
       } catch {
         setError(true)
-        errorTimeoutRef.current = setTimeout(() => setError(false), 3000)
       }
     }, 1000)
   }

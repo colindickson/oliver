@@ -4,7 +4,7 @@ import { goalApi, type GoalCreate } from '../api/client'
 export function useGoals() {
   const qc = useQueryClient()
 
-  const { data: goals = [], isLoading } = useQuery({
+  const { data: goals = [], isLoading, isError } = useQuery({
     queryKey: ['goals'],
     queryFn: goalApi.getAll,
   })
@@ -19,5 +19,5 @@ export function useGoals() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
   })
 
-  return { goals, isLoading, createGoal, deleteGoal }
+  return { goals, isLoading, isError, createGoal, deleteGoal }
 }

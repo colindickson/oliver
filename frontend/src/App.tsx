@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { NotificationPopup } from './components/NotificationPopup'
 
 const Today = lazy(() => import('./pages/Today').then(m => ({ default: m.Today })))
@@ -42,6 +42,7 @@ export default function App() {
           <Route path="/backlog" element={<Backlog />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </>

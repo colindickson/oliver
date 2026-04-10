@@ -35,6 +35,7 @@ function TaskItem({ task, isFuture, onToggleStatus, onDelete, onRollForward }: T
     editDescription,
     editTags,
     saving,
+    saveError,
     openEdit,
     saveEdit,
     cancelEdit,
@@ -84,6 +85,9 @@ function TaskItem({ task, isFuture, onToggleStatus, onDelete, onRollForward }: T
             Cancel
           </button>
         </div>
+        {saveError && (
+          <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>
+        )}
       </div>
     )
   }
@@ -419,13 +423,15 @@ export function DayDetail() {
   const [newTaskTags, setNewTaskTags] = useState<string[]>([])
 
   const createTask = useMutation({
-    mutationFn: (category: Task['category']) =>
-      taskApi.create({
-        day_id: day!.id,
+    mutationFn: (category: Task['category']) => {
+      if (!day) throw new Error('Day not loaded')
+      return taskApi.create({
+        day_id: day.id,
         category,
         title: newTaskTitle.trim(),
         tags: newTaskTags.length > 0 ? newTaskTags : undefined,
-      }),
+      })
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'all'] })
@@ -445,8 +451,10 @@ export function DayDetail() {
   })
 
   const scheduleFromBacklog = useMutation({
-    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
-      backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
+    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) => {
+      if (!day) throw new Error('Day not loaded')
+      return backlogApi.moveToDay(taskId, { day_id: day.id, category })
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'all'] })
@@ -455,8 +463,10 @@ export function DayDetail() {
   })
 
   const instantiateTemplate = useMutation({
-    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) =>
-      templatesApi.instantiate(template.id, day!.id, category),
+    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) => {
+      if (!day) throw new Error('Day not loaded')
+      return templatesApi.instantiate(template.id, day.id, category)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'all'] })

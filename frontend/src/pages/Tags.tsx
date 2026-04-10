@@ -23,7 +23,7 @@ function filterDaysToWindow(days: DayResponse[], windowDays: number): DayRespons
 export function Tags() {
   const { periodDays, showIncompleteOnly, setPeriodDays, setShowIncompleteOnly, filterParams } = useTagFilters()
 
-  const { data: days = [], isLoading: daysLoading } = useQuery({
+  const { data: days = [], isLoading: daysLoading, isError } = useQuery({
     queryKey: ['days', 'all'],
     queryFn: dayApi.getAll,
   })
@@ -77,6 +77,28 @@ export function Tags() {
 
   const isLoading = daysLoading || backlogLoading
   const isMobile = useMobile()
+
+  if (isError) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col h-screen bg-stone-900">
+          <MobileHeader title="Tags" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-stone-400 text-sm">Failed to load tags.</p>
+          </div>
+          <BottomTabBar />
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <p className="text-stone-400 text-sm">Failed to load tags.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (isMobile) {
     return (

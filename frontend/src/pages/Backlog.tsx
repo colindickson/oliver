@@ -28,6 +28,7 @@ function BacklogTaskCard({ task, onMoveToDay, onDelete }: BacklogTaskCardProps) 
     editDescription,
     editTags,
     saving,
+    saveError,
     openEdit,
     saveEdit,
     cancelEdit,
@@ -78,6 +79,9 @@ function BacklogTaskCard({ task, onMoveToDay, onDelete }: BacklogTaskCardProps) 
             Cancel
           </button>
         </div>
+        {saveError && (
+          <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>
+        )}
       </div>
     )
   }
@@ -337,7 +341,7 @@ export function Backlog() {
   const isMobile = useMobile()
 
   // Fetch backlog tasks
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['backlog', selectedTag, search],
     queryFn: () => backlogApi.list({ tag: selectedTag ?? undefined, search: search || undefined }),
   })
@@ -470,7 +474,12 @@ export function Backlog() {
               <AddTaskForm onAdd={handleAddTask} isLoading={createTask.isPending} />
 
               {/* Task list */}
-              {isLoading ? (
+              {isError ? (
+                <div className="text-center py-8 space-y-2">
+                  <p className="text-stone-400 text-sm">Failed to load backlog.</p>
+                  <button onClick={() => void refetch()} className="text-xs text-terracotta-400 hover:text-terracotta-300 underline">Retry</button>
+                </div>
+              ) : isLoading ? (
                 <div className="text-center py-8 text-stone-400 text-sm">Loading...</div>
               ) : tasks.length === 0 ? (
                 <div className="text-center py-8 text-stone-400 text-sm">

@@ -50,7 +50,7 @@ function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void
 }
 
 export function Goals() {
-  const { goals, createGoal, deleteGoal } = useGoals()
+  const { goals, isError, createGoal, deleteGoal } = useGoals()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(() => {
     const id = searchParams.get('id')
@@ -86,6 +86,28 @@ export function Goals() {
         onSuccess: () => setSelectedGoalId(null),
       })
     }
+  }
+
+  if (isError) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col h-screen bg-stone-900">
+          <MobileHeader title="Goals" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-stone-400 text-sm">Failed to load goals.</p>
+          </div>
+          <BottomTabBar />
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <p className="text-stone-400 text-sm">Failed to load goals.</p>
+        </div>
+      </div>
+    )
   }
 
   if (isMobile) {

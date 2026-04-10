@@ -14,6 +14,7 @@ interface UseTaskEditReturn {
   editDescription: string
   editTags: string[]
   saving: boolean
+  saveError: string | null
   openEdit: () => void
   saveEdit: () => Promise<void>
   cancelEdit: () => void
@@ -29,17 +30,20 @@ export function useTaskEdit({ task, onSuccess }: UseTaskEditOptions): UseTaskEdi
   const [editDescription, setEditDescription] = useState(task.description ?? '')
   const [editTags, setEditTags] = useState<string[]>(task.tags ?? [])
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const openEdit = useCallback(() => {
     setEditTitle(task.title)
     setEditDescription(task.description ?? '')
     setEditTags(task.tags ?? [])
+    setSaveError(null)
     setEditing(true)
-  }, [task.title, task.description, task.tags])
+  }, [task.id, task.title, task.description, task.tags])
 
   const saveEdit = useCallback(async () => {
     if (!editTitle.trim()) return
     setSaving(true)
+    setSaveError(null)
     try {
       await taskApi.update(task.id, {
         title: editTitle.trim(),
@@ -50,12 +54,15 @@ export function useTaskEdit({ task, onSuccess }: UseTaskEditOptions): UseTaskEdi
       qc.invalidateQueries({ queryKey: ['tags'] })
       setEditing(false)
       onSuccess?.()
+    } catch {
+      setSaveError('Failed to save. Please try again.')
     } finally {
       setSaving(false)
     }
   }, [task.id, editTitle, editDescription, editTags, qc, onSuccess])
 
   const cancelEdit = useCallback(() => {
+    setSaveError(null)
     setEditing(false)
   }, [])
 
@@ -65,6 +72,7 @@ export function useTaskEdit({ task, onSuccess }: UseTaskEditOptions): UseTaskEdi
     editDescription,
     editTags,
     saving,
+    saveError,
     openEdit,
     saveEdit,
     cancelEdit,

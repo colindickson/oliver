@@ -15,11 +15,13 @@ export function useTimer() {
   const startTimer = useMutation({
     mutationFn: timerApi.start,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['timer'] }),
+    onError: () => qc.invalidateQueries({ queryKey: ['timer'] }),
   })
 
   const pauseTimer = useMutation({
     mutationFn: timerApi.pause,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['timer'] }),
+    onError: () => qc.invalidateQueries({ queryKey: ['timer'] }),
   })
 
   const stopTimer = useMutation({
@@ -28,6 +30,7 @@ export function useTimer() {
       qc.invalidateQueries({ queryKey: ['timer'] })
       qc.invalidateQueries({ queryKey: ['sessions'] })
     },
+    onError: () => qc.invalidateQueries({ queryKey: ['timer'] }),
   })
 
   return { timer, startTimer, pauseTimer, stopTimer }

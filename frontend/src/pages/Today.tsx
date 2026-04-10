@@ -45,7 +45,7 @@ export function Today() {
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
   const [rollForwardTask, setRollForwardTask] = useState<Task | null>(null)
 
-  const { data: day, isLoading } = useQuery({
+  const { data: day, isLoading, isError, refetch } = useQuery({
     queryKey: ['day', 'today'],
     queryFn: dayApi.getToday,
   })
@@ -124,8 +124,10 @@ export function Today() {
   })
 
   const scheduleFromBacklog = useMutation({
-    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) =>
-      backlogApi.moveToDay(taskId, { day_id: day!.id, category }),
+    mutationFn: ({ taskId, category }: { taskId: number; category: NonNullable<Task['category']> }) => {
+      if (!day) throw new Error('Day not loaded')
+      return backlogApi.moveToDay(taskId, { day_id: day.id, category })
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', 'today'] })
       qc.invalidateQueries({ queryKey: ['backlog'] })
@@ -133,8 +135,10 @@ export function Today() {
   })
 
   const instantiateTemplate = useMutation({
-    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) =>
-      templatesApi.instantiate(template.id, day!.id, category),
+    mutationFn: ({ template, category }: { template: TaskTemplate; category: NonNullable<Task['category']> }) => {
+      if (!day) throw new Error('Day not loaded')
+      return templatesApi.instantiate(template.id, day.id, category)
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
@@ -209,6 +213,34 @@ export function Today() {
 
   function handleInstantiateFromTemplate(template: TaskTemplate, category: NonNullable<Task['category']>) {
     instantiateTemplate.mutate({ template, category })
+  }
+
+  if (isError) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col h-screen bg-stone-900">
+          <MobileHeader title="Today" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-stone-400 text-sm">Failed to load today's tasks.</p>
+            <button onClick={() => void refetch()} className="text-xs text-terracotta-400 hover:text-terracotta-300 underline">
+              Retry
+            </button>
+          </div>
+          <BottomTabBar />
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <p className="text-stone-400 text-sm">Failed to load today's tasks.</p>
+          <button onClick={() => void refetch()} className="text-xs text-terracotta-400 hover:text-terracotta-300 underline">
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading || !day) {

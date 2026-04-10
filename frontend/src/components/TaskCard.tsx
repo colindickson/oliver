@@ -26,6 +26,7 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
     editDescription,
     editTags,
     saving,
+    saveError,
     openEdit,
     saveEdit,
     cancelEdit,
@@ -73,6 +74,9 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             Cancel
           </button>
         </div>
+        {saveError && (
+          <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>
+        )}
       </div>
     )
   }
