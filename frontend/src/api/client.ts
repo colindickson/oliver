@@ -266,6 +266,7 @@ export interface Goal {
   target_date: string | null
   status: 'active' | 'completed'
   completed_at: string | null
+  archived_at: string | null
   created_at: string
   tags: string[]
   total_tasks: number
@@ -295,11 +296,14 @@ export interface GoalUpdate {
 
 export const goalApi = {
   getAll: () => api.get<Goal[]>('/goals').then(r => r.data),
+  getArchived: () => api.get<Goal[]>('/goals/archived').then(r => r.data),
   getOne: (id: number) => api.get<GoalDetail>(`/goals/${id}`).then(r => r.data),
   create: (payload: GoalCreate) => api.post<Goal>('/goals', payload).then(r => r.data),
   update: (id: number, payload: GoalUpdate) => api.put<Goal>(`/goals/${id}`, payload).then(r => r.data),
   setStatus: (id: number, status: 'active' | 'completed') =>
     api.patch<Goal>(`/goals/${id}/status`, { status }).then(r => r.data),
+  archive: (id: number) => api.patch<Goal>(`/goals/${id}/archive`).then(r => r.data),
+  unarchive: (id: number) => api.patch<Goal>(`/goals/${id}/unarchive`).then(r => r.data),
   delete: (id: number) => api.delete(`/goals/${id}`),
 }
 

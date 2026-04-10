@@ -32,31 +32,15 @@ class GoalService:
     # ------------------------------------------------------------------
 
     async def get_all_goals(self) -> list[GoalResponse]:
-        """Return all goals with progress computed, ordered by created_at desc."""
-        result = await self._db.execute(select(Goal))
+        """Return unarchived goals with progress computed, ordered by created_at desc."""
+        result = await self._db.execute(
+            select(Goal).where(Goal.archived_at.is_(None))
+        )
         goals = list(result.scalars().all())
 
         progress_map = await self._batch_compute_progress(goals)
 
-        responses = []
-        for goal in goals:
-            total, completed, pct = progress_map[goal.id]
-            responses.append(
-                GoalResponse(
-                    id=goal.id,
-                    title=goal.title,
-                    description=goal.description,
-                    target_date=goal.target_date,
-                    status=goal.status,
-                    completed_at=goal.completed_at,
-                    created_at=goal.created_at,
-                    tags=goal.tags,  # field_validator coerces Tag objects to strings
-                    total_tasks=total,
-                    completed_tasks=completed,
-                    progress_pct=pct,
-                )
-            )
-        return responses
+        return [self._to_response(g, *progress_map[g.id]) for g in goals]
 
     async def get_goal(self, goal_id: int) -> GoalDetailResponse:
         """Return a goal with full task list and progress."""
@@ -64,20 +48,20 @@ class GoalService:
         total, completed, pct = await self._compute_progress(goal)
         tasks = await self._get_effective_tasks(goal)
 
-        return GoalDetailResponse(
-            id=goal.id,
-            title=goal.title,
-            description=goal.description,
-            target_date=goal.target_date,
-            status=goal.status,
-            completed_at=goal.completed_at,
-            created_at=goal.created_at,
-            tags=goal.tags,
-            total_tasks=total,
-            completed_tasks=completed,
-            progress_pct=pct,
-            tasks=tasks,
+        return self._to_response(goal, total, completed, pct, tasks=tasks)  # type: ignore[return-value]
+
+    async def get_archived_goals(self) -> list[GoalResponse]:
+        """Return all archived goals with progress, ordered by archived_at desc."""
+        result = await self._db.execute(
+            select(Goal)
+            .where(Goal.archived_at.is_not(None))
+            .order_by(Goal.archived_at.desc())
         )
+        goals = list(result.scalars().all())
+
+        progress_map = await self._batch_compute_progress(goals)
+
+        return [self._to_response(g, *progress_map[g.id]) for g in goals]
 
     # ------------------------------------------------------------------
     # Mutations
@@ -105,19 +89,7 @@ class GoalService:
         await self._db.flush()
         await self._db.refresh(goal)
 
-        return GoalResponse(
-            id=goal.id,
-            title=goal.title,
-            description=goal.description,
-            target_date=goal.target_date,
-            status=goal.status,
-            completed_at=goal.completed_at,
-            created_at=goal.created_at,
-            tags=goal.tags,
-            total_tasks=total,
-            completed_tasks=completed,
-            progress_pct=pct,
-        )
+        return self._to_response(goal, total, completed, pct)
 
     async def update_goal(self, goal_id: int, payload: GoalUpdate) -> GoalResponse:
         """Apply partial updates to a goal."""
@@ -144,19 +116,7 @@ class GoalService:
         await self._db.refresh(goal)
 
         total, completed, pct = await self._compute_progress(goal)
-        return GoalResponse(
-            id=goal.id,
-            title=goal.title,
-            description=goal.description,
-            target_date=goal.target_date,
-            status=goal.status,
-            completed_at=goal.completed_at,
-            created_at=goal.created_at,
-            tags=goal.tags,
-            total_tasks=total,
-            completed_tasks=completed,
-            progress_pct=pct,
-        )
+        return self._to_response(goal, total, completed, pct)
 
     async def set_goal_status(self, goal_id: int, status: str) -> GoalResponse:
         """Manually set the status of a goal."""
@@ -171,19 +131,25 @@ class GoalService:
         await self._db.refresh(goal)
 
         total, completed, pct = await self._compute_progress(goal)
-        return GoalResponse(
-            id=goal.id,
-            title=goal.title,
-            description=goal.description,
-            target_date=goal.target_date,
-            status=goal.status,
-            completed_at=goal.completed_at,
-            created_at=goal.created_at,
-            tags=goal.tags,
-            total_tasks=total,
-            completed_tasks=completed,
-            progress_pct=pct,
-        )
+        return self._to_response(goal, total, completed, pct)
+
+    async def archive_goal(self, goal_id: int) -> GoalResponse:
+        """Archive a goal by setting archived_at."""
+        goal = await self._get_goal_or_raise(goal_id)
+        goal.archived_at = datetime.now(timezone.utc)
+        await self._db.flush()
+        await self._db.refresh(goal)
+        total, completed, pct = await self._compute_progress(goal)
+        return self._to_response(goal, total, completed, pct)
+
+    async def unarchive_goal(self, goal_id: int) -> GoalResponse:
+        """Unarchive a goal by clearing archived_at."""
+        goal = await self._get_goal_or_raise(goal_id)
+        goal.archived_at = None
+        await self._db.flush()
+        await self._db.refresh(goal)
+        total, completed, pct = await self._compute_progress(goal)
+        return self._to_response(goal, total, completed, pct)
 
     async def delete_goal(self, goal_id: int) -> None:
         """Delete a goal (cascade removes junction rows; tasks/tags are unaffected)."""
@@ -194,6 +160,27 @@ class GoalService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _to_response(
+        self, goal: Goal, total: int, completed: int, pct: int, **extra: object
+    ) -> GoalResponse:
+        """Build a GoalResponse (or GoalDetailResponse via tasks kwarg)."""
+        response_cls = GoalDetailResponse if "tasks" in extra else GoalResponse
+        return response_cls(
+            id=goal.id,
+            title=goal.title,
+            description=goal.description,
+            target_date=goal.target_date,
+            status=goal.status,
+            completed_at=goal.completed_at,
+            archived_at=goal.archived_at,
+            created_at=goal.created_at,
+            tags=goal.tags,
+            total_tasks=total,
+            completed_tasks=completed,
+            progress_pct=pct,
+            **extra,
+        )
 
     async def _get_goal_or_raise(self, goal_id: int) -> Goal:
         result = await self._db.execute(select(Goal).where(Goal.id == goal_id))

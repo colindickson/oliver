@@ -31,6 +31,7 @@ class Goal(Base):
     target_date = Column(Date, nullable=True)
     status = Column(String, nullable=False, default="active")
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False)
 
     tags = relationship("Tag", secondary=goal_tags_table, lazy="selectin")

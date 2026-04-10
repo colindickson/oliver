@@ -67,6 +67,7 @@ class GoalResponse(TagCoercionMixin):
     target_date: date | None
     status: str
     completed_at: datetime | None
+    archived_at: datetime | None
     created_at: datetime
     tags: list[str]
     total_tasks: int

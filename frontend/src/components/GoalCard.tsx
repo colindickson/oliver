@@ -6,6 +6,8 @@ interface Props {
   isFocusGoal?: boolean
   onClick: () => void
   onSetFocus?: () => void
+  onArchive?: () => void
+  onUnarchive?: () => void
 }
 
 function isOverdue(targetDate: string | null): boolean {
@@ -13,13 +15,23 @@ function isOverdue(targetDate: string | null): boolean {
   return new Date(targetDate) < new Date(new Date().toISOString().slice(0, 10))
 }
 
-export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus }: Props) {
+export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus, onArchive, onUnarchive }: Props) {
   const overdue = goal.status === 'active' && isOverdue(goal.target_date)
   const isCompleted = goal.status === 'completed'
 
   function handleSetFocus(e: React.MouseEvent) {
     e.stopPropagation()
     onSetFocus?.()
+  }
+
+  function handleArchive(e: React.MouseEvent) {
+    e.stopPropagation()
+    onArchive?.()
+  }
+
+  function handleUnarchive(e: React.MouseEvent) {
+    e.stopPropagation()
+    onUnarchive?.()
   }
 
   return (
@@ -69,6 +81,30 @@ export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus }:
                 <circle cx="8" cy="8" r="6" />
                 <circle cx="8" cy="8" r="3" />
                 <circle cx="8" cy="8" r="1" />
+              </svg>
+            </button>
+          )}
+          {onArchive && (
+            <button
+              onClick={handleArchive}
+              className="p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+              title="Archive goal"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="3" width="12" height="2" rx="0.5" />
+                <path d="M3 5v7.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V5" />
+                <path d="M6.5 8h3" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+          {onUnarchive && (
+            <button
+              onClick={handleUnarchive}
+              className="p-1 rounded hover:bg-terracotta-100 dark:hover:bg-terracotta-900/30 text-stone-400 hover:text-terracotta-500 dark:hover:text-terracotta-400 transition-colors"
+              title="Unarchive goal"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M2 8h12M8 2l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           )}

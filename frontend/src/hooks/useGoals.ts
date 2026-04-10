@@ -19,5 +19,13 @@ export function useGoals() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
   })
 
-  return { goals, isLoading, isError, createGoal, deleteGoal }
+  const archiveGoal = useMutation({
+    mutationFn: (id: number) => goalApi.archive(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['goals', 'archived'] })
+    },
+  })
+
+  return { goals, isLoading, isError, createGoal, deleteGoal, archiveGoal }
 }

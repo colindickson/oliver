@@ -9,6 +9,7 @@ const Tags = lazy(() => import('./pages/Tags').then(m => ({ default: m.Tags })))
 const TagDetail = lazy(() => import('./pages/TagDetail').then(m => ({ default: m.TagDetail })))
 const Backlog = lazy(() => import('./pages/Backlog').then(m => ({ default: m.Backlog })))
 const Goals = lazy(() => import('./pages/Goals').then(m => ({ default: m.Goals })))
+const GoalArchive = lazy(() => import('./pages/GoalArchive').then(m => ({ default: m.GoalArchive })))
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 import { useNotifications } from './hooks/useNotifications'
 import { useNotificationMute } from './hooks/useNotificationMute'
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/tags/:tagName" element={<TagDetail />} />
           <Route path="/backlog" element={<Backlog />} />
           <Route path="/goals" element={<Goals />} />
+          <Route path="/goals/archive" element={<GoalArchive />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

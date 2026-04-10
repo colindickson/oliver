@@ -26,5 +26,23 @@ export function useGoalDetail(goalId: number | null) {
     },
   })
 
-  return { goal, isLoading, updateGoal, setStatus }
+  const archiveGoal = useMutation({
+    mutationFn: () => goalApi.archive(goalId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['goals', 'archived'] })
+    },
+  })
+
+  const unarchiveGoal = useMutation({
+    mutationFn: () => goalApi.unarchive(goalId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['goals', 'archived'] })
+    },
+  })
+
+  return { goal, isLoading, updateGoal, setStatus, archiveGoal, unarchiveGoal }
 }

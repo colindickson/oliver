@@ -93,6 +93,8 @@ async def set_focus_goal(
         goal = await db.scalar(select(Goal).where(Goal.id == payload.goal_id))
         if goal is None:
             raise HTTPException(status_code=404, detail="Goal not found")
+        if goal.archived_at is not None:
+            raise HTTPException(status_code=400, detail="Cannot set an archived goal as focus goal")
     goal_id = await service.set_focus_goal_id(payload.goal_id)
     await db.commit()
     return FocusGoalResponse(goal_id=goal_id)

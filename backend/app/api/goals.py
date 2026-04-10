@@ -26,9 +26,15 @@ async def create_goal(body: GoalCreate, db: AsyncSession = Depends(get_db)) -> G
     return result
 
 
+@router.get("/archived", response_model=list[GoalResponse])
+async def list_archived_goals(db: AsyncSession = Depends(get_db)) -> list[GoalResponse]:
+    """Return all archived goals with progress."""
+    return await GoalService(db).get_archived_goals()
+
+
 @router.get("", response_model=list[GoalResponse])
 async def list_goals(db: AsyncSession = Depends(get_db)) -> list[GoalResponse]:
-    """Return all goals with progress."""
+    """Return all unarchived goals with progress."""
     return await GoalService(db).get_all_goals()
 
 
@@ -54,6 +60,22 @@ async def set_goal_status(
 ) -> GoalResponse:
     """Manually set a goal's status (complete or reopen)."""
     result = await GoalService(db).set_goal_status(goal_id, body.status)
+    await db.commit()
+    return result
+
+
+@router.patch("/{goal_id}/archive", response_model=GoalResponse)
+async def archive_goal(goal_id: int, db: AsyncSession = Depends(get_db)) -> GoalResponse:
+    """Archive a goal (remove from main list, preserve status)."""
+    result = await GoalService(db).archive_goal(goal_id)
+    await db.commit()
+    return result
+
+
+@router.patch("/{goal_id}/unarchive", response_model=GoalResponse)
+async def unarchive_goal(goal_id: int, db: AsyncSession = Depends(get_db)) -> GoalResponse:
+    """Unarchive a goal (return to main list)."""
+    result = await GoalService(db).unarchive_goal(goal_id)
     await db.commit()
     return result
 

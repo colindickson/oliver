@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { GoalCard } from '../components/GoalCard'
 import { GoalDetail } from '../components/GoalDetail'
@@ -50,7 +50,7 @@ function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void
 }
 
 export function Goals() {
-  const { goals, isError, createGoal, deleteGoal } = useGoals()
+  const { goals, isError, createGoal, deleteGoal, archiveGoal } = useGoals()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(() => {
     const id = searchParams.get('id')
@@ -88,6 +88,17 @@ export function Goals() {
     }
   }
 
+  function handleArchive() {
+    if (selectedGoalId !== null) {
+      if (focusGoalId === selectedGoalId) {
+        setFocusGoal.mutate(null)
+      }
+      archiveGoal.mutate(selectedGoalId, {
+        onSuccess: () => setSelectedGoalId(null),
+      })
+    }
+  }
+
   if (isError) {
     if (isMobile) {
       return (
@@ -118,15 +129,23 @@ export function Goals() {
           <div className="px-4 py-3 space-y-1.5">
             <div className="flex items-center justify-between py-2">
               <h1 className="text-base font-semibold text-stone-800 dark:text-stone-100">Goals</h1>
-              <button
-                onClick={() => { setShowNewForm(true) }}
-                className="flex items-center gap-1 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 2v8M2 6h8" strokeLinecap="round" />
-                </svg>
-                New Goal
-              </button>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/goals/archive"
+                  className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+                >
+                  Archive
+                </Link>
+                <button
+                  onClick={() => { setShowNewForm(true) }}
+                  className="flex items-center gap-1 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+                  </svg>
+                  New Goal
+                </button>
+              </div>
             </div>
 
             {showNewForm && (
@@ -159,6 +178,10 @@ export function Goals() {
                     isFocusGoal={focusGoalId === goal.id}
                     onClick={() => setSelectedGoalId(goal.id)}
                     onSetFocus={() => setFocusGoal.mutate(goal.id)}
+                    onArchive={() => {
+                      if (focusGoalId === goal.id) setFocusGoal.mutate(null)
+                      archiveGoal.mutate(goal.id)
+                    }}
                   />
                 ))}
               </div>
@@ -177,6 +200,7 @@ export function Goals() {
                     isSelected={selectedGoalId === goal.id}
                     isFocusGoal={focusGoalId === goal.id}
                     onClick={() => setSelectedGoalId(goal.id)}
+                    onArchive={() => archiveGoal.mutate(goal.id)}
                   />
                 ))}
               </div>
@@ -191,6 +215,7 @@ export function Goals() {
                   isFocusGoal={focusGoalId === selectedGoalId}
                   onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
                   onClearFocus={() => setFocusGoal.mutate(null)}
+                  onArchive={handleArchive}
                 />
               </div>
             )}
@@ -210,15 +235,23 @@ export function Goals() {
         {/* Panel header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-stone-200 dark:border-stone-700 flex-shrink-0">
           <h1 className="text-base font-semibold text-stone-800 dark:text-stone-100">Goals</h1>
-          <button
-            onClick={() => { setShowNewForm(true) }}
-            className="flex items-center gap-1 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 2v8M2 6h8" strokeLinecap="round" />
-            </svg>
-            New Goal
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/goals/archive"
+              className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+            >
+              Archive
+            </Link>
+            <button
+              onClick={() => { setShowNewForm(true) }}
+              className="flex items-center gap-1 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 2v8M2 6h8" strokeLinecap="round" />
+              </svg>
+              New Goal
+            </button>
+          </div>
         </div>
 
         {/* Goal list */}
@@ -253,6 +286,10 @@ export function Goals() {
                   isFocusGoal={focusGoalId === goal.id}
                   onClick={() => setSelectedGoalId(goal.id)}
                   onSetFocus={() => setFocusGoal.mutate(goal.id)}
+                  onArchive={() => {
+                    if (focusGoalId === goal.id) setFocusGoal.mutate(null)
+                    archiveGoal.mutate(goal.id)
+                  }}
                 />
               ))}
             </div>
@@ -271,6 +308,7 @@ export function Goals() {
                   isSelected={selectedGoalId === goal.id}
                   isFocusGoal={focusGoalId === goal.id}
                   onClick={() => setSelectedGoalId(goal.id)}
+                  onArchive={() => archiveGoal.mutate(goal.id)}
                 />
               ))}
             </div>
@@ -288,6 +326,7 @@ export function Goals() {
             isFocusGoal={focusGoalId === selectedGoalId}
             onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
             onClearFocus={() => setFocusGoal.mutate(null)}
+            onArchive={handleArchive}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

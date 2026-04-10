@@ -359,3 +359,113 @@ async def test_delete_goal_returns_404(client: AsyncClient) -> None:
     """DELETE /api/goals/99999 returns 404 for a non-existent goal."""
     response = await client.delete("/api/goals/99999")
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Archive / Unarchive
+# ---------------------------------------------------------------------------
+
+
+async def test_archive_goal(client: AsyncClient) -> None:
+    """Archiving a goal sets archived_at and preserves status."""
+    create_resp = await client.post("/api/goals", json={"title": "Archive me"})
+    goal_id = create_resp.json()["id"]
+    assert create_resp.json()["archived_at"] is None
+
+    resp = await client.patch(f"/api/goals/{goal_id}/archive")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["archived_at"] is not None
+    assert data["status"] == "active"
+
+
+async def test_unarchive_goal(client: AsyncClient) -> None:
+    """Unarchiving a goal clears archived_at."""
+    create_resp = await client.post("/api/goals", json={"title": "Unarchive me"})
+    goal_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/goals/{goal_id}/archive")
+    resp = await client.patch(f"/api/goals/{goal_id}/unarchive")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["archived_at"] is None
+
+
+async def test_archived_goals_excluded_from_list(client: AsyncClient) -> None:
+    """Archived goals do not appear in GET /api/goals."""
+    await client.post("/api/goals", json={"title": "Visible"})
+    create_resp = await client.post("/api/goals", json={"title": "Hidden"})
+    hidden_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/goals/{hidden_id}/archive")
+
+    resp = await client.get("/api/goals")
+    assert resp.status_code == 200
+    titles = [g["title"] for g in resp.json()]
+    assert "Visible" in titles
+    assert "Hidden" not in titles
+
+
+async def test_archived_goals_appear_in_archived_list(client: AsyncClient) -> None:
+    """Archived goals appear in GET /api/goals/archived."""
+    await client.post("/api/goals", json={"title": "Normal"})
+    create_resp = await client.post("/api/goals", json={"title": "Archived"})
+    archived_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/goals/{archived_id}/archive")
+
+    resp = await client.get("/api/goals/archived")
+    assert resp.status_code == 200
+    titles = [g["title"] for g in resp.json()]
+    assert "Archived" in titles
+    assert "Normal" not in titles
+
+
+async def test_archive_completed_goal_preserves_status(client: AsyncClient) -> None:
+    """Archiving a completed goal keeps its status as completed."""
+    create_resp = await client.post("/api/goals", json={"title": "Done goal"})
+    goal_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/goals/{goal_id}/status", json={"status": "completed"})
+
+    resp = await client.patch(f"/api/goals/{goal_id}/archive")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert data["archived_at"] is not None
+
+    # Unarchive and verify status still completed
+    unarchive_resp = await client.patch(f"/api/goals/{goal_id}/unarchive")
+    assert unarchive_resp.json()["status"] == "completed"
+
+
+async def test_cannot_set_archived_goal_as_focus(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Setting an archived goal as focus goal returns 400."""
+    create_resp = await client.post("/api/goals", json={"title": "Focus target"})
+    goal_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/goals/{goal_id}/archive")
+
+    resp = await client.put("/api/settings/focus-goal", json={"goal_id": goal_id})
+    assert resp.status_code == 400
+
+
+async def test_archive_nonexistent_goal_404(client: AsyncClient) -> None:
+    """PATCH /api/goals/99999/archive returns 404."""
+    resp = await client.patch("/api/goals/99999/archive")
+    assert resp.status_code == 404
+
+
+async def test_unarchive_nonexistent_goal_404(client: AsyncClient) -> None:
+    """PATCH /api/goals/99999/unarchive returns 404."""
+    resp = await client.patch("/api/goals/99999/unarchive")
+    assert resp.status_code == 404
+
+
+async def test_get_archived_goals_empty(client: AsyncClient) -> None:
+    """GET /api/goals/archived returns [] when nothing is archived."""
+    resp = await client.get("/api/goals/archived")
+    assert resp.status_code == 200
+    assert resp.json() == []

@@ -7,10 +7,13 @@ import { useGoalDetail } from '../hooks/useGoalDetail'
 
 interface Props {
   goalId: number
-  onDeleted: () => void
+  onDeleted?: () => void
   isFocusGoal?: boolean
   onSetFocus?: () => void
   onClearFocus?: () => void
+  readOnly?: boolean
+  onArchive?: () => void
+  onUnarchive?: () => void
 }
 
 function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
@@ -67,8 +70,8 @@ function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
   )
 }
 
-export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus }: Props) {
-  const { goal, updateGoal, setStatus } = useGoalDetail(goalId)
+export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus, readOnly, onArchive, onUnarchive }: Props) {
+  const { goal, updateGoal, setStatus, archiveGoal, unarchiveGoal } = useGoalDetail(goalId)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [editingDesc, setEditingDesc] = useState(false)
@@ -106,6 +109,14 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
     setEditingDesc(false)
   }
 
+  function handleArchive() {
+    archiveGoal.mutate(undefined, { onSuccess: onArchive })
+  }
+
+  function handleUnarchive() {
+    unarchiveGoal.mutate(undefined, { onSuccess: onUnarchive })
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header bar */}
@@ -124,50 +135,77 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {goal.status === 'active' && (
-            isFocusGoal ? (
-              <button
-                onClick={onClearFocus}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-terracotta-100 hover:bg-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/40 dark:hover:bg-terracotta-900/60 dark:text-terracotta-300 transition-colors flex items-center gap-1"
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                  <circle cx="8" cy="8" r="6" />
-                  <circle cx="8" cy="8" r="3" fill="white" />
-                  <circle cx="8" cy="8" r="1.5" />
-                </svg>
-                Focus
-              </button>
-            ) : (
-              <button
-                onClick={onSetFocus}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 hover:border-terracotta-300 dark:hover:border-terracotta-600 text-stone-600 dark:text-stone-300 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors flex items-center gap-1"
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6" />
-                  <circle cx="8" cy="8" r="3" />
-                  <circle cx="8" cy="8" r="1" />
-                </svg>
-                Set as focus
-              </button>
-            )
-          )}
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            {goal.status === 'active' && (
+              isFocusGoal ? (
+                <button
+                  onClick={onClearFocus}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-terracotta-100 hover:bg-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/40 dark:hover:bg-terracotta-900/60 dark:text-terracotta-300 transition-colors flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <circle cx="8" cy="8" r="6" />
+                    <circle cx="8" cy="8" r="3" fill="white" />
+                    <circle cx="8" cy="8" r="1.5" />
+                  </svg>
+                  Focus
+                </button>
+              ) : (
+                <button
+                  onClick={onSetFocus}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 hover:border-terracotta-300 dark:hover:border-terracotta-600 text-stone-600 dark:text-stone-300 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="8" cy="8" r="6" />
+                    <circle cx="8" cy="8" r="3" />
+                    <circle cx="8" cy="8" r="1" />
+                  </svg>
+                  Set as focus
+                </button>
+              )
+            )}
+            <button
+              onClick={() => setStatus.mutate(goal.status === 'completed' ? 'active' : 'completed')}
+              disabled={setStatus.isPending}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                goal.status === 'completed'
+                  ? 'bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-700 dark:hover:bg-stone-600 dark:text-stone-300'
+                  : 'bg-moss-500 hover:bg-moss-600 text-white dark:bg-moss-600 dark:hover:bg-moss-500'
+              }`}
+            >
+              {goal.status === 'completed' ? 'Reopen' : 'Mark Complete'}
+            </button>
+            <button
+              onClick={handleArchive}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 hover:border-stone-300 dark:hover:border-stone-500 text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors flex items-center gap-1"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="3" width="12" height="2" rx="0.5" />
+                <path d="M3 5v7.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V5" />
+                <path d="M6.5 8h3" strokeLinecap="round" />
+              </svg>
+              Archive
+            </button>
+            {onDeleted && (
+              <ConfirmableDelete
+                onConfirm={onDeleted}
+                isLoading={false}
+              />
+            )}
+          </div>
+        )}
+        {readOnly && onUnarchive && (
           <button
-            onClick={() => setStatus.mutate(goal.status === 'completed' ? 'active' : 'completed')}
-            disabled={setStatus.isPending}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-              goal.status === 'completed'
-                ? 'bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-700 dark:hover:bg-stone-600 dark:text-stone-300'
-                : 'bg-moss-500 hover:bg-moss-600 text-white dark:bg-moss-600 dark:hover:bg-moss-500'
-            }`}
+            onClick={handleUnarchive}
+            disabled={unarchiveGoal.isPending}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-terracotta-300 dark:border-terracotta-600 hover:bg-terracotta-50 dark:hover:bg-terracotta-900/30 text-terracotta-600 dark:text-terracotta-400 transition-colors disabled:opacity-50 flex items-center gap-1"
           >
-            {goal.status === 'completed' ? 'Reopen' : 'Mark Complete'}
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M8 3v10M3 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Unarchive
           </button>
-          <ConfirmableDelete
-            onConfirm={onDeleted}
-            isLoading={false}
-          />
-        </div>
+        )}
       </div>
 
       {/* Scrollable content */}
@@ -175,7 +213,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
 
         {/* Title */}
         <div>
-          {editingTitle ? (
+          {!readOnly && editingTitle ? (
             <input
               autoFocus
               type="text"
@@ -190,8 +228,10 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             />
           ) : (
             <h2
-              onClick={() => { setTitleDraft(goal.title); setEditingTitle(true) }}
-              className="text-xl font-semibold text-stone-800 dark:text-stone-100 cursor-text hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors"
+              {...(!readOnly ? { onClick: () => { setTitleDraft(goal.title); setEditingTitle(true) } } : {})}
+              className={`text-xl font-semibold text-stone-800 dark:text-stone-100 ${
+                !readOnly ? 'cursor-text hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors' : ''
+              }`}
             >
               {goal.title}
             </h2>
@@ -203,7 +243,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
           <label className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">
             Description
           </label>
-          {editingDesc ? (
+          {!readOnly && editingDesc ? (
             <textarea
               autoFocus
               value={descDraft}
@@ -217,8 +257,10 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             />
           ) : (
             <p
-              onClick={() => { setDescDraft(goal.description ?? ''); setEditingDesc(true) }}
-              className={`mt-1 text-sm cursor-text rounded-lg px-3 py-2 transition-colors hover:bg-stone-50 dark:hover:bg-stone-700/50 ${
+              {...(!readOnly ? { onClick: () => { setDescDraft(goal.description ?? ''); setEditingDesc(true) } } : {})}
+              className={`mt-1 text-sm rounded-lg px-3 py-2 ${
+                !readOnly ? 'cursor-text transition-colors hover:bg-stone-50 dark:hover:bg-stone-700/50' : ''
+              } ${
                 goal.description
                   ? 'text-stone-600 dark:text-stone-300'
                   : 'text-stone-300 dark:text-stone-600 italic'
@@ -235,16 +277,24 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             Target Date
           </label>
           <div className="mt-1 flex items-center gap-2">
-            <input
-              type="date"
-              value={goal.target_date ?? ''}
-              onChange={e => updateGoal.mutate({ target_date: e.target.value || 'CLEAR' })}
-              className="text-sm px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-700 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 dark:focus:ring-terracotta-600"
-            />
+            {readOnly ? (
+              <span className={`text-sm px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 ${
+                goal.target_date ? 'text-stone-700 dark:text-stone-200' : 'text-stone-300 dark:text-stone-600 italic'
+              }`}>
+                {goal.target_date ?? 'None'}
+              </span>
+            ) : (
+              <input
+                type="date"
+                value={goal.target_date ?? ''}
+                onChange={e => updateGoal.mutate({ target_date: e.target.value || 'CLEAR' })}
+                className="text-sm px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-700 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 dark:focus:ring-terracotta-600"
+              />
+            )}
             {isOverdue && (
               <span className="text-xs text-red-500 dark:text-red-400 font-medium">Overdue</span>
             )}
-            {goal.target_date && (
+            {!readOnly && goal.target_date && (
               <button
                 onClick={() => updateGoal.mutate({ target_date: 'CLEAR' })}
                 className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-colors"
@@ -261,11 +311,26 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             Tags (auto-links tasks)
           </label>
           <div className="mt-1">
-            <TagInput
-              value={goal.tags}
-              onChange={tags => updateGoal.mutate({ tag_names: tags })}
-              maxTags={10}
-            />
+            {readOnly ? (
+              <div className="flex flex-wrap gap-1.5 px-3 py-2">
+                {goal.tags.length > 0 ? goal.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400"
+                  >
+                    #{tag}
+                  </span>
+                )) : (
+                  <span className="text-sm text-stone-300 dark:text-stone-600 italic">No tags</span>
+                )}
+              </div>
+            ) : (
+              <TagInput
+                value={goal.tags}
+                onChange={tags => updateGoal.mutate({ tag_names: tags })}
+                maxTags={10}
+              />
+            )}
           </div>
         </div>
 
@@ -275,12 +340,14 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             <label className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">
               Directly Linked Tasks
             </label>
-            <button
-              onClick={() => setShowTaskPicker(true)}
-              className="text-xs text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 font-medium transition-colors"
-            >
-              + Link tasks
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowTaskPicker(true)}
+                className="text-xs text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 font-medium transition-colors"
+              >
+                + Link tasks
+              </button>
+            )}
           </div>
           <p className="text-xs text-stone-400 dark:text-stone-500 mb-2">
             These are in addition to tasks pulled in via tags above.
