@@ -113,6 +113,8 @@ function buildTaskVolumeData(days: DayResponse[]): TaskVolumePoint[] {
 
 interface TagFrequencyItem { name: string; count: number; pct: number }
 
+interface StreakGridCell { date: string; completionRate: number | null }
+
 function buildTagFrequencyData(days: DayResponse[]): TagFrequencyItem[] {
   const completed = days.flatMap(d => d.tasks).filter(t => t.status === 'completed')
   const total = completed.length
@@ -516,6 +518,139 @@ function TagCloud({ data, isDark }: TagCloudProps) {
 }
 
 // -----------------------------------------------------------------------------
+// Tag Bars — horizontal bar chart for tag frequency
+// -----------------------------------------------------------------------------
+
+interface TagBarsProps { data: TagFrequencyItem[]; isDark: boolean }
+
+function TagBars({ data, isDark }: TagBarsProps) {
+  if (data.length === 0) {
+    return (
+      <div className="text-sm text-stone-400 flex items-center justify-center" style={{ height: 120 }}>
+        No tagged tasks completed in this period
+      </div>
+    )
+  }
+
+  const display = data.slice(0, 12)
+  const max = display[0].count
+  const total = data.reduce((s, t) => s + t.count, 0)
+  const trackBg = isDark ? '#292524' : '#e7e5e4'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {display.map((t, i) => {
+        const pct = t.count / max
+        const color = TAG_COLORS[i % TAG_COLORS.length]
+        return (
+          <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 72, fontSize: 12, fontFamily: "'DM Mono', Menlo, monospace", color: isDark ? '#a8a29e' : '#78716c', textAlign: 'right', flexShrink: 0 }}>{t.name}</div>
+            <div style={{ flex: 1, height: 8, background: trackBg, borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct * 100}%`, background: color, borderRadius: 4, transition: 'width 0.6s cubic-bezier(.22,.68,0,1.2)' }} />
+            </div>
+            <div style={{ width: 32, fontSize: 11, fontFamily: "'DM Mono', Menlo, monospace", color: isDark ? '#57534e' : '#a8a29e', textAlign: 'right', flexShrink: 0 }}>{t.count}</div>
+            <div style={{ width: 36, fontSize: 11, color: isDark ? '#57534e' : '#a8a29e', textAlign: 'right', flexShrink: 0 }}>{Math.round((t.count / total) * 100)}%</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Streak Grid — 12-week completion heatmap
+// -----------------------------------------------------------------------------
+
+interface StreakGridProps { data: StreakGridCell[]; isDark: boolean }
+
+function StreakGrid({ data, isDark }: StreakGridProps) {
+  const cellSize = 13
+  const gap = 3
+  const borderBg = isDark ? '#292524' : '#e7e5e4'
+
+  const weeks: (number | null)[][] = []
+  for (let w = 0; w < 12; w++) {
+    const week: (number | null)[] = []
+    for (let d = 0; d < 7; d++) {
+      const idx = w * 7 + d
+      week.push(idx < data.length ? data[idx].completionRate : null)
+    }
+    weeks.push(week)
+  }
+
+  function cellColor(v: number | null): string {
+    if (v === null) return borderBg
+    if (v < 40) return 'rgba(232,107,58,0.2)'
+    if (v < 70) return 'rgba(232,107,58,0.5)'
+    if (v < 90) return 'rgba(232,107,58,0.8)'
+    return TERRACOTTA
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap }}>
+        {weeks.map((week, wi) => (
+          <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap }}>
+            {week.map((v, di) => (
+              <div
+                key={di}
+                title={v !== null ? `${data[wi * 7 + di]?.date}: ${v}%` : 'No data'}
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  borderRadius: 3,
+                  background: cellColor(v),
+                  cursor: v !== null ? 'pointer' : 'default',
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11, color: isDark ? '#57534e' : '#a8a29e' }}>
+        <span>Less</span>
+        {[0.2, 0.5, 0.8, 1].map(o => (
+          <div key={o} style={{ width: 10, height: 10, borderRadius: 2, background: `rgba(232,107,58,${o})` }} />
+        ))}
+        <span>More</span>
+      </div>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Focus Mini Card — small stat card for activity insights
+// -----------------------------------------------------------------------------
+
+interface FocusMiniCardProps {
+  label: string
+  value: string | number
+  color?: string
+  isDark: boolean
+}
+
+function FocusMiniCard({ label, value, color, isDark }: FocusMiniCardProps) {
+  return (
+    <div style={{
+      padding: '10px 12px',
+      background: isDark ? '#111110' : '#f7f5f2',
+      borderRadius: 8,
+      border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+    }}>
+      <div style={{ fontSize: 11, color: isDark ? '#4d4845' : '#a09890', marginBottom: 3 }}>{label}</div>
+      <div style={{
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: "'DM Mono', Menlo, monospace",
+        color: color || (isDark ? '#f0ede8' : '#1a1816'),
+      }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
 // Period options
 // -----------------------------------------------------------------------------
 
@@ -566,6 +701,67 @@ export function Analytics() {
       tagFrequencyData: buildTagFrequencyData(windowedDays),
     }
   }, [allDays, periodDays])
+
+  const streakGridData = useMemo((): StreakGridCell[] => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const cells: StreakGridCell[] = []
+    for (let i = 83; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(d.getDate() - i)
+      const dateStr = d.toISOString().slice(0, 10)
+      const dayData = allDays.find(day => day.date === dateStr)
+      if (!dayData || dayData.day_off || dayData.tasks.length === 0) {
+        cells.push({ date: dateStr, completionRate: null })
+      } else {
+        const total = dayData.tasks.length
+        const completed = dayData.tasks.filter(t => t.status === 'completed').length
+        cells.push({ date: dateStr, completionRate: Math.round((completed / total) * 100) })
+      }
+    }
+    return cells
+  }, [allDays])
+
+  const focusStats = useMemo(() => {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+    const todayStr = now.toISOString().slice(0, 10)
+    const thisMonthDays = allDays.filter(d =>
+      d.date >= monthStart && d.date <= todayStr && !d.day_off && d.tasks.length > 0
+    )
+    const activeDays = thisMonthDays.filter(d =>
+      d.tasks.some(t => t.status === 'completed')
+    ).length
+
+    const dowNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const dowBuckets: Record<string, { total: number; completed: number }> = {}
+    for (const name of dowNames) dowBuckets[name] = { total: 0, completed: 0 }
+
+    allDays.forEach(d => {
+      if (d.day_off || d.tasks.length === 0) return
+      const dow = new Date(d.date + 'T00:00:00').getDay()
+      const name = dowNames[dow]
+      d.tasks.forEach(t => {
+        dowBuckets[name].total++
+        if (t.status === 'completed') dowBuckets[name].completed++
+      })
+    })
+
+    let bestDay = '', worstDay = '', bestRate = -1, worstRate = 101
+    for (const [name, { total, completed }] of Object.entries(dowBuckets)) {
+      if (total === 0) continue
+      const rate = (completed / total) * 100
+      if (rate > bestRate) { bestRate = rate; bestDay = name }
+      if (rate < worstRate) { worstRate = rate; worstDay = name }
+    }
+
+    return {
+      longestStreak: streaks?.longest_streak ?? 0,
+      thisMonthActiveDays: activeDays,
+      bestDay: bestDay || 'N/A',
+      weakestDay: worstDay || 'N/A',
+    }
+  }, [allDays, streaks])
 
   const chartCard = 'bg-white dark:bg-stone-800/80 rounded-xl border border-stone-100 dark:border-stone-700 p-5 shadow-soft'
   const sectionHeader = 'text-[11px] font-mono font-bold text-stone-400 uppercase tracking-[0.08em] mb-3.5'
@@ -745,6 +941,33 @@ export function Analytics() {
                       </ComposedChart>
                     </ResponsiveContainer>
                   )}
+                </div>
+              </div>
+            </section>
+
+            {/* Section: Focus Areas */}
+            <section>
+              <h2 className={sectionHeader}>Focus Areas</h2>
+              <div className="space-y-6">
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>Tag Frequency</h3>
+                  <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                    Most-used tags on completed tasks
+                  </p>
+                  <TagBars data={tagFrequencyData} isDark={isDark} />
+                </div>
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>12-Week Activity</h3>
+                  <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                    Completion rate heatmap
+                  </p>
+                  <StreakGrid data={streakGridData} isDark={isDark} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
+                    <FocusMiniCard label="Longest streak" value={`${focusStats.longestStreak} days`} isDark={isDark} />
+                    <FocusMiniCard label="This month" value={`${focusStats.thisMonthActiveDays} active days`} isDark={isDark} />
+                    <FocusMiniCard label="Best day" value={focusStats.bestDay} color={INDIGO} isDark={isDark} />
+                    <FocusMiniCard label="Weakest day" value={focusStats.weakestDay} color="#dc2626" isDark={isDark} />
+                  </div>
                 </div>
               </div>
             </section>
@@ -936,6 +1159,33 @@ export function Analytics() {
                     </ComposedChart>
                   </ResponsiveContainer>
                 )}
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Focus Areas */}
+          <section>
+            <h2 className={sectionHeader}>Focus Areas</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 14 }}>
+              <div className={chartCard}>
+                <h3 className={chartTitle}>Tag Frequency</h3>
+                <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                  Most-used tags on completed tasks
+                </p>
+                <TagBars data={tagFrequencyData} isDark={isDark} />
+              </div>
+              <div className={chartCard}>
+                <h3 className={chartTitle}>12-Week Activity</h3>
+                <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                  Completion rate heatmap
+                </p>
+                <StreakGrid data={streakGridData} isDark={isDark} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
+                  <FocusMiniCard label="Longest streak" value={`${focusStats.longestStreak} days`} isDark={isDark} />
+                  <FocusMiniCard label="This month" value={`${focusStats.thisMonthActiveDays} active days`} isDark={isDark} />
+                  <FocusMiniCard label="Best day" value={focusStats.bestDay} color={INDIGO} isDark={isDark} />
+                  <FocusMiniCard label="Weakest day" value={focusStats.weakestDay} color="#dc2626" isDark={isDark} />
+                </div>
               </div>
             </div>
           </section>
