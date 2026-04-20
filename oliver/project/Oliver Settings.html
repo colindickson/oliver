@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oliver — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+:root{
+  --sb:#111110;--sb2:#1c1b19;--sb-border:#2a2826;--sb-text:#f0ede8;--sb-muted:#6b6560;--sb-active:#2d2b28;
+  --bg:#f7f5f2;--surface:#ffffff;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --text:#1a1816;--text2:#5c5750;--text3:#a09890;
+  --accent:#e86b3a;--accent-light:#fdf0ea;
+  --deep:#5b5bd6;--deep-light:#ededfc;
+  --short:#e86b3a;--short-light:#fdf0ea;
+  --maint:#3d8b5e;--maint-light:#ebf5ef;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  --mono:'DM Mono',monospace;
+}
+.dark{
+  --bg:#111110;--surface:#1c1b19;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0ede8;--text2:#8a847d;--text3:#4d4845;
+  --accent-light:#2a1e17;--deep-light:#1a1a2e;--maint-light:#162318;
+  --shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2);
+}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:4px}
+*{transition:background-color .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease}
+input,textarea{font-family:inherit}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const IconHome=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>;
+const IconGoals=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const IconBacklog=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>;
+const IconTag=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>;
+const IconChart=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const IconSettings=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+const IconMoon=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+const IconSun=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>;
+const IconBell=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const IconChevL=()=><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>;
+const IconChevR=()=><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>;
+const IconChevDown=({size=12})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>;
+const IconPlus=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
+const IconPencil=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconTrash=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconClock=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconTimer=({size=16})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M10 2h4"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="8"/></svg>;
+const IconTemplate=({size=16})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>;
+const IconCalOff=({size=16})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="18"/><line x1="14" y1="14" x2="10" y2="18"/></svg>;
+const IconActivity=({size=16})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+const IconCheck=({size=12,color='currentColor'})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+
+// ── Mock data ──────────────────────────────────────────────────────────────
+const CAT={deep_work:{label:'Deep Work',color:'var(--deep)',bg:'var(--deep-light)'},short_task:{label:'Short Tasks',color:'var(--short)',bg:'var(--short-light)'},maintenance:{label:'Maintenance',color:'var(--maint)',bg:'var(--maint-light)'}};
+const INIT_TEMPLATES=[
+  {id:1,title:'Weekly planning',cat:'deep_work',tags:['planning'],desc:'Review week ahead, set priorities and block time.'},
+  {id:2,title:'Code review pass',cat:'short_task',tags:['dev'],desc:''},
+  {id:3,title:'Inbox zero',cat:'maintenance',tags:[],desc:'Clear email inbox and triage all messages.'},
+  {id:4,title:'Architecture review',cat:'deep_work',tags:['planning','backend'],desc:''},
+  {id:5,title:'Update project tracker',cat:'short_task',tags:['planning'],desc:''},
+];
+const INIT_LOGS=[
+  {id:1,tool:'create_task',status:'success',time:'2m ago',revertible:true,reverted:false,params:'{"title":"Write RFC","category":"deep_work"}',result:'{"id":42,"status":"pending"}'},
+  {id:2,tool:'complete_task',status:'success',time:'8m ago',revertible:true,reverted:false,params:'{"task_id":38}',result:'{"status":"completed"}'},
+  {id:3,tool:'get_daily_plan',status:'success',time:'15m ago',revertible:false,reverted:false,params:'{"date":"2026-04-20"}',result:'{"tasks":12}'},
+  {id:4,tool:'create_task',status:'error',time:'1h ago',revertible:false,reverted:false,params:'{"title":""}',result:'{"error":"Title required"}'},
+  {id:5,tool:'roll_forward_task',status:'success',time:'2h ago',revertible:true,reverted:true,params:'{"task_id":31,"target_date":"2026-04-21"}',result:'{"new_id":44}'},
+  {id:6,tool:'get_analytics',status:'success',time:'3h ago',revertible:false,reverted:false,params:'{"window_days":30}',result:'{"completion_rate":72}'},
+];
+const DAYS_OF_WEEK=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+const DAY_LABELS={monday:'Mon',tuesday:'Tue',wednesday:'Wed',thursday:'Thu',friday:'Fri',saturday:'Sat',sunday:'Sun'};
+const READONLY_TOOLS=new Set(['get_daily_plan','get_analytics','list_days_off','is_day_off']);
+const CAL_DAYS=['Mo','Tu','We','Th','Fr','Sa','Su'];
+const heatmap={};for(let d=1;d<=30;d++){let h=(d*2654435761)>>>0;h=(Math.imul(h^(h>>>16),0x45d9f3b))>>>0;const v=(h>>>0)/0xffffffff;heatmap[`2026-04-${String(d).padStart(2,'0')}`]=d>20?null:v<0.15?0:v<0.5?0.5:v<0.8?0.8:1;}
+
+// ── Shared sidebar ─────────────────────────────────────────────────────────
+function SbBtn({children,title,onClick,active}){const[h,setH]=useState(false);return<button title={title} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{width:28,height:28,borderRadius:6,border:'none',cursor:'pointer',background:active||h?'var(--sb2)':'transparent',color:active?'var(--sb-text)':'var(--sb-muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>{children}</button>;}
+
+function Sidebar({dark,onToggleDark}){
+  const[calDate,setCalDate]=useState(new Date(2026,3,1));
+  const y=calDate.getFullYear(),m=calDate.getMonth();
+  const firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0);
+  const offset=(firstDay.getDay()+6)%7;
+  const cells=[...Array(offset).fill(null),...Array.from({length:lastDay.getDate()},(_,i)=>new Date(y,m,i+1))];
+  while(cells.length%7)cells.push(null);
+  const mLabel=calDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const NAV=[
+    {key:'today',label:'Today',icon:<IconHome/>,href:'Oliver Redesign.html'},
+    {key:'goals',label:'Goals',icon:<IconGoals/>,href:'Oliver Goals.html'},
+    {key:'backlog',label:'Backlog',icon:<IconBacklog/>,href:'Oliver Backlog.html'},
+    {key:'tags',label:'Tags',icon:<IconTag/>,href:'#'},
+    {key:'analytics',label:'Analytics',icon:<IconChart/>,href:'Oliver Analytics.html'},
+  ];
+  return(
+    <aside style={{width:256,minWidth:256,height:'100vh',background:'var(--sb)',display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'1px solid var(--sb-border)'}}>
+      <div style={{padding:'20px 18px 14px',borderBottom:'1px solid var(--sb-border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:28,height:28,borderRadius:8,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <span style={{fontSize:16,fontWeight:700,color:'var(--sb-text)',letterSpacing:'-0.01em'}}>oliver</span>
+        </div>
+        <div style={{display:'flex',gap:2}}>
+          <SbBtn onClick={onToggleDark} title="Toggle theme">{dark?<IconSun/>:<IconMoon/>}</SbBtn>
+          <SbBtn title="Notifications"><IconBell/></SbBtn>
+          <SbBtn title="Settings" active><IconSettings/></SbBtn>
+        </div>
+      </div>
+      <nav style={{padding:'8px 10px',borderBottom:'1px solid var(--sb-border)'}}>
+        {NAV.map(item=>(<a key={item.key} href={item.href} style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'7px 10px',borderRadius:7,cursor:'pointer',background:'transparent',color:'var(--sb-muted)',fontSize:13.5,fontWeight:400,fontFamily:'inherit',marginBottom:1,textDecoration:'none'}}>
+          <span style={{opacity:0.7}}>{item.icon}</span>{item.label}
+        </a>))}
+      </nav>
+      <div style={{flex:1,overflowY:'auto',padding:'14px 14px 16px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          <span style={{fontSize:12,fontWeight:600,color:'var(--sb-text)',opacity:0.8}}>{mLabel}</span>
+          <div style={{display:'flex',gap:2}}><SbBtn onClick={()=>setCalDate(new Date(y,m-1,1))}><IconChevL/></SbBtn><SbBtn onClick={()=>setCalDate(new Date(y,m+1,1))}><IconChevR/></SbBtn></div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:4}}>{CAL_DAYS.map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:'var(--sb-muted)',fontWeight:600,padding:'2px 0'}}>{d}</div>)}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3}}>
+          {cells.map((date,i)=>{if(!date)return<div key={i}/>;const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;const heat=heatmap[ds];const isToday=ds==='2026-04-20';const hasData=heat!==null&&heat!==undefined;const dotColor=!hasData?'transparent':heat===0?'#3a3632':heat<0.6?'rgba(232,107,58,0.5)':heat<0.9?'rgba(232,107,58,0.8)':'var(--accent)';return(<button key={ds} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:6,border:isToday?'1.5px solid var(--accent)':'1.5px solid transparent',background:'transparent',cursor:'pointer',fontSize:11,fontWeight:isToday?700:400,color:isToday?'var(--accent)':'var(--sb-text)',opacity:isToday?1:0.75,gap:2}}>{date.getDate()}{hasData&&<div style={{width:4,height:4,borderRadius:'50%',background:dotColor}}/>}</button>);})}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ── Settings sidebar nav ───────────────────────────────────────────────────
+const SECTIONS=[
+  {id:'templates',label:'Templates',icon:<IconTemplate size={14}/>},
+  {id:'schedule',label:'Schedule',icon:<IconCalOff size={14}/>},
+  {id:'preferences',label:'Preferences',icon:<IconTimer size={14}/>},
+  {id:'activity',label:'Activity Log',icon:<IconActivity size={14}/>},
+];
+
+function SettingsNav({active,onChange}){
+  return(
+    <div style={{width:200,minWidth:200,borderRight:'1px solid var(--border)',padding:'20px 12px',flexShrink:0}}>
+      <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text3)',marginBottom:10,padding:'0 8px'}}>Settings</p>
+      {SECTIONS.map(s=>{const isActive=active===s.id;return(
+        <button key={s.id} onClick={()=>onChange(s.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:7,border:'none',cursor:'pointer',background:isActive?'var(--border)':'transparent',color:isActive?'var(--text)':'var(--text2)',fontSize:13,fontWeight:isActive?600:400,fontFamily:'inherit',marginBottom:2,textAlign:'left'}}>
+          <span style={{color:isActive?'var(--accent)':'var(--text3)'}}>{s.icon}</span>{s.label}
+        </button>
+      );})}
+    </div>
+  );
+}
+
+// ── Card wrapper ────────────────────────────────────────────────────────────
+function Card({title,subtitle,action,children}){
+  return(
+    <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'22px 24px',marginBottom:16,boxShadow:'var(--shadow)'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:subtitle?4:16}}>
+        <h2 style={{fontSize:15,fontWeight:700,color:'var(--text)'}}>{title}</h2>
+        {action}
+      </div>
+      {subtitle&&<p style={{fontSize:13,color:'var(--text3)',marginBottom:16,lineHeight:1.5}}>{subtitle}</p>}
+      {children}
+    </div>
+  );
+}
+
+// ── Toggle ──────────────────────────────────────────────────────────────────
+function Toggle({value,onChange}){
+  return<button onClick={()=>onChange(!value)} style={{width:42,height:24,borderRadius:12,border:'none',cursor:'pointer',background:value?'var(--accent)':'var(--border2)',position:'relative',flexShrink:0}}>
+    <div style={{width:18,height:18,borderRadius:'50%',background:'white',position:'absolute',top:3,left:value?21:3,transition:'left 0.15s',boxShadow:'0 1px 3px rgba(0,0,0,0.3)'}}/>
+  </button>;
+}
+
+// ── Templates section ───────────────────────────────────────────────────────
+function TemplatesSection(){
+  const[templates,setTemplates]=useState(INIT_TEMPLATES);
+  const[search,setSearch]=useState('');
+  const[editing,setEditing]=useState(null);
+  const[creating,setCreating]=useState(false);
+
+  const filtered=templates.filter(t=>!search||t.title.toLowerCase().includes(search.toLowerCase()));
+
+  function handleDelete(id){setTemplates(p=>p.filter(t=>t.id!==id));}
+  function handleSave(t){
+    if(t.id){setTemplates(p=>p.map(x=>x.id===t.id?t:x));}
+    else{setTemplates(p=>[{...t,id:Date.now()},...p]);}
+    setEditing(null);setCreating(false);
+  }
+
+  return(
+    <Card title="Task Templates" subtitle="Reusable task blueprints you can quickly add to any day."
+      action={<button onClick={()=>setCreating(true)} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:7,border:'none',background:'var(--accent)',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}><IconPlus size={12}/>New</button>}>
+      <div style={{position:'relative',marginBottom:12}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search templates…"
+          style={{width:'100%',padding:'8px 12px',borderRadius:8,border:'1px solid var(--border2)',background:'var(--bg)',color:'var(--text)',fontSize:13,outline:'none',fontFamily:'inherit'}}/>
+      </div>
+      {creating&&<TemplateForm template={{title:'',cat:'short_task',tags:[],desc:''}} onSave={handleSave} onCancel={()=>setCreating(false)}/>}
+      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+        {filtered.map(t=>editing?.id===t.id
+          ?<TemplateForm key={t.id} template={t} onSave={handleSave} onCancel={()=>setEditing(null)}/>
+          :<TemplateRow key={t.id} t={t} onEdit={()=>setEditing(t)} onDelete={()=>handleDelete(t.id)}/>
+        )}
+        {filtered.length===0&&<p style={{textAlign:'center',padding:'24px 0',color:'var(--text3)',fontSize:13}}>{search?'No templates match your search.':'No templates yet.'}</p>}
+      </div>
+    </Card>
+  );
+}
+
+function TemplateRow({t,onEdit,onDelete}){
+  const[h,setH]=useState(false);const[conf,setConf]=useState(false);const c=CAT[t.cat];
+  return(
+    <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>{setH(false);setConf(false);}}
+      style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg)',cursor:'default'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+          <span style={{fontSize:13.5,fontWeight:500,color:'var(--text)'}}>{t.title}</span>
+          <span style={{fontSize:11,fontWeight:600,padding:'1px 7px',borderRadius:4,background:c.bg,color:c.color}}>{c.label}</span>
+          {t.tags.map(tag=><span key={tag} style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text3)'}}>{`#${tag}`}</span>)}
+        </div>
+        {t.desc&&<p style={{fontSize:12,color:'var(--text3)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.desc}</p>}
+      </div>
+      <div style={{display:'flex',gap:2,opacity:h?1:0}}>
+        <ABtn icon={<IconPencil/>} onClick={onEdit} title="Edit"/>
+        {conf?<button onClick={onDelete} style={{padding:'2px 8px',borderRadius:4,border:'none',background:'#fee2e2',color:'#dc2626',cursor:'pointer',fontSize:11,fontWeight:600}}>confirm</button>
+          :<ABtn icon={<IconTrash/>} onClick={()=>setConf(true)} title="Delete" danger/>}
+      </div>
+    </div>
+  );
+}
+
+function TemplateForm({template,onSave,onCancel}){
+  const[title,setTitle]=useState(template.title);
+  const[cat,setCat]=useState(template.cat);
+  const[desc,setDesc]=useState(template.desc);
+  return(
+    <div style={{padding:'12px 14px',borderRadius:8,border:'1.5px solid var(--accent)',background:'var(--surface)',marginBottom:4,display:'flex',flexDirection:'column',gap:8}}>
+      <input autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Template title…"
+        style={{border:'none',outline:'none',fontSize:13.5,fontWeight:500,color:'var(--text)',background:'transparent',fontFamily:'inherit'}}/>
+      <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Description (optional)"
+        style={{border:'none',outline:'none',fontSize:12,color:'var(--text2)',background:'transparent',fontFamily:'inherit'}}/>
+      <div style={{display:'flex',gap:4}}>
+        {Object.entries(CAT).map(([k,v])=><button key={k} onClick={()=>setCat(k)} style={{padding:'3px 10px',borderRadius:5,border:`1.5px solid ${cat===k?v.color:'var(--border2)'}`,background:cat===k?v.bg:'transparent',color:cat===k?v.color:'var(--text3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>{v.label}</button>)}
+      </div>
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>title.trim()&&onSave({...template,title:title.trim(),cat,desc})} style={{padding:'5px 14px',borderRadius:6,border:'none',background:'var(--accent)',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Save</button>
+        <button onClick={onCancel} style={{padding:'5px 10px',borderRadius:6,border:'none',background:'var(--border)',color:'var(--text2)',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function ABtn({icon,title,onClick,danger}){const[h,setH]=useState(false);return<button title={title} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{width:26,height:26,borderRadius:5,border:'none',background:h?'var(--border)':'transparent',color:h&&danger?'#dc2626':'var(--text3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{icon}</button>;}
+
+// ── Schedule section ────────────────────────────────────────────────────────
+function ScheduleSection(){
+  const[offDays,setOffDays]=useState(new Set(['saturday','sunday']));
+  const[saved,setSaved]=useState(false);
+  function toggle(day){const n=new Set(offDays);n.has(day)?n.delete(day):n.add(day);setOffDays(n);setSaved(true);setTimeout(()=>setSaved(false),1500);}
+  return(
+    <Card title="Recurring Days Off" subtitle="These weekdays are automatically marked as off in your calendar."
+      action={<span style={{fontSize:12,fontWeight:600,color:'var(--maint)',opacity:saved?1:0,transition:'opacity 0.3s'}}>Saved ✓</span>}>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+        {DAYS_OF_WEEK.map(day=>{const on=offDays.has(day);return(
+          <button key={day} onClick={()=>toggle(day)} style={{padding:'8px 16px',borderRadius:8,border:`1.5px solid ${on?'var(--accent)':'var(--border2)'}`,background:on?'var(--accent-light)':'transparent',color:on?'var(--accent)':'var(--text2)',fontSize:13,fontWeight:on?700:400,cursor:'pointer',fontFamily:'inherit'}}>
+            {DAY_LABELS[day]}
+          </button>
+        );})}
+      </div>
+    </Card>
+  );
+}
+
+// ── Preferences section ─────────────────────────────────────────────────────
+function PreferencesSection({dark,onToggleDark}){
+  const[timerOn,setTimerOn]=useState(true);
+  const[notifOn,setNotifOn]=useState(true);
+  const[startPage,setStartPage]=useState('today');
+
+  const Row=({label,desc,children})=>(
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid var(--border)'}}>
+      <div>
+        <p style={{fontSize:13.5,fontWeight:500,color:'var(--text)'}}>{label}</p>
+        {desc&&<p style={{fontSize:12,color:'var(--text3)',marginTop:2}}>{desc}</p>}
+      </div>
+      {children}
+    </div>
+  );
+
+  return(
+    <Card title="Preferences">
+      <Row label="Dark mode" desc="Switch between light and dark interface."><Toggle value={dark} onChange={onToggleDark}/></Row>
+      <Row label="Focus timer" desc="Show the running timer in the sidebar."><Toggle value={timerOn} onChange={setTimerOn}/></Row>
+      <Row label="Notifications" desc="Show reminders and alerts."><Toggle value={notifOn} onChange={setNotifOn}/></Row>
+      <Row label="Start page" desc="Which page opens on launch.">
+        <select value={startPage} onChange={e=>setStartPage(e.target.value)} style={{padding:'5px 10px',borderRadius:7,border:'1px solid var(--border2)',background:'var(--bg)',color:'var(--text)',fontSize:13,fontFamily:'inherit',outline:'none',cursor:'pointer'}}>
+          <option value="today">Today</option>
+          <option value="goals">Goals</option>
+          <option value="backlog">Backlog</option>
+        </select>
+      </Row>
+    </Card>
+  );
+}
+
+// ── Activity Log section ─────────────────────────────────────────────────────
+function ActivitySection(){
+  const[logs,setLogs]=useState(INIT_LOGS);
+  const[expanded,setExpanded]=useState(null);
+
+  function handleRevert(id){setLogs(p=>p.map(l=>l.id===id?{...l,reverted:true}:l));}
+
+  return(
+    <Card title="MCP Activity Log" subtitle="Audit log of AI agent tool calls. Revertible actions can be undone.">
+      <div style={{display:'flex',flexDirection:'column',gap:3}}>
+        {logs.map(log=>{
+          const isOpen=expanded===log.id;
+          const isRO=READONLY_TOOLS.has(log.tool);
+          return(
+            <div key={log.id} style={{borderRadius:8,border:'1px solid var(--border)',overflow:'hidden'}}>
+              <button onClick={()=>setExpanded(isOpen?null:log.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'9px 12px',background:isOpen?'var(--bg)':'transparent',border:'none',cursor:'pointer',fontFamily:'inherit',textAlign:'left'}}>
+                <span style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text3)',width:52,flexShrink:0}}>{log.time}</span>
+                <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:4,background:isRO?'var(--deep-light)':'var(--accent-light)',color:isRO?'var(--deep)':'var(--accent)',flexShrink:0}}>{log.tool}</span>
+                <span style={{fontSize:11,fontWeight:600,padding:'2px 6px',borderRadius:4,background:log.status==='success'?'var(--maint-light)':'rgba(220,38,38,0.1)',color:log.status==='success'?'var(--maint)':'#dc2626',flexShrink:0}}>{log.status}</span>
+                {log.reverted&&<span style={{fontSize:11,color:'var(--text3)',fontStyle:'italic'}}>reverted</span>}
+                <span style={{marginLeft:'auto',color:'var(--text3)',transform:isOpen?'rotate(180deg)':'none',transition:'transform 0.2s'}}><IconChevDown/></span>
+              </button>
+              {isOpen&&(
+                <div style={{padding:'0 12px 12px',background:'var(--bg)',display:'flex',flexDirection:'column',gap:8}}>
+                  <div>
+                    <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--text3)',marginBottom:4}}>Params</p>
+                    <pre style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text2)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>{JSON.stringify(JSON.parse(log.params),null,2)}</pre>
+                  </div>
+                  <div>
+                    <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--text3)',marginBottom:4}}>Result</p>
+                    <pre style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text2)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>{JSON.stringify(JSON.parse(log.result),null,2)}</pre>
+                  </div>
+                  {log.revertible&&!log.reverted&&(
+                    <button onClick={()=>handleRevert(log.id)} style={{alignSelf:'flex-start',padding:'5px 14px',borderRadius:6,border:'none',background:'var(--accent)',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Revert</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS=/*EDITMODE-BEGIN*/{"dark":false}/*EDITMODE-END*/;
+function App(){
+  const[dark,setDark]=useState(TWEAK_DEFAULTS.dark);
+  const[section,setSection]=useState('templates');
+  const[showTweaks,setShowTweaks]=useState(false);
+
+  useEffect(()=>{document.documentElement.classList.toggle('dark',dark);},[dark]);
+  useEffect(()=>{window.addEventListener('message',e=>{if(e.data?.type==='__activate_edit_mode')setShowTweaks(true);if(e.data?.type==='__deactivate_edit_mode')setShowTweaks(false);});window.parent.postMessage({type:'__edit_mode_available'},'*');},[]);
+
+  return(
+    <div style={{display:'flex',height:'100vh',overflow:'hidden',background:'var(--bg)'}}>
+      <Sidebar dark={dark} onToggleDark={()=>setDark(d=>!d)}/>
+
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
+        {/* Header */}
+        <header style={{padding:'18px 28px',borderBottom:'1px solid var(--border)',background:'var(--surface)',flexShrink:0}}>
+          <h1 style={{fontSize:20,fontWeight:700,color:'var(--text)',letterSpacing:'-0.02em'}}>Settings</h1>
+          <p style={{fontSize:13,color:'var(--text3)',marginTop:1}}>Configure Oliver to your workflow</p>
+        </header>
+
+        <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+          <SettingsNav active={section} onChange={setSection}/>
+          <main style={{flex:1,overflowY:'auto',padding:'24px 32px'}}>
+            <div style={{maxWidth:620}}>
+              {section==='templates'&&<TemplatesSection/>}
+              {section==='schedule'&&<ScheduleSection/>}
+              {section==='preferences'&&<PreferencesSection dark={dark} onToggleDark={()=>setDark(d=>!d)}/>}
+              {section==='activity'&&<ActivitySection/>}
+            </div>
+          </main>
+        </div>
+      </div>
+
+      {showTweaks&&(
+        <div style={{position:'fixed',bottom:24,right:24,width:200,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',padding:16,zIndex:1000}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text3)',marginBottom:14}}>Tweaks</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontSize:13,color:'var(--text2)'}}>Dark mode</span>
+            <Toggle value={dark} onChange={()=>setDark(d=>!d)}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

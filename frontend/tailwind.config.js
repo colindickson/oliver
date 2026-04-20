@@ -6,8 +6,8 @@ export default {
     extend: {
       fontFamily: {
         display: ['Fraunces', 'Georgia', 'serif'],
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        mono: ['DM Mono', 'Menlo', 'monospace'],
       },
       colors: {
         stone: {
@@ -71,6 +71,18 @@ export default {
           700: '#0154a6',
           800: '#06498a',
           900: '#0b3d72',
+        },
+        indigo: {
+          50:  '#ededfc',
+          100: '#d4d4f7',
+          200: '#b0b0f0',
+          300: '#8b8be8',
+          400: '#6e6edc',
+          500: '#5b5bd6',
+          600: '#4949c0',
+          700: '#3838a8',
+          800: '#292990',
+          900: '#1c1c70',
         },
       },
       boxShadow: {

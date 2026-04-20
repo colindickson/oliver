@@ -167,7 +167,7 @@ export function Goals() {
             {/* Active */}
             {activeGoals.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+                <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                   Active
                 </p>
                 {activeGoals.map(goal => (
@@ -190,7 +190,7 @@ export function Goals() {
             {/* Completed */}
             {completedGoals.length > 0 && (
               <div className="space-y-1.5 mt-3">
-                <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+                <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                   Completed
                 </p>
                 {completedGoals.map(goal => (
@@ -231,10 +231,10 @@ export function Goals() {
       <Sidebar />
 
       {/* Left panel */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-850 overflow-hidden">
+      <div className="w-[280px] flex-shrink-0 flex flex-col border-r border-stone-100 dark:border-stone-700 bg-white dark:bg-stone-850 overflow-hidden">
         {/* Panel header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-stone-200 dark:border-stone-700 flex-shrink-0">
-          <h1 className="text-base font-semibold text-stone-800 dark:text-stone-100">Goals</h1>
+        <div className="flex items-center justify-between px-4 py-[18px] border-b border-stone-100 dark:border-stone-700 flex-shrink-0">
+          <h1 className="text-base font-bold tracking-[-0.01em] text-stone-800 dark:text-stone-100">Goals</h1>
           <div className="flex items-center gap-3">
             <Link
               to="/goals/archive"
@@ -275,7 +275,7 @@ export function Goals() {
           {/* Active */}
           {activeGoals.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+              <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                 Active
               </p>
               {activeGoals.map(goal => (
@@ -298,7 +298,7 @@ export function Goals() {
           {/* Completed */}
           {completedGoals.length > 0 && (
             <div className="space-y-1.5 mt-3">
-              <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
+              <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                 Completed
               </p>
               {completedGoals.map(goal => (

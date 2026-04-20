@@ -133,7 +133,7 @@ function BacklogTaskCard({ task, onMoveToDay, onDelete }: BacklogTaskCardProps) 
         <button
           type="button"
           onClick={() => onMoveToDay(task)}
-          className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors dark:text-stone-600 dark:hover:text-moss-400 dark:hover:bg-stone-700"
+          className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors opacity-0 group-hover:opacity-100 dark:text-stone-600 dark:hover:text-moss-400 dark:hover:bg-stone-700"
           aria-label="Move to day"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -525,9 +525,9 @@ export function Backlog() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
+        <header className="bg-white border-b border-stone-100 px-8 py-[18px] flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <div>
-            <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Backlog</h1>
+            <h1 className="text-xl font-bold tracking-[-0.02em] text-stone-800 dark:text-stone-100">Backlog</h1>
             <p className="text-sm text-stone-400 mt-0.5">
               {tasks.length} task{tasks.length !== 1 ? 's' : ''} waiting to be scheduled
             </p>
@@ -535,8 +535,8 @@ export function Backlog() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-8 overflow-auto">
-          <div className="max-w-2xl space-y-6">
+        <main className="flex-1 px-8 py-6 overflow-auto">
+          <div className="max-w-[680px] mx-auto space-y-6">
             {/* Search and filters */}
             <div className="space-y-3">
               {/* Search input */}
@@ -575,26 +575,26 @@ export function Backlog() {
 
               {/* Tag filter chips */}
               {relevantTags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => setSelectedTag(null)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                    className={`font-mono text-xs px-2.5 py-1 rounded-md border transition-all ${
                       selectedTag === null
-                        ? 'bg-terracotta-50 border-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/30 dark:border-terracotta-700/30 dark:text-terracotta-300'
+                        ? 'bg-stone-900 border-stone-900 text-white dark:bg-stone-100 dark:border-stone-100 dark:text-stone-900'
                         : 'border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700'
                     }`}
                   >
-                    All
+                    all
                   </button>
                   {relevantTags.map(tag => (
                     <button
                       key={tag.name}
                       type="button"
                       onClick={() => setSelectedTag(selectedTag === tag.name ? null : tag.name)}
-                      className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                      className={`font-mono text-xs px-2.5 py-1 rounded-md border transition-all ${
                         selectedTag === tag.name
-                          ? 'bg-terracotta-50 border-terracotta-200 text-terracotta-700 dark:bg-terracotta-900/30 dark:border-terracotta-700/30 dark:text-terracotta-300'
+                          ? 'bg-stone-900 border-stone-900 text-white dark:bg-stone-100 dark:border-stone-100 dark:text-stone-900'
                           : 'border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700'
                       }`}
                     >

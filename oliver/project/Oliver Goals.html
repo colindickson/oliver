@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oliver — Goals Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+:root {
+  --sb: #111110; --sb2: #1c1b19; --sb-border: #2a2826;
+  --sb-text: #f0ede8; --sb-muted: #6b6560; --sb-active: #2d2b28;
+  --bg: #f7f5f2; --surface: #ffffff; --border: rgba(0,0,0,0.07); --border2: rgba(0,0,0,0.13);
+  --text: #1a1816; --text2: #5c5750; --text3: #a09890;
+  --accent: #e86b3a; --accent-light: #fdf0ea; --accent-mid: rgba(232,107,58,0.15);
+  --deep: #5b5bd6; --deep-light: #ededfc;
+  --maint: #3d8b5e; --maint-light: #ebf5ef;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06);
+  --mono: 'DM Mono', monospace;
+  --r: 10px; --r-sm: 7px;
+}
+.dark {
+  --bg: #111110; --surface: #1c1b19; --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+  --text: #f0ede8; --text2: #8a847d; --text3: #4d4845;
+  --accent-light: #2a1e17; --accent-mid: rgba(232,107,58,0.12);
+  --deep-light: #1a1a2e; --maint-light: #162318;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.3);
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+* { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease; }
+input, textarea { font-family: inherit; }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── Icons ─────────────────────────────────────────────────────────────────
+const Ic = (paths, opts = {}) => ({ size = 16, color = 'currentColor' } = {}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={opts.sw || 1.6} strokeLinecap="round" strokeLinejoin="round">
+    {paths.map((p, i) => typeof p === 'string' ? <path key={i} d={p} /> : React.createElement(p[0], { key: i, ...p[1] }))}
+  </svg>
+);
+
+const IconHome     = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>;
+const IconGoals    = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const IconBacklog  = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>;
+const IconTag      = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>;
+const IconChart    = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const IconSettings = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+const IconMoon     = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+const IconSun      = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>;
+const IconBell     = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const IconChevL    = () => <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>;
+const IconChevR    = () => <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>;
+const IconPlus     = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
+const IconCheck    = ({size=14,color='currentColor'}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+const IconArchive  = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>;
+const IconTrash    = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconPencil   = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconCal      = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconTarget   = ({size=16,color='currentColor'}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const IconX        = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>;
+
+// ─── Mock Data ─────────────────────────────────────────────────────────────
+const INIT_GOALS = [
+  {
+    id: 1, title: 'Launch v2.0', status: 'active', target: '2026-05-15', focus: true,
+    tags: ['backend', 'api'], progress: 68, totalTasks: 22, completedTasks: 15,
+    desc: 'Full product launch including new auth service, API v2, and updated documentation.',
+    tasks: [
+      { id: 101, title: 'Write RFC for API versioning', done: false, tags: ['api'] },
+      { id: 102, title: 'Review auth service architecture', done: false, tags: ['backend'] },
+      { id: 103, title: 'Update API docs', done: false, tags: ['docs'] },
+      { id: 104, title: 'Performance benchmarks', done: false, tags: [] },
+      { id: 105, title: 'Security review of auth flow', done: false, tags: ['backend'] },
+      { id: 106, title: 'Staging deployment', done: false, tags: ['infra'] },
+      { id: 107, title: 'Load testing', done: false, tags: [] },
+      { id: 108, title: 'Set up new API gateway', done: true, tags: ['backend'] },
+      { id: 109, title: 'Database schema migration', done: true, tags: ['backend'] },
+      { id: 110, title: 'Design system updates', done: true, tags: ['design'] },
+      { id: 111, title: 'Auth service unit tests', done: true, tags: ['backend'] },
+      { id: 112, title: 'CI pipeline for v2 branch', done: true, tags: ['infra'] },
+    ],
+  },
+  {
+    id: 2, title: 'Hire 2 engineers', status: 'active', target: '2026-06-01', focus: false,
+    tags: ['hiring'], progress: 40, totalTasks: 10, completedTasks: 4,
+    desc: 'Complete hiring process for backend and frontend engineer roles.',
+    tasks: [
+      { id: 201, title: 'Write job descriptions', done: true, tags: [] },
+      { id: 202, title: 'Post on job boards', done: true, tags: [] },
+      { id: 203, title: 'Screen 20 applications', done: true, tags: [] },
+      { id: 204, title: 'Technical interviews round 1', done: true, tags: [] },
+      { id: 205, title: 'Technical interviews round 2', done: false, tags: [] },
+      { id: 206, title: 'Reference checks', done: false, tags: [] },
+      { id: 207, title: 'Offer letters', done: false, tags: [] },
+      { id: 208, title: 'Onboarding prep', done: false, tags: [] },
+      { id: 209, title: 'Equipment setup', done: false, tags: [] },
+      { id: 210, title: 'Team introductions', done: false, tags: [] },
+    ],
+  },
+  {
+    id: 3, title: 'Improve test coverage', status: 'active', target: null, focus: false,
+    tags: ['dev', 'testing'], progress: 25, totalTasks: 16, completedTasks: 4,
+    desc: 'Bring test coverage from 40% to 80% across the codebase.',
+    tasks: [
+      { id: 301, title: 'Audit current coverage', done: true, tags: ['testing'] },
+      { id: 302, title: 'Write tests for auth module', done: true, tags: ['backend'] },
+      { id: 303, title: 'Write tests for billing module', done: true, tags: ['backend'] },
+      { id: 304, title: 'Write tests for notifications', done: true, tags: ['backend'] },
+      { id: 305, title: 'Write tests for API routes', done: false, tags: ['api'] },
+      { id: 306, title: 'Write tests for frontend components', done: false, tags: ['dev'] },
+      { id: 307, title: 'Set up coverage reporting', done: false, tags: ['infra'] },
+    ],
+  },
+  {
+    id: 4, title: 'Documentation overhaul', status: 'active', target: '2026-07-01', focus: false,
+    tags: ['docs'], progress: 12, totalTasks: 24, completedTasks: 3,
+    desc: 'Rewrite all API documentation and add interactive code examples.',
+    tasks: [
+      { id: 401, title: 'Audit existing docs', done: true, tags: [] },
+      { id: 402, title: 'Set up new docs site', done: true, tags: ['infra'] },
+      { id: 403, title: 'Write getting started guide', done: true, tags: [] },
+      { id: 404, title: 'Document auth endpoints', done: false, tags: ['api'] },
+      { id: 405, title: 'Document data endpoints', done: false, tags: ['api'] },
+    ],
+  },
+  {
+    id: 5, title: 'Q1 Architecture Review', status: 'completed', target: '2026-03-31', focus: false,
+    tags: ['planning'], progress: 100, totalTasks: 8, completedTasks: 8,
+    desc: 'Review and document all current architecture decisions.',
+    tasks: [
+      { id: 501, title: 'Map service dependencies', done: true, tags: [] },
+      { id: 502, title: 'Document data flows', done: true, tags: [] },
+      { id: 503, title: 'Identify bottlenecks', done: true, tags: [] },
+      { id: 504, title: 'Write ADRs', done: true, tags: [] },
+    ],
+  },
+];
+
+// ─── Sidebar ────────────────────────────────────────────────────────────────
+const heatmap = {};
+for (let d = 1; d <= 30; d++) {
+  let h = (d * 2654435761) >>> 0; h = (Math.imul(h ^ (h >>> 16), 0x45d9f3b)) >>> 0;
+  const v = (h >>> 0) / 0xffffffff;
+  heatmap[`2026-04-${String(d).padStart(2,'0')}`] = d > 20 ? null : v < 0.15 ? 0 : v < 0.5 ? 0.5 : v < 0.8 ? 0.8 : 1;
+}
+const CAL_DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+
+function SbBtn({ children, title, onClick, active }) {
+  const [h, setH] = useState(false);
+  return <button title={title} onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+    style={{ width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', background: active || h ? 'var(--sb2)' : 'transparent', color: active ? 'var(--sb-text)' : 'var(--sb-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{children}</button>;
+}
+
+function Sidebar({ dark, onToggleDark }) {
+  const [calDate, setCalDate] = useState(new Date(2026, 3, 1));
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  const firstDay = new Date(y, m, 1), lastDay = new Date(y, m + 1, 0);
+  const offset = (firstDay.getDay() + 6) % 7;
+  const cells = [...Array(offset).fill(null), ...Array.from({ length: lastDay.getDate() }, (_, i) => new Date(y, m, i + 1))];
+  while (cells.length % 7) cells.push(null);
+  const todayStr = '2026-04-20';
+  const mLabel = calDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const NAV = [
+    { key: 'today', label: 'Today', icon: <IconHome />, href: 'Oliver Redesign.html' },
+    { key: 'goals', label: 'Goals', icon: <IconGoals />, href: '#' },
+    { key: 'backlog', label: 'Backlog', icon: <IconBacklog />, href: 'Oliver Backlog.html' },
+    { key: 'tags', label: 'Tags', icon: <IconTag />, href: '#' },
+    { key: 'analytics', label: 'Analytics', icon: <IconChart />, href: 'Oliver Analytics.html' },
+  ];
+
+  return (
+    <aside style={{ width: 256, minWidth: 256, height: '100vh', background: 'var(--sb)', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--sb-border)' }}>
+      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--sb-text)', letterSpacing: '-0.01em' }}>oliver</span>
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <SbBtn onClick={onToggleDark} title="Toggle theme">{dark ? <IconSun /> : <IconMoon />}</SbBtn>
+          <SbBtn title="Notifications"><IconBell /></SbBtn>
+          <SbBtn title="Settings" onClick={() => window.location.href='Oliver Settings.html'}><IconSettings /></SbBtn>
+        </div>
+      </div>
+      <nav style={{ padding: '8px 10px', borderBottom: '1px solid var(--sb-border)' }}>
+        {NAV.map(item => {
+          const active = item.key === 'goals';
+          return (
+            <a key={item.key} href={item.href}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', background: active ? 'var(--sb-active)' : 'transparent', color: active ? 'var(--sb-text)' : 'var(--sb-muted)', fontSize: 13.5, fontWeight: active ? 600 : 400, fontFamily: 'inherit', marginBottom: 1, textDecoration: 'none' }}>
+              <span style={{ opacity: active ? 1 : 0.7 }}>{item.icon}</span>{item.label}
+            </a>
+          );
+        })}
+      </nav>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text)', opacity: 0.8 }}>{mLabel}</span>
+          <div style={{ display: 'flex', gap: 2 }}>
+            <SbBtn onClick={() => setCalDate(new Date(y, m - 1, 1))}><IconChevL /></SbBtn>
+            <SbBtn onClick={() => setCalDate(new Date(y, m + 1, 1))}><IconChevR /></SbBtn>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+          {CAL_DAYS.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--sb-muted)', fontWeight: 600, padding: '2px 0' }}>{d}</div>)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+          {cells.map((date, i) => {
+            if (!date) return <div key={i} />;
+            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+            const heat = heatmap[ds]; const isToday = ds === todayStr; const hasData = heat !== null && heat !== undefined;
+            const dotColor = !hasData ? 'transparent' : heat === 0 ? '#3a3632' : heat < 0.6 ? 'rgba(232,107,58,0.5)' : heat < 0.9 ? 'rgba(232,107,58,0.8)' : 'var(--accent)';
+            return (
+              <button key={ds} style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 6, border: isToday ? '1.5px solid var(--accent)' : '1.5px solid transparent', background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--sb-text)', opacity: isToday ? 1 : 0.75, gap: 2 }}>
+                {date.getDate()}
+                {hasData && <div style={{ width: 4, height: 4, borderRadius: '50%', background: dotColor }} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Progress Ring ──────────────────────────────────────────────────────────
+function ProgressRing({ pct, size = 96, stroke = 7, color = 'var(--accent)', trackColor = 'var(--border2)' }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeLinecap="round" strokeDasharray={`${dash} ${circ}`} style={{ transition: 'stroke-dasharray 0.5s ease' }} />
+    </svg>
+  );
+}
+
+// ─── Goal Card ──────────────────────────────────────────────────────────────
+function GoalCard({ goal, selected, onSelect, focusId, onSetFocus }) {
+  const [hovered, setHovered] = useState(false);
+  const isCompleted = goal.status === 'completed';
+  const isFocus = focusId === goal.id;
+  const isOverdue = goal.target && !isCompleted && new Date(goal.target) < new Date('2026-04-20');
+  const ringColor = isCompleted ? 'var(--maint)' : isFocus ? 'var(--accent)' : 'var(--deep)';
+
+  return (
+    <button onClick={() => onSelect(goal.id)}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%', textAlign: 'left', padding: '12px 14px', borderRadius: 10,
+        border: `1.5px solid ${selected ? 'var(--accent)' : hovered ? 'var(--border2)' : 'var(--border)'}`,
+        background: selected ? 'var(--accent-mid)' : 'var(--surface)',
+        boxShadow: selected ? 'none' : hovered ? 'var(--shadow)' : 'none',
+        cursor: 'pointer', fontFamily: 'inherit', opacity: isCompleted && !selected ? 0.6 : 1,
+        transform: hovered && !selected ? 'translateY(-1px)' : 'none',
+      }}>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        {/* Mini ring */}
+        <div style={{ position: 'relative', flexShrink: 0, marginTop: 1 }}>
+          <ProgressRing pct={goal.progress} size={36} stroke={3.5} color={ringColor} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 600, color: ringColor }}>{goal.progress}%</div>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3, textDecoration: isCompleted ? 'line-through' : 'none' }}>
+              {isFocus && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', marginRight: 5, marginBottom: 1, verticalAlign: 'middle' }} />}
+              {goal.title}
+            </p>
+            {isCompleted && (
+              <div style={{ flexShrink: 0, color: 'var(--maint)', marginTop: 1 }}><IconCheck size={13} color="var(--maint)" /></div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{goal.completedTasks}/{goal.totalTasks}</span>
+            {goal.target && (
+              <span style={{ fontSize: 11, color: isOverdue ? '#dc2626' : 'var(--text3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <IconCal size={10} />{goal.target}
+              </span>
+            )}
+            {goal.tags.slice(0,2).map(t => (
+              <span key={t} style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text3)', background: 'var(--border)', padding: '1px 5px', borderRadius: 3 }}>#{t}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Goal Detail ────────────────────────────────────────────────────────────
+function GoalDetail({ goal, onUpdate, onDelete, focusId, onSetFocus, onClearFocus }) {
+  const [editTitle, setEditTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [editDesc, setEditDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const titleRef = useRef(null);
+
+  const isCompleted = goal.status === 'completed';
+  const isFocus = focusId === goal.id;
+  const isOverdue = goal.target && !isCompleted && new Date(goal.target) < new Date('2026-04-20');
+  const ringColor = isCompleted ? 'var(--maint)' : 'var(--accent)';
+
+  const remaining = goal.tasks.filter(t => !t.done);
+  const completed = goal.tasks.filter(t => t.done);
+
+  function handleTitleClick() { setTitleDraft(goal.title); setEditTitle(true); }
+  function commitTitle() {
+    if (titleDraft.trim() && titleDraft.trim() !== goal.title) onUpdate({ ...goal, title: titleDraft.trim() });
+    setEditTitle(false);
+  }
+  function handleDescClick() { setDescDraft(goal.desc); setEditDesc(true); }
+  function commitDesc() { onUpdate({ ...goal, desc: descDraft }); setEditDesc(false); }
+  function toggleTask(id) {
+    onUpdate({ ...goal, tasks: goal.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t) });
+  }
+  function markComplete() { onUpdate({ ...goal, status: isCompleted ? 'active' : 'completed', progress: isCompleted ? goal.progress : 100 }); }
+
+  const LabelStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text3)', marginBottom: 6, display: 'block' };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+      {/* Detail header */}
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+            background: isCompleted ? 'var(--maint-light)' : 'var(--accent-light)',
+            color: isCompleted ? 'var(--maint)' : 'var(--accent)',
+          }}>{isCompleted ? 'Completed' : 'Active'}</span>
+          <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{goal.completedTasks}/{goal.totalTasks} tasks</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {!isCompleted && (
+            isFocus
+              ? <ActionChip label="Focus" color="var(--accent)" bg="var(--accent-light)" onClick={onClearFocus} icon={<IconTarget size={12} color="var(--accent)" />} />
+              : <ActionChip label="Set focus" color="var(--text2)" bg="var(--border)" onClick={onSetFocus} icon={<IconTarget size={12} />} />
+          )}
+          <ActionChip
+            label={isCompleted ? 'Reopen' : 'Mark complete'}
+            color={isCompleted ? 'var(--text2)' : 'white'}
+            bg={isCompleted ? 'var(--border)' : 'var(--maint)'}
+            onClick={markComplete}
+            icon={isCompleted ? null : <IconCheck size={12} color="white" />}
+          />
+          <ActionChip label="Archive" color="var(--text2)" bg="var(--border)" icon={<IconArchive size={12} />} onClick={() => {}} />
+          {confirmDelete
+            ? <ActionChip label="Confirm?" color="white" bg="#dc2626" onClick={onDelete} />
+            : <ActionChip label="" color="var(--text3)" bg="var(--border)" icon={<IconTrash size={12} />} onClick={() => setConfirmDelete(true)} />
+          }
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 28px 40px' }}>
+
+        {/* Title + ring row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginBottom: 28 }}>
+          {/* Progress ring */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <ProgressRing pct={goal.progress} size={88} stroke={7} color={ringColor} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: ringColor, lineHeight: 1 }}>{goal.progress}%</span>
+              <span style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>done</span>
+            </div>
+          </div>
+
+          {/* Title + meta */}
+          <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
+            {editTitle ? (
+              <input ref={titleRef} autoFocus value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
+                onBlur={commitTitle} onKeyDown={e => { if (e.key === 'Enter') commitTitle(); if (e.key === 'Escape') setEditTitle(false); }}
+                style={{ width: '100%', fontSize: 22, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', borderBottom: '2px solid var(--accent)', outline: 'none', paddingBottom: 2, fontFamily: 'inherit', letterSpacing: '-0.02em' }} />
+            ) : (
+              <h2 onClick={handleTitleClick} style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em', cursor: 'text', lineHeight: 1.25, textDecoration: isCompleted ? 'line-through' : 'none' }}>
+                {goal.title}
+              </h2>
+            )}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10, alignItems: 'center' }}>
+              {/* Target date */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: isOverdue ? 'rgba(220,38,38,0.08)' : 'var(--border)', borderRadius: 6 }}>
+                <IconCal size={12} />
+                <input type="date" value={goal.target || ''} onChange={e => onUpdate({ ...goal, target: e.target.value || null })}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12, fontFamily: 'var(--mono)', color: isOverdue ? '#dc2626' : 'var(--text2)', cursor: 'pointer' }} />
+              </div>
+
+              {/* Tags */}
+              {goal.tags.map(t => (
+                <span key={t} style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text3)', background: 'var(--border)', padding: '3px 8px', borderRadius: 5 }}>#{t}</span>
+              ))}
+              {isOverdue && <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: 'rgba(220,38,38,0.08)', padding: '3px 8px', borderRadius: 5 }}>Overdue</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div style={{ marginBottom: 24 }}>
+          <label style={LabelStyle}>Description</label>
+          {editDesc ? (
+            <textarea autoFocus value={descDraft} onChange={e => setDescDraft(e.target.value)}
+              onBlur={commitDesc} onKeyDown={e => { if (e.key === 'Escape') setEditDesc(false); }}
+              rows={3} style={{ width: '100%', border: '1px solid var(--border2)', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: 'var(--text)', background: 'var(--surface)', outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
+          ) : (
+            <p onClick={handleDescClick} style={{ fontSize: 14, color: goal.desc ? 'var(--text2)' : 'var(--text3)', fontStyle: goal.desc ? 'normal' : 'italic', lineHeight: 1.6, cursor: 'text', padding: '8px 10px', borderRadius: 8, background: 'transparent' }}>
+              {goal.desc || 'Add a description…'}
+            </p>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ ...LabelStyle, marginBottom: 0 }}>Progress</label>
+            <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{goal.completedTasks} of {goal.totalTasks} tasks</span>
+          </div>
+          <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${goal.progress}%`, background: ringColor, borderRadius: 3, transition: 'width 0.4s ease' }} />
+          </div>
+        </div>
+
+        {/* Tasks */}
+        <div>
+          {remaining.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <label style={LabelStyle}>Remaining ({remaining.length})</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {remaining.map(t => <TaskRow key={t.id} task={t} onToggle={() => toggleTask(t.id)} />)}
+              </div>
+            </div>
+          )}
+          {completed.length > 0 && (
+            <div>
+              <label style={LabelStyle}>Completed ({completed.length})</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {completed.map(t => <TaskRow key={t.id} task={t} onToggle={() => toggleTask(t.id)} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionChip({ label, color, bg, icon, onClick }) {
+  const [h, setH] = useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500, color, background: bg, opacity: h ? 0.85 : 1 }}>
+      {icon}{label}
+    </button>
+  );
+}
+
+function TaskRow({ task, onToggle }) {
+  const [h, setH] = useState(false);
+  return (
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 7, background: h ? 'var(--border)' : 'transparent', cursor: 'default' }}>
+      <button onClick={onToggle} style={{ width: 18, height: 18, borderRadius: '50%', border: task.done ? 'none' : '1.5px solid var(--border2)', background: task.done ? 'var(--maint)' : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {task.done && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
+      </button>
+      <span style={{ flex: 1, fontSize: 13.5, color: task.done ? 'var(--text3)' : 'var(--text)', textDecoration: task.done ? 'line-through' : 'none' }}>{task.title}</span>
+      {task.tags.slice(0,2).map(t => (
+        <span key={t} style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text3)', background: 'var(--border)', padding: '1px 5px', borderRadius: 3 }}>#{t}</span>
+      ))}
+    </div>
+  );
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+function EmptyState({ hasGoals, onCreate }) {
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, background: 'var(--bg)' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+        <IconTarget size={28} color="var(--text3)" />
+      </div>
+      <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text2)', marginBottom: 6 }}>{hasGoals ? 'Select a goal' : 'No goals yet'}</p>
+      <p style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', maxWidth: 280, lineHeight: 1.6 }}>
+        {hasGoals ? 'Pick a goal from the list to view its details and linked tasks.' : 'Goals help you track long-term objectives and see which tasks move them forward.'}
+      </p>
+      {!hasGoals && (
+        <button onClick={onCreate} style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <IconPlus size={14} /> Create first goal
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── New Goal Form ───────────────────────────────────────────────────────────
+function NewGoalForm({ onCreate, onCancel }) {
+  const [title, setTitle] = useState('');
+  return (
+    <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1.5px solid var(--accent)', borderRadius: 10, marginBottom: 6 }}>
+      <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && title.trim()) onCreate(title.trim()); if (e.key === 'Escape') onCancel(); }}
+        placeholder="Goal title…"
+        style={{ width: '100%', border: 'none', outline: 'none', fontSize: 13.5, color: 'var(--text)', background: 'transparent', fontFamily: 'inherit', marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={() => title.trim() && onCreate(title.trim())} disabled={!title.trim()}
+          style={{ flex: 1, padding: '6px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: title.trim() ? 1 : 0.4, fontFamily: 'inherit' }}>
+          Create
+        </button>
+        <button onClick={onCancel} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'var(--border)', color: 'var(--text2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{"dark": false}/*EDITMODE-END*/;
+
+function App() {
+  const [dark, setDark] = useState(TWEAK_DEFAULTS.dark);
+  const [goals, setGoals] = useState(INIT_GOALS);
+  const [selectedId, setSelectedId] = useState(1);
+  const [showNew, setShowNew] = useState(false);
+  const [focusId, setFocusId] = useState(1);
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [showTweaks, setShowTweaks] = useState(false);
+
+  useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
+  useEffect(() => {
+    window.addEventListener('message', e => {
+      if (e.data?.type === '__activate_edit_mode') setShowTweaks(true);
+      if (e.data?.type === '__deactivate_edit_mode') setShowTweaks(false);
+    });
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+  }, []);
+
+  const activeGoals = goals.filter(g => g.status === 'active');
+  const completedGoals = goals.filter(g => g.status === 'completed');
+  const selectedGoal = goals.find(g => g.id === selectedId) || null;
+
+  function handleCreate(title) {
+    const newGoal = { id: Date.now(), title, status: 'active', target: null, focus: false, tags: [], progress: 0, totalTasks: 0, completedTasks: 0, desc: '', tasks: [] };
+    setGoals(prev => [newGoal, ...prev]);
+    setSelectedId(newGoal.id);
+    setShowNew(false);
+  }
+
+  function handleUpdate(updated) {
+    setGoals(prev => prev.map(g => g.id === updated.id ? {
+      ...updated,
+      completedTasks: updated.tasks.filter(t => t.done).length,
+      totalTasks: updated.tasks.length,
+      progress: updated.tasks.length ? Math.round(updated.tasks.filter(t => t.done).length / updated.tasks.length * 100) : 0,
+    } : g));
+  }
+
+  function handleDelete() {
+    setGoals(prev => prev.filter(g => g.id !== selectedId));
+    setSelectedId(null);
+  }
+
+  const SectionLabel = ({ children, count }) => (
+    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--sb-muted)', padding: '6px 2px 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+      {children}<span style={{ fontFamily: 'var(--mono)', opacity: 0.7 }}>{count}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+      <Sidebar dark={dark} onToggleDark={() => setDark(d => !d)} />
+
+      {/* Left panel */}
+      <div style={{ width: 280, minWidth: 280, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
+        {/* Panel header */}
+        <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <h1 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>Goals</h1>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button style={{ fontSize: 12, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Archive</button>
+            <button onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <IconPlus size={12} /> New
+            </button>
+          </div>
+        </div>
+
+        {/* Goal list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {showNew && <NewGoalForm onCreate={handleCreate} onCancel={() => setShowNew(false)} />}
+
+          {activeGoals.length > 0 && (
+            <>
+              <SectionLabel count={activeGoals.length}>Active</SectionLabel>
+              {activeGoals.map(g => (
+                <GoalCard key={g.id} goal={g} selected={selectedId === g.id} onSelect={setSelectedId} focusId={focusId} onSetFocus={() => setFocusId(g.id)} />
+              ))}
+            </>
+          )}
+
+          {completedGoals.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button onClick={() => setShowCompleted(s => !s)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <SectionLabel count={completedGoals.length}>
+                  <span style={{ fontSize: 9 }}>{showCompleted ? '▼' : '▶'}</span> Completed
+                </SectionLabel>
+              </button>
+              {showCompleted && completedGoals.map(g => (
+                <GoalCard key={g.id} goal={g} selected={selectedId === g.id} onSelect={setSelectedId} focusId={focusId} onSetFocus={() => {}} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right panel */}
+      {selectedGoal ? (
+        <GoalDetail
+          goal={selectedGoal}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          focusId={focusId}
+          onSetFocus={() => setFocusId(selectedId)}
+          onClearFocus={() => setFocusId(null)}
+        />
+      ) : (
+        <EmptyState hasGoals={goals.length > 0} onCreate={() => setShowNew(true)} />
+      )}
+
+      {/* Tweaks */}
+      {showTweaks && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, width: 200, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.12)', padding: 16, zIndex: 1000 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text3)', marginBottom: 14 }}>Tweaks</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--text2)' }}>Dark mode</span>
+            <button onClick={() => setDark(d => !d)} style={{ width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', background: dark ? 'var(--accent)' : 'var(--border2)', position: 'relative' }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: dark ? 19 : 3, transition: 'left 0.15s' }} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

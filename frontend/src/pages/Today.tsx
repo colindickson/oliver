@@ -8,7 +8,6 @@ import { NotificationBanner } from '../components/NotificationBanner'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
 import { RollForwardModal } from '../components/RollForwardModal'
-import { useTheme } from '../contexts/ThemeContext'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
@@ -39,7 +38,6 @@ function formatDate(date: Date): string {
 
 export function Today() {
   const qc = useQueryClient()
-  const { theme } = useTheme()
   const isMobile = useMobile()
   const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
@@ -381,47 +379,25 @@ export function Today() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-5 flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
+        <header className="bg-white border-b border-stone-100 px-8 py-[18px] flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <div>
-            <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Today</h1>
+            <h1 className="text-xl font-bold tracking-[-0.02em] text-stone-800 dark:text-stone-100">Today</h1>
             <p className="text-sm text-stone-400 mt-0.5">{formatDate(new Date())}</p>
           </div>
 
-          {/* Progress indicator */}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-2xl font-semibold text-stone-800 dark:text-stone-100 tabular-nums">
-                {completedTasks}<span className="text-stone-400">/{totalTasks}</span>
-              </p>
-              <p className="text-xs text-stone-400">tasks completed</p>
-            </div>
-
-            {/* Progress ring */}
-            <div className="relative w-12 h-12">
-              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke={theme === 'dark' ? '#44403c' : '#e7e5e4'}
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke={progressPct === 100 ? '#4a8a4a' : '#e86b3a'}
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={`${progressPct * 1.256} 125.6`}
-                  className="transition-all duration-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-stone-600 dark:text-stone-300">
-                {progressPct}%
-              </span>
+          {/* Numeric progress + bar */}
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-sm font-mono text-stone-500 dark:text-stone-400 tabular-nums">
+              {completedTasks} / {totalTasks} tasks
+            </span>
+            <div className="w-20 h-1 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progressPct}%`,
+                  background: progressPct === 100 ? '#4a8a4a' : '#e86b3a',
+                }}
+              />
             </div>
           </div>
         </header>

@@ -36,10 +36,16 @@ interface Props {
   onInstantiateFromTemplate?: (template: TaskTemplate) => void
 }
 
-const headerColors: Record<CategoryKey, string> = {
-  deep_work: CATEGORIES.deep_work.header,
-  short_task: CATEGORIES.short_task.header,
-  maintenance: CATEGORIES.maintenance.header,
+const topBorderColors: Record<CategoryKey, string> = {
+  deep_work: CATEGORIES.deep_work.topBorder,
+  short_task: CATEGORIES.short_task.topBorder,
+  maintenance: CATEGORIES.maintenance.topBorder,
+}
+
+const progressFillColors: Record<CategoryKey, string> = {
+  deep_work: CATEGORIES.deep_work.progressFill,
+  short_task: CATEGORIES.short_task.progressFill,
+  maintenance: CATEGORIES.maintenance.progressFill,
 }
 
 const buttonColors: Record<CategoryKey, string> = {
@@ -198,16 +204,24 @@ export function TaskColumn({
     setNewTags([])
   }
 
+  const totalCount = syncedTasks.length
+  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-stone-700 dark:border-stone-600/30 rounded-2xl border border-stone-100 shadow-soft p-5">
+    <div className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-stone-700 dark:border-stone-600/30 rounded-xl border border-stone-100 shadow-soft pt-0 px-5 pb-5 border-t-[3px] ${topBorderColors[colorClass]}`}>
       {/* Column header */}
-      <div
-        className={`flex items-center justify-between mb-4 pb-3 border-b-2 ${headerColors[colorClass]}`}
-      >
+      <div className="flex items-center justify-between mt-4 mb-2">
         <h2 className="font-semibold text-sm uppercase tracking-wide">{title}</h2>
-        <span className="text-xs text-stone-400 tabular-nums">
-          {completedCount}/{syncedTasks.length}
+        <span className="text-xs text-stone-400 tabular-nums font-mono">
+          {completedCount}/{totalCount}
         </span>
+      </div>
+      {/* Progress bar */}
+      <div className="h-[3px] bg-stone-100 dark:bg-stone-600 rounded-full mb-4 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${progressFillColors[colorClass]}`}
+          style={{ width: `${progressPct}%` }}
+        />
       </div>
 
       {/* Task list with drag-to-reorder */}

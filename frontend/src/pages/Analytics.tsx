@@ -19,9 +19,9 @@ import { BottomTabBar } from '../components/BottomTabBar'
 // -----------------------------------------------------------------------------
 
 const TERRACOTTA = '#e86b3a'
-const OCEAN = '#0c87eb'
+const INDIGO = '#5b5bd6'
 const MOSS = '#4a8a4a'
-const AMBER = '#f59e0b'
+const AMBER = '#d97706'
 
 // -----------------------------------------------------------------------------
 // Environment icon maps
@@ -285,12 +285,12 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, value, sub, accent }: SummaryCardProps) {
   return (
-    <div className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-soft">
-      <p className="text-xs font-medium text-stone-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-3xl font-semibold mt-2 tabular-nums ${accent ? 'text-terracotta-600' : 'text-stone-800 dark:text-stone-100'}`}>
+    <div className="bg-white dark:bg-stone-800/80 rounded-xl border border-stone-100 dark:border-stone-700 p-5 shadow-soft flex flex-col gap-1">
+      <p className="text-[11px] font-bold text-stone-400 uppercase tracking-[0.07em]">{label}</p>
+      <p className={`text-3xl font-bold font-mono tracking-[-0.04em] tabular-nums mt-1 ${accent ? 'text-terracotta-600 dark:text-terracotta-400' : 'text-stone-800 dark:text-stone-100'}`}>
         {value}
       </p>
-      {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-stone-400 dark:text-stone-500">{sub}</p>}
     </div>
   )
 }
@@ -305,7 +305,7 @@ function pseudoRand(seed: string, salt: number): number {
 const TAG_CLOUD_H = 300
 const TAG_MIN_SIZE = 0.75
 const TAG_MAX_SIZE = 2.25
-const TAG_COLORS = [TERRACOTTA, OCEAN, MOSS, AMBER]
+const TAG_COLORS = [TERRACOTTA, INDIGO, MOSS, AMBER]
 
 interface TagCloudProps { data: TagFrequencyItem[]; isDark: boolean }
 
@@ -567,8 +567,8 @@ export function Analytics() {
     }
   }, [allDays, periodDays])
 
-  const chartCard = 'bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-100 dark:border-stone-700 p-6 shadow-soft'
-  const sectionHeader = 'text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4'
+  const chartCard = 'bg-white dark:bg-stone-800/80 rounded-xl border border-stone-100 dark:border-stone-700 p-5 shadow-soft'
+  const sectionHeader = 'text-[11px] font-mono font-bold text-stone-400 uppercase tracking-[0.08em] mb-3.5'
   const chartTitle = 'text-sm font-medium text-stone-600 dark:text-stone-300 mb-4'
   const emptyChart = 'text-sm text-stone-400 flex items-center justify-center'
 
@@ -658,7 +658,7 @@ export function Analytics() {
                   <h3 className={chartTitle}>Completion Rate &amp; Energy</h3>
                   <div className="flex items-center gap-4 mb-3">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: OCEAN }} />
+                      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: INDIGO }} />
                       <span className="text-xs text-stone-500 dark:text-stone-400">Completion %</span>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -713,7 +713,7 @@ export function Analytics() {
                           type="monotone"
                           dataKey="completionRate"
                           name="Completion %"
-                          stroke={OCEAN}
+                          stroke={INDIGO}
                           strokeWidth={2}
                           dot={false}
                           connectNulls={false}
@@ -739,7 +739,7 @@ export function Analytics() {
                         />
                         <YAxis yAxisId="left" allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
                         <Tooltip contentStyle={tooltipStyle} />
-                        <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={OCEAN} />
+                        <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={INDIGO} />
                         <Bar yAxisId="left" dataKey="short_task" name="Short Task" stackId="a" fill={TERRACOTTA} />
                         <Bar yAxisId="left" dataKey="maintenance" name="Maintenance" stackId="a" fill={MOSS} radius={[3, 3, 0, 0]} />
                       </ComposedChart>
@@ -771,9 +771,9 @@ export function Analytics() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 dark:bg-stone-850 dark:border-stone-700/50 px-8 py-5 flex-shrink-0 flex items-center justify-between">
+        <header className="bg-white border-b border-stone-100 dark:bg-stone-850 dark:border-stone-700/50 px-8 py-[18px] flex-shrink-0 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-stone-800 dark:text-stone-100">Analytics</h1>
+            <h1 className="text-xl font-bold tracking-[-0.02em] text-stone-800 dark:text-stone-100">Analytics</h1>
             <p className="text-sm text-stone-400 mt-0.5">Last {periodDays} days</p>
           </div>
           <div className="flex items-center gap-3">
@@ -849,7 +849,7 @@ export function Analytics() {
                 <h3 className={chartTitle}>Completion Rate &amp; Energy</h3>
                 <div className="flex items-center gap-4 mb-3">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: OCEAN }} />
+                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: INDIGO }} />
                     <span className="text-xs text-stone-500 dark:text-stone-400">Completion %</span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -904,7 +904,7 @@ export function Analytics() {
                         type="monotone"
                         dataKey="completionRate"
                         name="Completion %"
-                        stroke={OCEAN}
+                        stroke={INDIGO}
                         strokeWidth={2}
                         dot={false}
                         connectNulls={false}
@@ -930,7 +930,7 @@ export function Analytics() {
                       />
                       <YAxis yAxisId="left" allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={OCEAN} />
+                      <Bar yAxisId="left" dataKey="deep_work" name="Deep Work" stackId="a" fill={INDIGO} />
                       <Bar yAxisId="left" dataKey="short_task" name="Short Task" stackId="a" fill={TERRACOTTA} />
                       <Bar yAxisId="left" dataKey="maintenance" name="Maintenance" stackId="a" fill={MOSS} radius={[3, 3, 0, 0]} />
                     </ComposedChart>

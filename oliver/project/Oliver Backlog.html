@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oliver — Backlog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+:root{
+  --sb:#111110;--sb2:#1c1b19;--sb-border:#2a2826;--sb-text:#f0ede8;--sb-muted:#6b6560;--sb-active:#2d2b28;
+  --bg:#f7f5f2;--surface:#ffffff;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --text:#1a1816;--text2:#5c5750;--text3:#a09890;
+  --accent:#e86b3a;--accent-light:#fdf0ea;
+  --deep:#5b5bd6;--deep-light:#ededfc;
+  --short:#e86b3a;--short-light:#fdf0ea;
+  --maint:#3d8b5e;--maint-light:#ebf5ef;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  --mono:'DM Mono',monospace;
+}
+.dark{
+  --bg:#111110;--surface:#1c1b19;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0ede8;--text2:#8a847d;--text3:#4d4845;
+  --accent-light:#2a1e17;--deep-light:#1a1a2e;--short-light:#2a1e17;--maint-light:#162318;
+  --shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2);
+}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:4px}
+*{transition:background-color .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease}
+input,textarea{font-family:inherit}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const IconHome=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>;
+const IconGoals=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const IconBacklog=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>;
+const IconTag=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>;
+const IconChart=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const IconSettings=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+const IconMoon=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+const IconSun=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>;
+const IconBell=()=><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const IconChevL=()=><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>;
+const IconChevR=()=><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>;
+const IconSearch=({size=15})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>;
+const IconX=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>;
+const IconPlus=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
+const IconPencil=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconTrash=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconCal=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconArrow=({size=13})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
+
+// ── Data ───────────────────────────────────────────────────────────────────
+const CAT = {
+  deep_work:   { label: 'Deep Work',   color: 'var(--deep)',  bg: 'var(--deep-light)' },
+  short_task:  { label: 'Short Tasks', color: 'var(--short)', bg: 'var(--short-light)' },
+  maintenance: { label: 'Maintenance', color: 'var(--maint)', bg: 'var(--maint-light)' },
+};
+
+const INIT = [
+  { id:1,  title:'Implement rate limiting for API',          tags:['backend','api'],    cat:'deep_work',   desc:'' },
+  { id:2,  title:'Add E2E tests for checkout flow',          tags:['testing','dev'],    cat:'deep_work',   desc:'' },
+  { id:3,  title:'Update README with setup instructions',    tags:['docs'],             cat:'short_task',  desc:'' },
+  { id:4,  title:'Fix memory leak in worker process',        tags:['backend','dev'],    cat:'deep_work',   desc:'Noticed in production traces — likely the event emitter.' },
+  { id:5,  title:'Review open PRs from last sprint',         tags:['dev'],              cat:'short_task',  desc:'' },
+  { id:6,  title:'Update npm dependencies',                  tags:['dev'],              cat:'maintenance', desc:'' },
+  { id:7,  title:'Add Sentry error tracking to mobile',      tags:['infra','dev'],      cat:'maintenance', desc:'' },
+  { id:8,  title:'Write blog post about v2 launch',          tags:['strategy'],         cat:'short_task',  desc:'' },
+  { id:9,  title:'Audit database query performance',         tags:['backend','infra'],  cat:'deep_work',   desc:'' },
+  { id:10, title:'Set up feature flag system',               tags:['infra','backend'],  cat:'deep_work',   desc:'' },
+  { id:11, title:'Update Figma design tokens',               tags:['design'],           cat:'short_task',  desc:'' },
+  { id:12, title:'Archive old Notion pages',                 tags:[],                   cat:'maintenance', desc:'' },
+];
+
+const ALL_TAGS = ['backend','api','testing','dev','docs','infra','strategy','design'];
+const CAL_DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+const DAYS_IN_MONTH = [null,null,null,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+const heatmap={};for(let d=1;d<=30;d++){let h=(d*2654435761)>>>0;h=(Math.imul(h^(h>>>16),0x45d9f3b))>>>0;const v=(h>>>0)/0xffffffff;heatmap[`2026-04-${String(d).padStart(2,'0')}`]=d>20?null:v<0.15?0:v<0.5?0.5:v<0.8?0.8:1;}
+
+function SbBtn({children,title,onClick,active}){const[h,setH]=useState(false);return<button title={title} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{width:28,height:28,borderRadius:6,border:'none',cursor:'pointer',background:active||h?'var(--sb2)':'transparent',color:active?'var(--sb-text)':'var(--sb-muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>{children}</button>;}
+
+function Sidebar({dark,onToggleDark}){
+  const[calDate,setCalDate]=useState(new Date(2026,3,1));
+  const y=calDate.getFullYear(),m=calDate.getMonth();
+  const firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0);
+  const offset=(firstDay.getDay()+6)%7;
+  const cells=[...Array(offset).fill(null),...Array.from({length:lastDay.getDate()},(_,i)=>new Date(y,m,i+1))];
+  while(cells.length%7)cells.push(null);
+  const mLabel=calDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const NAV=[
+    {key:'today',label:'Today',icon:<IconHome/>,href:'Oliver Redesign.html'},
+    {key:'goals',label:'Goals',icon:<IconGoals/>,href:'Oliver Goals.html'},
+    {key:'backlog',label:'Backlog',icon:<IconBacklog/>,href:'#'},
+    {key:'tags',label:'Tags',icon:<IconTag/>,href:'#'},
+    {key:'analytics',label:'Analytics',icon:<IconChart/>,href:'Oliver Analytics.html'},
+  ];
+  return(
+    <aside style={{width:256,minWidth:256,height:'100vh',background:'var(--sb)',display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'1px solid var(--sb-border)'}}>
+      <div style={{padding:'20px 18px 14px',borderBottom:'1px solid var(--sb-border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:28,height:28,borderRadius:8,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <span style={{fontSize:16,fontWeight:700,color:'var(--sb-text)',letterSpacing:'-0.01em'}}>oliver</span>
+        </div>
+        <div style={{display:'flex',gap:2}}>
+          <SbBtn onClick={onToggleDark} title="Toggle theme">{dark?<IconSun/>:<IconMoon/>}</SbBtn>
+          <SbBtn title="Notifications"><IconBell/></SbBtn>
+          <SbBtn title="Settings" onClick={()=>window.location.href='Oliver Settings.html'}><IconSettings/></SbBtn>
+        </div>
+      </div>
+      <nav style={{padding:'8px 10px',borderBottom:'1px solid var(--sb-border)'}}>
+        {NAV.map(item=>{const active=item.key==='backlog';return(
+          <a key={item.key} href={item.href} style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'7px 10px',borderRadius:7,cursor:'pointer',background:active?'var(--sb-active)':'transparent',color:active?'var(--sb-text)':'var(--sb-muted)',fontSize:13.5,fontWeight:active?600:400,fontFamily:'inherit',marginBottom:1,textDecoration:'none'}}>
+            <span style={{opacity:active?1:0.7}}>{item.icon}</span>{item.label}
+          </a>
+        );})}
+      </nav>
+      <div style={{flex:1,overflowY:'auto',padding:'14px 14px 16px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          <span style={{fontSize:12,fontWeight:600,color:'var(--sb-text)',opacity:0.8}}>{mLabel}</span>
+          <div style={{display:'flex',gap:2}}><SbBtn onClick={()=>setCalDate(new Date(y,m-1,1))}><IconChevL/></SbBtn><SbBtn onClick={()=>setCalDate(new Date(y,m+1,1))}><IconChevR/></SbBtn></div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:4}}>{CAL_DAYS.map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:'var(--sb-muted)',fontWeight:600,padding:'2px 0'}}>{d}</div>)}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3}}>
+          {cells.map((date,i)=>{if(!date)return<div key={i}/>;const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;const heat=heatmap[ds];const isToday=ds==='2026-04-20';const hasData=heat!==null&&heat!==undefined;const dotColor=!hasData?'transparent':heat===0?'#3a3632':heat<0.6?'rgba(232,107,58,0.5)':heat<0.9?'rgba(232,107,58,0.8)':'var(--accent)';return(<button key={ds} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:6,border:isToday?'1.5px solid var(--accent)':'1.5px solid transparent',background:'transparent',cursor:'pointer',fontSize:11,fontWeight:isToday?700:400,color:isToday?'var(--accent)':'var(--sb-text)',opacity:isToday?1:0.75,gap:2}}>{date.getDate()}{hasData&&<div style={{width:4,height:4,borderRadius:'50%',background:dotColor}}/>}</button>);})}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ── Category Badge ──────────────────────────────────────────────────────────
+function CatBadge({cat}){const c=CAT[cat];return<span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:4,background:c.bg,color:c.color}}>{c.label}</span>;}
+
+// ── Backlog Task Card ───────────────────────────────────────────────────────
+function TaskCard({task,onDelete,onMoveToDay,onEdit}){
+  const[hovered,setHovered]=useState(false);
+  const[confirmDel,setConfirmDel]=useState(false);
+  return(
+    <div onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>{setHovered(false);setConfirmDel(false);}}
+      style={{display:'flex',alignItems:'flex-start',gap:12,padding:'11px 14px',borderRadius:10,border:`1px solid ${hovered?'var(--border2)':'var(--border)'}`,background:'var(--surface)',boxShadow:hovered?'var(--shadow)':'none',transform:hovered?'translateY(-1px)':'none'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <p style={{fontSize:13.5,fontWeight:500,color:'var(--text)',lineHeight:1.4}}>{task.title}</p>
+        {task.desc&&<p style={{fontSize:12,color:'var(--text3)',marginTop:3,lineHeight:1.5}}>{task.desc}</p>}
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:7,alignItems:'center'}}>
+          <CatBadge cat={task.cat}/>
+          {task.tags.map(t=><span key={t} style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text3)',background:'var(--border)',padding:'1px 6px',borderRadius:3}}>#{t}</span>)}
+        </div>
+      </div>
+      <div style={{display:'flex',gap:2,opacity:hovered?1:0,flexShrink:0,alignItems:'center'}}>
+        <ABtn icon={<IconPencil/>} title="Edit" onClick={()=>onEdit(task)}/>
+        <ABtn icon={<IconCal/>} title="Move to day" color="var(--maint)" onClick={()=>onMoveToDay(task)}/>
+        {confirmDel?<button onClick={()=>onDelete(task.id)} style={{padding:'3px 8px',borderRadius:4,border:'none',background:'#fee2e2',color:'#dc2626',cursor:'pointer',fontSize:11,fontWeight:600}}>✕ confirm</button>:<ABtn icon={<IconTrash/>} title="Delete" color="#dc2626" onClick={()=>setConfirmDel(true)}/>}
+      </div>
+    </div>
+  );
+}
+function ABtn({icon,title,color,onClick}){const[h,setH]=useState(false);return<button title={title} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{width:26,height:26,borderRadius:5,border:'none',background:h?'var(--border)':'transparent',color:h&&color?color:'var(--text3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{icon}</button>;}
+
+// ── Edit Inline ─────────────────────────────────────────────────────────────
+function EditCard({task,onSave,onCancel}){
+  const[title,setTitle]=useState(task.title);
+  const[desc,setDesc]=useState(task.desc);
+  const[cat,setCat]=useState(task.cat);
+  return(
+    <div style={{padding:'12px 14px',borderRadius:10,border:'1.5px solid var(--accent)',background:'var(--surface)',display:'flex',flexDirection:'column',gap:8}}>
+      <input autoFocus value={title} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>{if(e.key==='Escape')onCancel();if(e.key==='Enter')onSave({...task,title:title.trim(),desc,cat});}}
+        style={{border:'none',outline:'none',fontSize:13.5,fontWeight:500,color:'var(--text)',background:'transparent',fontFamily:'inherit'}}/>
+      <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Description (optional)"
+        style={{border:'none',outline:'none',fontSize:12,color:'var(--text2)',background:'transparent',fontFamily:'inherit'}}/>
+      <div style={{display:'flex',gap:4}}>
+        {Object.entries(CAT).map(([k,v])=><button key={k} onClick={()=>setCat(k)} style={{padding:'3px 10px',borderRadius:5,border:`1.5px solid ${cat===k?v.color:'var(--border2)'}`,background:cat===k?v.bg:'transparent',color:cat===k?v.color:'var(--text3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>{v.label}</button>)}
+      </div>
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>onSave({...task,title:title.trim(),desc,cat})} style={{padding:'5px 14px',borderRadius:6,border:'none',background:'var(--accent)',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Save</button>
+        <button onClick={onCancel} style={{padding:'5px 10px',borderRadius:6,border:'none',background:'var(--border)',color:'var(--text2)',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Task Form ───────────────────────────────────────────────────────────
+function AddForm({onAdd}){
+  const[open,setOpen]=useState(false);
+  const[title,setTitle]=useState('');
+  const[cat,setCat]=useState('short_task');
+  if(!open)return(
+    <button onClick={()=>setOpen(true)} style={{width:'100%',padding:'10px',borderRadius:10,border:'1.5px dashed var(--border2)',background:'transparent',color:'var(--text3)',fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontFamily:'inherit'}}>
+      <IconPlus size={14}/> Add task to backlog
+    </button>
+  );
+  return(
+    <div style={{padding:'12px 14px',borderRadius:10,border:'1.5px solid var(--accent)',background:'var(--surface)',display:'flex',flexDirection:'column',gap:8}}>
+      <input autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Task title…"
+        onKeyDown={e=>{if(e.key==='Enter'&&title.trim()){onAdd(title.trim(),cat);setTitle('');setOpen(false);}if(e.key==='Escape'){setOpen(false);setTitle('');}}}
+        style={{border:'none',outline:'none',fontSize:13.5,fontWeight:500,color:'var(--text)',background:'transparent',fontFamily:'inherit'}}/>
+      <div style={{display:'flex',gap:4}}>
+        {Object.entries(CAT).map(([k,v])=><button key={k} onClick={()=>setCat(k)} style={{padding:'3px 10px',borderRadius:5,border:`1.5px solid ${cat===k?v.color:'var(--border2)'}`,background:cat===k?v.bg:'transparent',color:cat===k?v.color:'var(--text3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>{v.label}</button>)}
+      </div>
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>{if(title.trim()){onAdd(title.trim(),cat);setTitle('');setOpen(false);}}} style={{padding:'5px 14px',borderRadius:6,border:'none',background:'var(--accent)',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Add</button>
+        <button onClick={()=>{setOpen(false);setTitle('');}} style={{padding:'5px 10px',borderRadius:6,border:'none',background:'var(--border)',color:'var(--text2)',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Move to Day Modal ───────────────────────────────────────────────────────
+function MoveModal({task,onClose,onMove}){
+  const[selDate,setSelDate]=useState('2026-04-21');
+  const[selCat,setSelCat]=useState(task.cat);
+  const y=2026,m=3;
+  const firstDay=new Date(y,m,1);
+  const lastDay=new Date(y,m+1,0);
+  const offset=(firstDay.getDay()+6)%7;
+  const cells=[...Array(offset).fill(null),...Array.from({length:lastDay.getDate()},(_,i)=>new Date(y,m,i+1))];
+  while(cells.length%7)cells.push(null);
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,padding:24,width:360,boxShadow:'0 8px 40px rgba(0,0,0,0.2)',border:'1px solid var(--border2)'}}>
+        <h2 style={{fontSize:15,fontWeight:700,color:'var(--text)',marginBottom:4}}>Move to day</h2>
+        <p style={{fontSize:12,color:'var(--text3)',marginBottom:16,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</p>
+        {/* Mini calendar */}
+        <div style={{marginBottom:14}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:4}}>{CAL_DAYS.map(d=><div key={d} style={{textAlign:'center',fontSize:10,color:'var(--text3)',fontWeight:600}}>{d}</div>)}</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3}}>
+            {cells.map((date,i)=>{if(!date)return<div key={i}/>;const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;const past=date<new Date(2026,3,20);const sel=ds===selDate;return(
+              <button key={ds} disabled={past} onClick={()=>setSelDate(ds)} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:6,border:sel?'2px solid var(--accent)':'1px solid var(--border)',background:sel?'var(--accent-light)':'transparent',cursor:past?'default':'pointer',fontSize:11,fontWeight:sel?700:400,color:past?'var(--text3)':sel?'var(--accent)':'var(--text)',opacity:past?0.35:1}}>{date.getDate()}</button>
+            );})}
+          </div>
+        </div>
+        {/* Category */}
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--text3)',marginBottom:6}}>Category</p>
+        <div style={{display:'flex',gap:4,marginBottom:18}}>
+          {Object.entries(CAT).map(([k,v])=><button key={k} onClick={()=>setSelCat(k)} style={{flex:1,padding:'6px',borderRadius:6,border:`1.5px solid ${selCat===k?v.color:'var(--border2)'}`,background:selCat===k?v.bg:'transparent',color:selCat===k?v.color:'var(--text3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>{v.label}</button>)}
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>onMove(task.id,selDate,selCat)} style={{flex:1,padding:'9px',borderRadius:8,border:'none',background:'var(--accent)',color:'white',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            <IconArrow size={13}/> Move to {selDate.slice(5).replace('-','/')}
+          </button>
+          <button onClick={onClose} style={{padding:'9px 14px',borderRadius:8,border:'none',background:'var(--border)',color:'var(--text2)',fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS=/*EDITMODE-BEGIN*/{"dark":false}/*EDITMODE-END*/;
+function App(){
+  const[dark,setDark]=useState(TWEAK_DEFAULTS.dark);
+  const[tasks,setTasks]=useState(INIT);
+  const[search,setSearch]=useState('');
+  const[selTag,setSelTag]=useState(null);
+  const[moveTask,setMoveTask]=useState(null);
+  const[editTask,setEditTask]=useState(null);
+  const[showTweaks,setShowTweaks]=useState(false);
+
+  useEffect(()=>{document.documentElement.classList.toggle('dark',dark);},[dark]);
+  useEffect(()=>{window.addEventListener('message',e=>{if(e.data?.type==='__activate_edit_mode')setShowTweaks(true);if(e.data?.type==='__deactivate_edit_mode')setShowTweaks(false);});window.parent.postMessage({type:'__edit_mode_available'},'*');},[]);
+
+  const filtered=tasks.filter(t=>{
+    const matchSearch=!search||t.title.toLowerCase().includes(search.toLowerCase());
+    const matchTag=!selTag||t.tags.includes(selTag);
+    return matchSearch&&matchTag;
+  });
+
+  function handleAdd(title,cat){setTasks(p=>[{id:Date.now(),title,cat,tags:[],desc:''},...p]);}
+  function handleDelete(id){setTasks(p=>p.filter(t=>t.id!==id));}
+  function handleSave(updated){setTasks(p=>p.map(t=>t.id===updated.id?updated:t));setEditTask(null);}
+  function handleMove(id,date,cat){setTasks(p=>p.filter(t=>t.id!==id));setMoveTask(null);}
+
+  const usedTags=[...new Set(tasks.flatMap(t=>t.tags))].sort();
+
+  return(
+    <div style={{display:'flex',height:'100vh',overflow:'hidden',background:'var(--bg)'}}>
+      <Sidebar dark={dark} onToggleDark={()=>setDark(d=>!d)}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
+        {/* Header */}
+        <header style={{padding:'18px 28px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--surface)',flexShrink:0}}>
+          <div>
+            <h1 style={{fontSize:20,fontWeight:700,color:'var(--text)',letterSpacing:'-0.02em'}}>Backlog</h1>
+            <p style={{fontSize:13,color:'var(--text3)',marginTop:1}}>{tasks.length} task{tasks.length!==1?'s':''} waiting to be scheduled</p>
+          </div>
+          {/* Search */}
+          <div style={{position:'relative',width:260}}>
+            <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--text3)',pointerEvents:'none'}}><IconSearch/></span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search backlog…"
+              style={{width:'100%',padding:'8px 32px 8px 34px',borderRadius:8,border:'1px solid var(--border2)',background:'var(--bg)',color:'var(--text)',fontSize:13,outline:'none',fontFamily:'inherit'}}/>
+            {search&&<button onClick={()=>setSearch('')} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'var(--text3)'}}><IconX size={12}/></button>}
+          </div>
+        </header>
+
+        <main style={{flex:1,overflowY:'auto',padding:'20px 28px'}}>
+          <div style={{maxWidth:680,margin:'0 auto'}}>
+            {/* Tag filters */}
+            {usedTags.length>0&&(
+              <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
+                <FilterChip label="All" active={!selTag} onClick={()=>setSelTag(null)}/>
+                {usedTags.map(t=><FilterChip key={t} label={`#${t}`} active={selTag===t} onClick={()=>setSelTag(selTag===t?null:t)}/>)}
+              </div>
+            )}
+            {/* Add form */}
+            <div style={{marginBottom:14}}><AddForm onAdd={handleAdd}/></div>
+            {/* Task list */}
+            {filtered.length===0?(
+              <div style={{textAlign:'center',padding:'48px 0',color:'var(--text3)',fontSize:13}}>
+                {search||selTag?'No tasks match your filters':'Your backlog is empty.'}
+              </div>
+            ):(
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {filtered.map(t=>editTask?.id===t.id
+                  ?<EditCard key={t.id} task={t} onSave={handleSave} onCancel={()=>setEditTask(null)}/>
+                  :<TaskCard key={t.id} task={t} onDelete={handleDelete} onMoveToDay={setMoveTask} onEdit={setEditTask}/>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {moveTask&&<MoveModal task={moveTask} onClose={()=>setMoveTask(null)} onMove={handleMove}/>}
+
+      {showTweaks&&(
+        <div style={{position:'fixed',bottom:24,right:24,width:200,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',padding:16,zIndex:1000}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text3)',marginBottom:14}}>Tweaks</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontSize:13,color:'var(--text2)'}}>Dark mode</span>
+            <button onClick={()=>setDark(d=>!d)} style={{width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',background:dark?'var(--accent)':'var(--border2)',position:'relative'}}>
+              <div style={{width:14,height:14,borderRadius:'50%',background:'white',position:'absolute',top:3,left:dark?19:3,transition:'left 0.15s'}}/>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({label,active,onClick}){const[h,setH]=useState(false);return<button onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{padding:'4px 12px',borderRadius:20,border:`1px solid ${active?'var(--accent)':h?'var(--border2)':'var(--border)'}`,background:active?'var(--accent-light)':'transparent',color:active?'var(--accent)':'var(--text3)',fontSize:12,fontFamily:'var(--mono)',fontWeight:active?600:400,cursor:'pointer'}}>{label}</button>;}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

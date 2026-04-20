@@ -2,13 +2,15 @@ export const CATEGORIES = {
   deep_work: {
     key: 'deep_work',
     label: 'Deep Work',
-    color: 'text-ocean-600 dark:text-ocean-400',
-    bg: 'bg-ocean-50 dark:bg-ocean-900/20',
-    border: 'border-ocean-200 dark:border-ocean-800/30',
-    badge: 'bg-ocean-100 text-ocean-700 dark:bg-ocean-900/30 dark:text-ocean-300',
-    header: 'border-ocean-400 text-ocean-700 dark:text-ocean-400',
-    button: 'bg-ocean-50 text-ocean-600 hover:bg-ocean-100 border-ocean-200 dark:bg-ocean-900/20 dark:text-ocean-300 dark:hover:bg-ocean-900/30 dark:border-ocean-800/30',
-    tab: 'text-ocean-400 border-b-2 border-ocean-400',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/20',
+    border: 'border-indigo-200 dark:border-indigo-800/30',
+    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+    header: 'border-indigo-500 text-indigo-700 dark:text-indigo-400',
+    button: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/30 dark:border-indigo-800/30',
+    tab: 'text-indigo-400 border-b-2 border-indigo-400',
+    topBorder: 'border-t-indigo-500',
+    progressFill: 'bg-indigo-500/60',
   },
   short_task: {
     key: 'short_task',
@@ -20,6 +22,8 @@ export const CATEGORIES = {
     header: 'border-terracotta-400 text-terracotta-700 dark:text-terracotta-400',
     button: 'bg-terracotta-50 text-terracotta-600 hover:bg-terracotta-100 border-terracotta-200 dark:bg-terracotta-900/20 dark:text-terracotta-300 dark:hover:bg-terracotta-900/30 dark:border-terracotta-800/30',
     tab: 'text-terracotta-400 border-b-2 border-terracotta-400',
+    topBorder: 'border-t-terracotta-500',
+    progressFill: 'bg-terracotta-500/60',
   },
   maintenance: {
     key: 'maintenance',
@@ -31,6 +35,8 @@ export const CATEGORIES = {
     header: 'border-moss-400 text-moss-700 dark:text-moss-400',
     button: 'bg-moss-50 text-moss-600 hover:bg-moss-100 border-moss-200 dark:bg-moss-900/20 dark:text-moss-300 dark:hover:bg-moss-900/30 dark:border-moss-800/30',
     tab: 'text-moss-400 border-b-2 border-moss-400',
+    topBorder: 'border-t-moss-500',
+    progressFill: 'bg-moss-500/60',
   },
 } as const
 

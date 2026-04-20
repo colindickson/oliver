@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oliver — Redesign Proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* CSS Variables */
+:root {
+  --sb: #111110;          /* sidebar bg */
+  --sb2: #1c1b19;         /* sidebar surface */
+  --sb-border: #2a2826;
+  --sb-text: #f0ede8;
+  --sb-muted: #6b6560;
+  --sb-hover: #222120;
+  --sb-active: #2d2b28;
+
+  --bg: #f7f5f2;          /* main bg */
+  --surface: #ffffff;     /* card surface */
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #1a1816;
+  --text2: #5c5750;
+  --text3: #a09890;
+  --accent: #e86b3a;      /* terracotta */
+  --accent-light: #fdf0ea;
+  --deep: #5b5bd6;        /* indigo for deep work */
+  --deep-light: #ededfc;
+  --short: #e86b3a;       /* terracotta short tasks */
+  --short-light: #fdf0ea;
+  --maint: #3d8b5e;       /* green maintenance */
+  --maint-light: #ebf5ef;
+  --success: #3d8b5e;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-lg: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+  --mono: 'DM Mono', 'Menlo', monospace;
+}
+
+/* Dark mode */
+.dark {
+  --bg: #111110;
+  --surface: #1c1b19;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0ede8;
+  --text2: #8a847d;
+  --text3: #4d4845;
+  --accent-light: #2a1e17;
+  --deep-light: #1a1a2e;
+  --short-light: #2a1e17;
+  --maint-light: #162318;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-lg: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+
+/* Transitions */
+*, *::before, *::after {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+[class*="no-transition"] { transition: none !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// ─── Icons (Lucide-style, 24px viewBox, 1.5px stroke) ─────────────────────
+const Icon = ({ d, d2, fill, size = 16, color = 'currentColor', strokeWidth = 1.6 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} fill={fill === i ? color : 'none'} />) : <path d={d} />}
+    {d2 && <path d={d2} />}
+  </svg>
+);
+
+const I = {
+  home:     "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  goals:    null, // uses circles
+  backlog:  null, // uses rect+paths  
+  tag:      "M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z M7 7h.01",
+  chart:    null,
+  settings: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
+  moon:     "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z",
+  sun:      "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M6.34 17.66l-1.41 1.41 M19.07 4.93l-1.41 1.41",
+  bell:     "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0",
+  pencil:   "M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z",
+  trash:    "M3 6h18 M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6 M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2",
+  inbox:    "M22 12l-3 6H5l-3-6 M2 12h20 M16 6l-4-4-4 4 M12 2v10",
+  plus:     "M12 5v14 M5 12h14",
+  chevL:    "M15 18l-6-6 6-6",
+  chevR:    "M9 18l6-6-6-6",
+  arrow:    "M5 12h14 M12 5l7 7-7 7",
+  clock:    "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  grip:     "M9 5h.01 M15 5h.01 M9 12h.01 M15 12h.01 M9 19h.01 M15 19h.01",
+  x:        "M18 6 6 18 M6 6l12 12",
+  check:    "M20 6 9 17l-5-5",
+  star:     "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+};
+
+const IconHome = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>;
+const IconGoals = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const IconBacklog = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>;
+const IconTag = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>;
+const IconChart = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const IconSettings = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+const IconMoon = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+const IconSun = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>;
+const IconBell = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const IconPencil = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
+const IconTrash = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const IconPlus = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
+const IconChevL = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>;
+const IconChevR = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>;
+const IconArrow = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
+const IconGrip = ({size=14}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/></svg>;
+const IconClock = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconX = ({size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>;
+
+// ─── Data ─────────────────────────────────────────────────────────────────
+const TASKS_INIT = {
+  deep_work: [
+    { id: 1, title: 'Finish Q2 roadmap document', tags: ['planning', 'strategy'], done: false },
+    { id: 2, title: 'Review architecture proposal for auth service', tags: ['backend'], done: false },
+    { id: 3, title: 'Write RFC for new API versioning', tags: ['backend', 'api'], done: true },
+  ],
+  short_task: [
+    { id: 4, title: 'Reply to design team feedback', tags: [], done: true },
+    { id: 5, title: 'Update PR description with test plan', tags: ['dev'], done: false },
+    { id: 6, title: 'Schedule 1:1 with Jamie', tags: [], done: false },
+  ],
+  maintenance: [
+    { id: 7, title: 'Update dependencies in frontend', tags: ['dev'], done: false },
+    { id: 8, title: 'Clear inbox and triage issues', tags: [], done: true },
+    { id: 9, title: 'Review team PRs', tags: ['dev'], done: false },
+  ],
+};
+
+const COLS = [
+  { key: 'deep_work',  label: 'Deep Work',    color: 'var(--deep)',  bg: 'var(--deep-light)' },
+  { key: 'short_task', label: 'Short Tasks',   color: 'var(--short)', bg: 'var(--short-light)' },
+  { key: 'maintenance',label: 'Maintenance',   color: 'var(--maint)', bg: 'var(--maint-light)' },
+];
+
+const CAL_DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+const today = new Date(2026, 3, 20); // April 20 2026
+
+// ─── Mini calendar heatmap data ───────────────────────────────────────────
+const heatmap = {};
+for (let d = 1; d <= 30; d++) {
+  const r = Math.random();
+  heatmap[`2026-04-${String(d).padStart(2,'0')}`] = d > 20 ? null : r < 0.2 ? 0 : r < 0.5 ? 0.5 : r < 0.8 ? 0.8 : 1;
+}
+
+// ─── TaskCard ─────────────────────────────────────────────────────────────
+function TaskCard({ task, onToggle, onDelete, density }) {
+  const [hovered, setHovered] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const compact = density === 'compact';
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        padding: compact ? '8px 10px' : '10px 12px',
+        borderRadius: 'var(--radius-sm)',
+        background: task.done ? 'transparent' : 'var(--surface)',
+        boxShadow: task.done ? 'none' : hovered ? 'var(--shadow)' : '0 1px 2px rgba(0,0,0,0.04)',
+        border: `1px solid ${task.done ? 'transparent' : 'var(--border)'}`,
+        opacity: task.done ? 0.45 : 1,
+        transform: hovered && !task.done ? 'translateY(-1px)' : 'none',
+        cursor: 'default',
+        userSelect: 'none',
+      }}
+    >
+      {/* Drag handle */}
+      <div style={{ color: 'var(--text3)', paddingTop: 2, opacity: hovered ? 1 : 0, flexShrink: 0, cursor: 'grab' }}>
+        <IconGrip size={12} />
+      </div>
+
+      {/* Checkbox */}
+      <button
+        onClick={() => onToggle(task.id)}
+        style={{
+          width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+          border: task.done ? 'none' : '1.5px solid var(--border2)',
+          background: task.done ? 'var(--success)' : hovered ? 'var(--accent-light)' : 'transparent',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {task.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
+      </button>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontSize: 13.5, fontWeight: 500, color: 'var(--text)',
+          textDecoration: task.done ? 'line-through' : 'none',
+          lineHeight: 1.4, textWrap: 'pretty',
+        }}>{task.title}</p>
+        {task.tags.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
+            {task.tags.map(t => (
+              <span key={t} style={{
+                fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 500,
+                color: 'var(--text3)', background: 'var(--border)',
+                padding: '1px 6px', borderRadius: 3,
+              }}>#{t}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 2, opacity: hovered ? 1 : 0, flexShrink: 0 }}>
+        <ActionBtn icon={<IconPencil size={13}/>} title="Edit" />
+        <ActionBtn icon={<IconClock size={13}/>} title="Remind" color="var(--accent)" />
+        {confirmDelete ? (
+          <button onClick={() => onDelete(task.id)} title="Confirm delete" style={{
+            width: 24, height: 24, borderRadius: 4, border: 'none',
+            background: '#fee2e2', color: '#dc2626', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600,
+          }}>✕</button>
+        ) : (
+          <ActionBtn icon={<IconTrash size={13}/>} title="Delete" color="#dc2626" onClick={() => setConfirmDelete(true)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionBtn({ icon, title, color, onClick }) {
+  const [h, setH] = useState(false);
+  return (
+    <button
+      title={title} onClick={onClick}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{
+        width: 24, height: 24, borderRadius: 4, border: 'none',
+        background: h ? 'var(--border)' : 'transparent',
+        color: h && color ? color : 'var(--text3)',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >{icon}</button>
+  );
+}
+
+// ─── TaskColumn ───────────────────────────────────────────────────────────
+function TaskColumn({ col, tasks, onToggle, onDelete, onAdd, density }) {
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const colTasks = tasks[col.key];
+  const done = colTasks.filter(t => t.done).length;
+  const pct = colTasks.length ? done / colTasks.length : 0;
+  const compact = density === 'compact';
+
+  function handleAdd() {
+    if (newTitle.trim()) { onAdd(col.key, newTitle.trim()); setNewTitle(''); setAdding(false); }
+  }
+
+  return (
+    <div style={{
+      flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
+      background: 'var(--surface)', borderRadius: 12,
+      border: '1px solid var(--border)', boxShadow: 'var(--shadow)',
+      overflow: 'hidden',
+    }}>
+      {/* Colored accent bar */}
+      <div style={{ height: 3, background: col.color, borderRadius: '12px 12px 0 0' }} />
+
+      {/* Header */}
+      <div style={{ padding: compact ? '12px 14px 10px' : '14px 16px 12px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: col.color }}>{col.label}</span>
+          <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text3)', fontWeight: 500 }}>{done}/{colTasks.length}</span>
+        </div>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct * 100}%`, background: col.color, borderRadius: 2, transition: 'width 0.4s ease' }} />
+        </div>
+      </div>
+
+      {/* Tasks */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: compact ? '8px' : '10px', display: 'flex', flexDirection: 'column', gap: compact ? 4 : 6 }}>
+        {colTasks.map(t => (
+          <TaskCard key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} density={density} />
+        ))}
+
+        {/* Add task inline */}
+        {adding ? (
+          <div style={{ display: 'flex', gap: 6, padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-sm)' }}>
+            <input
+              autoFocus value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setNewTitle(''); } }}
+              placeholder="Task title…"
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13.5, background: 'transparent', color: 'var(--text)', fontFamily: 'inherit' }}
+            />
+            <button onClick={handleAdd} style={{ fontSize: 12, fontWeight: 600, color: 'white', background: col.color, border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}>Add</button>
+            <button onClick={() => { setAdding(false); setNewTitle(''); }} style={{ fontSize: 12, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}><IconX size={13}/></button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            style={{
+              width: '100%', padding: '7px 10px', border: '1px dashed var(--border2)',
+              borderRadius: 'var(--radius-sm)', background: 'transparent',
+              color: 'var(--text3)', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+              display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+            }}
+          >
+            <IconPlus size={13} /> Add task
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Mini Calendar ────────────────────────────────────────────────────────
+function MiniCalendar({ viewDate, onPrev, onNext, onDay }) {
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const offset = (firstDay.getDay() + 6) % 7;
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  const cells = [
+    ...Array(offset).fill(null),
+    ...Array.from({ length: lastDay.getDate() }, (_, i) => new Date(year, month, i + 1)),
+  ];
+  while (cells.length % 7) cells.push(null);
+
+  const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <div style={{ padding: '14px 14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text)', opacity: 0.8 }}>{monthLabel}</span>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <CalNavBtn onClick={onPrev}><IconChevL size={13}/></CalNavBtn>
+          <CalNavBtn onClick={onNext}><IconChevR size={13}/></CalNavBtn>
+        </div>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+        {CAL_DAYS.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--sb-muted)', fontWeight: 600, padding: '2px 0' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Days */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+        {cells.map((date, i) => {
+          if (!date) return <div key={i} />;
+          const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+          const heat = heatmap[ds];
+          const isToday = ds === todayStr;
+          const hasData = heat !== null && heat !== undefined;
+
+          let dotColor = 'transparent';
+          if (hasData) {
+            if (heat === 0) dotColor = '#3a3632';
+            else if (heat < 0.6) dotColor = 'rgba(232,107,58,0.5)';
+            else if (heat < 0.9) dotColor = 'rgba(232,107,58,0.8)';
+            else dotColor = 'var(--accent)';
+          }
+
+          return (
+            <button
+              key={ds}
+              onClick={() => onDay(ds)}
+              style={{
+                aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', borderRadius: 6, border: isToday ? '1.5px solid var(--accent)' : '1.5px solid transparent',
+                background: 'transparent', cursor: 'pointer',
+                fontSize: 11, fontWeight: isToday ? 700 : 400,
+                color: isToday ? 'var(--accent)' : 'var(--sb-text)', opacity: isToday ? 1 : 0.75,
+                gap: 2,
+              }}
+            >
+              {date.getDate()}
+              {hasData && <div style={{ width: 4, height: 4, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 12, marginTop: 10, paddingLeft: 2 }}>
+        {[['rgba(232,107,58,0.4)', '33%'], ['rgba(232,107,58,0.8)', '67%'], ['var(--accent)', '100%']].map(([c,l]) => (
+          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--sb-muted)' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />{l}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CalNavBtn({ onClick, children }) {
+  const [h, setH] = useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ width: 24, height: 24, borderRadius: 5, border: 'none', background: h ? 'var(--sb2)' : 'transparent', color: 'var(--sb-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {children}
+    </button>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { key: 'today',     label: 'Today',     icon: <IconHome size={16}/>,    href: '#' },
+  { key: 'goals',     label: 'Goals',     icon: <IconGoals size={16}/>,   href: 'Oliver Goals.html' },
+  { key: 'backlog',   label: 'Backlog',   icon: <IconBacklog size={16}/>, href: 'Oliver Backlog.html' },
+  { key: 'tags',      label: 'Tags',      icon: <IconTag size={16}/>,     href: '#' },
+  { key: 'analytics', label: 'Analytics', icon: <IconChart size={16}/>,   href: 'Oliver Analytics.html' },
+];
+
+function Sidebar({ activePage, onNav, dark, onToggleDark }) {
+  const [calDate, setCalDate] = useState(new Date(2026, 3, 1));
+
+  return (
+    <aside style={{
+      width: 256, minWidth: 256, height: '100vh', background: 'var(--sb)',
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      borderRight: '1px solid var(--sb-border)',
+    }}>
+      {/* Logo */}
+      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--sb-text)', letterSpacing: '-0.01em' }}>oliver</span>
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <SbIconBtn onClick={onToggleDark} title="Toggle theme">{dark ? <IconSun size={14}/> : <IconMoon size={14}/>}</SbIconBtn>
+          <SbIconBtn title="Notifications"><IconBell size={14}/></SbIconBtn>
+          <SbIconBtn title="Settings" active={activePage === 'settings'} onClick={() => window.location.href='Oliver Settings.html'}><IconSettings size={14}/></SbIconBtn>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav style={{ padding: '8px 10px', borderBottom: '1px solid var(--sb-border)' }}>
+        {NAV_ITEMS.map(item => {
+          const active = activePage === item.key;
+          const Tag = item.href && item.href !== '#' ? 'a' : 'button';
+          return (
+            <Tag key={item.key}
+              href={Tag === 'a' ? item.href : undefined}
+              onClick={Tag === 'button' ? () => onNav(item.key) : undefined}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: active ? 'var(--sb-active)' : 'transparent',
+                color: active ? 'var(--sb-text)' : 'var(--sb-muted)',
+                fontSize: 13.5, fontWeight: active ? 600 : 400, fontFamily: 'inherit',
+                marginBottom: 1, textAlign: 'left', textDecoration: 'none',
+              }}
+            >
+              <span style={{ opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+              {item.label}
+            </Tag>
+          );
+        })}
+      </nav>
+
+      {/* Calendar */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <MiniCalendar
+          viewDate={calDate}
+          onPrev={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1))}
+          onNext={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1))}
+          onDay={() => {}}
+        />
+      </div>
+
+      {/* Timer strip */}
+      <div style={{ borderTop: '1px solid var(--sb-border)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, animation: 'pulse 2s infinite' }} />
+        <span style={{ fontSize: 12, color: 'var(--sb-muted)', fontFamily: 'var(--mono)' }}>Deep Work · 1:24:07</span>
+        <button style={{ marginLeft: 'auto', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--sb-border)', background: 'none', color: 'var(--sb-muted)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Stop</button>
+      </div>
+    </aside>
+  );
+}
+
+function SbIconBtn({ children, title, onClick, active }) {
+  const [h, setH] = useState(false);
+  return (
+    <button title={title} onClick={onClick}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{
+        width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+        background: active || h ? 'var(--sb2)' : 'transparent',
+        color: active ? 'var(--sb-text)' : 'var(--sb-muted)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+      {children}
+    </button>
+  );
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────
+function Header({ tasks }) {
+  const all = Object.values(tasks).flat();
+  const done = all.filter(t => t.done).length;
+  const pct = all.length ? Math.round(done / all.length * 100) : 0;
+  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  return (
+    <header style={{
+      padding: '18px 28px', borderBottom: '1px solid var(--border)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      background: 'var(--surface)', flexShrink: 0,
+    }}>
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>Today</h1>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 1 }}>{dateStr}</p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        {/* Goal chip */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', background: 'var(--deep-light)', borderRadius: 20, border: '1px solid var(--border)' }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--deep)' }} />
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--deep)' }}>Launch v2.0</span>
+        </div>
+
+        {/* Progress */}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+            <span style={{ fontSize: 26, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--text)', letterSpacing: '-0.03em' }}>{done}</span>
+            <span style={{ fontSize: 14, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>/ {all.length}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <div style={{ width: 80, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--success)' : 'var(--accent)', borderRadius: 2, transition: 'width 0.4s ease' }} />
+            </div>
+            <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{pct}%</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ─── Notes section ────────────────────────────────────────────────────────
+function NotesSection() {
+  const [notes, setNotes] = useState('Align on API contracts before sprint ends.');
+  const [rating, setRating] = useState(4);
+
+  return (
+    <div style={{ display: 'flex', gap: 16, marginTop: 20, maxWidth: 640 }}>
+      <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text3)', marginBottom: 8 }}>Notes</div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)}
+          style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'transparent', fontSize: 13.5, color: 'var(--text)', fontFamily: 'inherit', lineHeight: 1.6, minHeight: 56 }} />
+      </div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', minWidth: 160 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text3)', marginBottom: 10 }}>Day rating</div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[1,2,3,4,5].map(n => (
+            <button key={n} onClick={() => setRating(n)} style={{
+              width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 14,
+              background: n <= rating ? 'var(--accent-light)' : 'transparent',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={n <= rating ? 'var(--accent)' : 'none'} stroke={n <= rating ? 'var(--accent)' : 'var(--text3)'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tweaks panel ─────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": false,
+  "density": "spacious",
+  "colStyle": "board"
+}/*EDITMODE-END*/;
+
+function TweaksPanel({ tweaks, onChange, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, width: 240, zIndex: 1000,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      boxShadow: 'var(--shadow-lg)', padding: '16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text3)' }}>Tweaks</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}><IconX size={14}/></button>
+      </div>
+
+      <TweakRow label="Dark mode">
+        <Toggle value={tweaks.dark} onChange={v => onChange('dark', v)} />
+      </TweakRow>
+
+      <TweakRow label="Density">
+        <SegControl value={tweaks.density} options={['default','compact','spacious']} onChange={v => onChange('density', v)} />
+      </TweakRow>
+
+      <TweakRow label="Layout">
+        <SegControl value={tweaks.colStyle} options={['board','focus']} onChange={v => onChange('colStyle', v)} />
+      </TweakRow>
+    </div>
+  );
+}
+
+function TweakRow({ label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <span style={{ fontSize: 12.5, color: 'var(--text2)' }}>{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Toggle({ value, onChange }) {
+  return (
+    <button onClick={() => onChange(!value)} style={{
+      width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+      background: value ? 'var(--accent)' : 'var(--border2)', position: 'relative', flexShrink: 0,
+    }}>
+      <div style={{
+        width: 14, height: 14, borderRadius: '50%', background: 'white',
+        position: 'absolute', top: 3, left: value ? 19 : 3, transition: 'left 0.15s ease',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+      }} />
+    </button>
+  );
+}
+
+function SegControl({ value, options, onChange }) {
+  return (
+    <div style={{ display: 'flex', gap: 2, background: 'var(--border)', borderRadius: 6, padding: 2 }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onChange(o)} style={{
+          padding: '2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+          fontWeight: value === o ? 600 : 400,
+          background: value === o ? 'var(--surface)' : 'transparent',
+          color: value === o ? 'var(--text)' : 'var(--text3)',
+        }}>{o}</button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Focus layout (single column with tabs) ───────────────────────────────
+function FocusLayout({ tasks, onToggle, onDelete, onAdd, density }) {
+  const [active, setActive] = useState('deep_work');
+  const col = COLS.find(c => c.key === active);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
+      {/* Tab strip */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+        {COLS.map(c => (
+          <button key={c.key} onClick={() => setActive(c.key)} style={{
+            padding: '10px 20px', border: 'none', cursor: 'pointer', background: 'transparent', fontFamily: 'inherit',
+            fontSize: 13, fontWeight: active === c.key ? 600 : 400,
+            color: active === c.key ? c.color : 'var(--text3)',
+            borderBottom: active === c.key ? `2px solid ${c.color}` : '2px solid transparent',
+            marginBottom: -1,
+          }}>{c.label}</button>
+        ))}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+          <TaskColumn col={col} tasks={tasks} onToggle={onToggle} onDelete={onDelete} onAdd={onAdd} density={density} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────────────
+function App() {
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [showTweaks, setShowTweaks] = useState(false);
+  const [activePage, setActivePage] = useState('today');
+  const [tasks, setTasks] = useState(TASKS_INIT);
+
+  // Apply dark mode
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', tweaks.dark);
+  }, [tweaks.dark]);
+
+  // Tweak protocol
+  useEffect(() => {
+    function handleMsg(e) {
+      if (e.data?.type === '__activate_edit_mode') setShowTweaks(true);
+      if (e.data?.type === '__deactivate_edit_mode') setShowTweaks(false);
+    }
+    window.addEventListener('message', handleMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handleMsg);
+  }, []);
+
+  function onTweakChange(key, value) {
+    const next = { ...tweaks, [key]: value };
+    setTweaks(next);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: next }, '*');
+  }
+
+  function handleToggle(id) {
+    setTasks(prev => {
+      const next = {};
+      for (const [col, list] of Object.entries(prev)) {
+        next[col] = list.map(t => t.id === id ? { ...t, done: !t.done } : t);
+      }
+      return next;
+    });
+  }
+
+  function handleDelete(id) {
+    setTasks(prev => {
+      const next = {};
+      for (const [col, list] of Object.entries(prev)) {
+        next[col] = list.filter(t => t.id !== id);
+      }
+      return next;
+    });
+  }
+
+  function handleAdd(colKey, title) {
+    const newId = Date.now();
+    setTasks(prev => ({ ...prev, [colKey]: [...prev[colKey], { id: newId, title, tags: [], done: false }] }));
+  }
+
+  const density = tweaks.density;
+  const colPad = density === 'compact' ? 16 : density === 'spacious' ? 28 : 20;
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+      <Sidebar activePage={activePage} onNav={setActivePage} dark={tweaks.dark} onToggleDark={() => onTweakChange('dark', !tweaks.dark)} />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        <Header tasks={tasks} />
+
+        {tweaks.colStyle === 'focus' ? (
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <FocusLayout tasks={tasks} onToggle={handleToggle} onDelete={handleDelete} onAdd={handleAdd} density={density} />
+          </div>
+        ) : (
+          <main style={{ flex: 1, overflowY: 'auto', padding: colPad }}>
+            <div style={{ display: 'flex', gap: 14, marginBottom: 24, height: 'calc(100vh - 200px)', minHeight: 400 }}>
+              {COLS.map(col => (
+                <TaskColumn key={col.key} col={col} tasks={tasks} onToggle={handleToggle} onDelete={handleDelete} onAdd={handleAdd} density={density} />
+              ))}
+            </div>
+            <NotesSection />
+          </main>
+        )}
+      </div>
+
+      {showTweaks && <TweaksPanel tweaks={tweaks} onChange={onTweakChange} onClose={() => setShowTweaks(false)} />}
+    </div>
+  );
+}
+
+// Pulse animation
+const style = document.createElement('style');
+style.textContent = `@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`;
+document.head.appendChild(style);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

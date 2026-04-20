@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, NavLink, useLocation, Link } from 'react-router-dom'
-import { dayApi, settingsApi, type DayResponse, type Task } from '../api/client'
+import { dayApi, type DayResponse } from '../api/client'
 import { SidebarTimer } from './SidebarTimer'
 import { useTheme } from '../contexts/ThemeContext'
 import { useMobile } from '../contexts/MobileContext'
@@ -14,72 +14,6 @@ import { NotificationBell } from './NotificationBell'
 
 function formatMonth(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-}
-
-function getCompletionRate(tasks: Task[]): number {
-  if (tasks.length === 0) return 0
-  const completed = tasks.filter(t => t.status === 'completed').length
-  return completed / tasks.length
-}
-
-// -----------------------------------------------------------------------------
-// Day-off style map
-// -----------------------------------------------------------------------------
-
-const DAY_OFF_STYLES: Record<string, string> = {
-  weekend:      'text-stone-500',
-  personal_day: 'bg-purple-500/15 text-purple-300',
-  vacation:     'bg-sky-500/15 text-sky-300',
-  holiday:      'bg-amber-500/15 text-amber-300',
-  sick_day:     'bg-rose-500/15 text-rose-300',
-}
-
-const DAY_OFF_LABELS: Record<string, string> = {
-  weekend:      'off',
-  personal_day: 'personal',
-  vacation:     'vacation',
-  holiday:      'holiday',
-  sick_day:     'sick',
-}
-
-// -----------------------------------------------------------------------------
-// Mini Calendar Day
-// -----------------------------------------------------------------------------
-
-interface MiniDayProps {
-  date: Date
-  tasks: Task[]
-  isToday: boolean
-  onClick: () => void
-}
-
-function MiniDay({ date, tasks, isToday, onClick }: MiniDayProps) {
-  const total = tasks.length
-  const rate = getCompletionRate(tasks)
-  const hasTasks = total > 0
-
-  let bgClass = 'calendar-day-empty'
-  if (hasTasks) {
-    if (rate >= 1) bgClass = 'calendar-day-completed'
-    else if (rate >= 0.67) bgClass = 'calendar-day-partial'
-    else if (rate >= 0.33) bgClass = 'calendar-day-has-tasks'
-    else bgClass = 'calendar-day-low'
-  }
-
-  return (
-    <button
-      onClick={hasTasks ? onClick : undefined}
-      disabled={!hasTasks}
-      className={`calendar-day ${bgClass} ${isToday ? 'calendar-day-today' : ''}`}
-    >
-      <span>{date.getDate()}</span>
-      {hasTasks && (
-        <span className="text-[9px] opacity-60">
-          {tasks.filter(t => t.status === 'completed').length}/{total}
-        </span>
-      )}
-    </button>
-  )
 }
 
 // -----------------------------------------------------------------------------
@@ -99,16 +33,8 @@ export function Sidebar() {
     queryFn: dayApi.getAll,
   })
 
-  const { data: recurringConfig } = useQuery({
-    queryKey: ['settings', 'recurring-days-off'],
-    queryFn: settingsApi.getRecurringDaysOff,
-    staleTime: 5 * 60 * 1000,
-  })
-
   // All hooks called above — safe to early return now
   if (isMobile) return null
-
-  const recurringOffDays = new Set(recurringConfig?.days ?? [])
 
   // Build day map
   const dayMap = new Map<string, DayResponse>(days.map(d => [d.date, d]))
@@ -128,17 +54,19 @@ export function Sidebar() {
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
 
-  const selectedDateStr = location.pathname.startsWith('/day/')
-    ? location.pathname.slice(5)
-    : null
-
   return (
-    <aside className="w-72 h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
+    <aside className="w-64 h-screen bg-stone-850 text-white flex flex-col flex-shrink-0 overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-5 border-b border-stone-700/50">
+      <div className="px-[18px] py-5 pb-[14px] border-b border-stone-700/50">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Oliver</h1>
+          <div className="flex items-center gap-[10px]">
+            <div className="w-7 h-7 rounded-lg bg-terracotta-500 flex items-center justify-center flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <span className="text-[16px] font-bold tracking-[-0.01em] text-white">oliver</span>
           </div>
           <div className="flex items-center gap-1">
           <NotificationBell />
@@ -313,63 +241,39 @@ export function Sidebar() {
             const allTasks = dayData?.tasks ?? []
             const tasks = allTasks.filter(t => t.status !== 'rolled_forward')
             const isToday = dateStr === todayStr
-            const isSelected = dateStr === selectedDateStr
             const hasTasks = tasks.length > 0
             const completed = tasks.filter(t => t.status === 'completed').length
             const rate = hasTasks ? completed / tasks.length : 0
 
-            const dayOff = dayData?.day_off ?? null
-            const weekdayName = cellDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-            const isRecurringOff = recurringOffDays.has(weekdayName)
-            const isOff = !!dayOff || isRecurringOff
-            const offReason = dayOff?.reason ?? (isRecurringOff ? 'weekend' : null)
-
-            let bgClass = 'text-stone-400'
-            if (isOff && offReason) {
-              bgClass = DAY_OFF_STYLES[offReason] ?? 'text-stone-500'
-            } else if (hasTasks) {
-              if (rate >= 1) bgClass = 'bg-moss-600/30 text-moss-300'
-              else if (rate >= 0.67) bgClass = 'bg-amber-500/20 text-amber-300'
-              else if (rate >= 0.33) bgClass = 'bg-stone-600/50 text-stone-300'
-              else bgClass = 'bg-terracotta-500/20 text-terracotta-300'
-            }
+            const dotColor = !hasTasks
+              ? undefined
+              : rate >= 1
+              ? '#e86b3a'
+              : rate >= 0.6
+              ? 'rgba(232,107,58,0.8)'
+              : rate > 0
+              ? 'rgba(232,107,58,0.5)'
+              : '#3a3632'
 
             return (
               <button
                 key={dateStr}
                 onClick={() => navigate(`/day/${dateStr}`)}
                 className={`
-                  aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium
+                  aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium gap-0.5
                   transition-all duration-150 cursor-pointer hover:bg-stone-600/70
-                  ${bgClass}
-                  ${isToday ? 'ring-2 ring-terracotta-500 ring-offset-1 ring-offset-stone-850' : isSelected ? 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-stone-850' : ''}
+                  ${isToday ? 'text-terracotta-400 font-bold' : 'text-stone-300 opacity-75'}
+                  ${isToday ? 'border border-terracotta-500/60' : ''}
                 `}
+                style={{ borderColor: isToday ? '#e86b3a' : undefined, borderWidth: isToday ? '1.5px' : undefined }}
               >
                 <span>{cellDate.getDate()}</span>
-                {isOff && offReason ? (
-                  <span className="text-[8px] opacity-60">{DAY_OFF_LABELS[offReason]}</span>
-                ) : hasTasks ? (
-                  <span className="text-[8px] opacity-60">{completed}/{tasks.length}</span>
-                ) : null}
+                {dotColor && (
+                  <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: dotColor }} />
+                )}
               </button>
             )
           })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-3 mt-3 px-1 text-[10px] text-stone-300">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-moss-600/30" />
-            <span>100%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-amber-500/20" />
-            <span>67%+</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-terracotta-500/20" />
-            <span>&lt;33%</span>
-          </div>
         </div>
       </div>
 
