@@ -102,3 +102,64 @@ async def test_update_work_log_tags_not_found(client: AsyncClient) -> None:
     )
     assert response.status_code == 404
     assert "99999" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/work-logs/{id}
+# ---------------------------------------------------------------------------
+
+
+async def test_delete_work_log_success(client: AsyncClient, work_log: WorkLog, day: Day) -> None:
+    """DELETE /api/work-logs/{id} returns 204 and the entry is gone."""
+    date_str = day.date.isoformat()
+    response = await client.delete(f"/api/work-logs/{work_log.id}")
+    assert response.status_code == 204
+
+    list_response = await client.get(f"/api/days/{date_str}/work-logs")
+    assert list_response.json() == []
+
+
+async def test_delete_work_log_not_found(client: AsyncClient) -> None:
+    """DELETE /api/work-logs/99999 returns 404 when no work log exists."""
+    response = await client.delete("/api/work-logs/99999")
+    assert response.status_code == 404
+    assert "99999" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/work-logs/{id}
+# ---------------------------------------------------------------------------
+
+
+async def test_update_work_log_project_name(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} updates project_name while leaving description unchanged."""
+    response = await client.patch(
+        f"/api/work-logs/{work_log.id}",
+        json={"project_name": "NewProject"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["project_name"] == "NewProject"
+    assert data["description"] == work_log.description
+
+
+async def test_update_work_log_description(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} updates description while leaving project_name unchanged."""
+    response = await client.patch(
+        f"/api/work-logs/{work_log.id}",
+        json={"description": "Updated description"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["description"] == "Updated description"
+    assert data["project_name"] == work_log.project_name
+
+
+async def test_update_work_log_not_found(client: AsyncClient) -> None:
+    """PATCH /api/work-logs/99999 returns 404 when no work log exists."""
+    response = await client.patch(
+        "/api/work-logs/99999",
+        json={"project_name": "X"},
+    )
+    assert response.status_code == 404
+    assert "99999" in response.json()["detail"]

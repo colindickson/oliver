@@ -34,6 +34,36 @@ class WorkLogService:
         )
         return list(result.scalars().all())
 
+    async def delete(self, work_log_id: int) -> None:
+        result = await self._db.execute(
+            select(WorkLog).where(WorkLog.id == work_log_id)
+        )
+        work_log = result.scalar_one_or_none()
+        if work_log is None:
+            raise WorkLogNotFoundError(work_log_id)
+        await self._db.delete(work_log)
+        await self._db.flush()
+
+    async def update(
+        self,
+        work_log_id: int,
+        project_name: str | None = None,
+        description: str | None = None,
+    ) -> WorkLog:
+        result = await self._db.execute(
+            select(WorkLog).where(WorkLog.id == work_log_id)
+        )
+        work_log = result.scalar_one_or_none()
+        if work_log is None:
+            raise WorkLogNotFoundError(work_log_id)
+        if project_name is not None:
+            work_log.project_name = project_name
+        if description is not None:
+            work_log.description = description
+        await self._db.flush()
+        await self._db.refresh(work_log)
+        return work_log
+
     async def update_tags(self, work_log_id: int, tag_names: list[str]) -> WorkLog:
         """Replace the tags on a WorkLog with the given tag names.
 

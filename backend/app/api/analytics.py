@@ -11,6 +11,7 @@ from app.schemas.analytics import (
     StreaksResponse,
     SummaryResponse,
     TodayDeepWorkResponse,
+    WorkLogActivityDay,
 )
 from app.services.analytics_service import AnalyticsService
 
@@ -78,3 +79,21 @@ async def get_today_deep_work(
     """
     data = await AnalyticsService(db).get_today_deep_work_time()
     return TodayDeepWorkResponse(**data)
+
+
+@router.get("/work-log-activity", response_model=list[WorkLogActivityDay])
+async def get_work_log_activity(
+    days: int = Query(default=90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> list[WorkLogActivityDay]:
+    """Return per-day work log counts for the heatmap.
+
+    Args:
+        days: Rolling window size (1–365). Defaults to 90.
+        db: Injected database session.
+
+    Returns:
+        List of ``WorkLogActivityDay`` entries, one per day that has work logs.
+    """
+    data = await AnalyticsService(db).get_work_log_activity(days)
+    return [WorkLogActivityDay(**d) for d in data]

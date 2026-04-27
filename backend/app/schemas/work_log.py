@@ -39,3 +39,10 @@ class WorkLogTagsUpdate(BaseModel):
     """
 
     tags: list[str] = []
+
+
+class WorkLogUpdate(BaseModel):
+    """Payload for updating project_name or description on a WorkLog."""
+
+    project_name: str | None = None
+    description: str | None = None

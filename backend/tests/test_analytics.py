@@ -502,3 +502,66 @@ async def test_today_deep_work_returns_zero_when_no_sessions(
     payload = response.json()
     assert payload["total_seconds"] == 0
     assert payload["goal_seconds"] == 10800
+
+
+# ---------------------------------------------------------------------------
+# GET /api/analytics/work-log-activity
+# ---------------------------------------------------------------------------
+
+
+async def test_work_log_activity_empty(client: AsyncClient) -> None:
+    """GET /api/analytics/work-log-activity returns [] when no work logs exist."""
+    response = await client.get("/api/analytics/work-log-activity")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_work_log_activity_single_day(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /api/analytics/work-log-activity returns one entry per day with count and projects."""
+    from app.models.work_log import WorkLog
+
+    today = date.today()
+    day = Day(date=today)
+    db_session.add(day)
+    await db_session.flush()
+
+    wl1 = WorkLog(day_id=day.id, project_name="oliver", description="did stuff")
+    wl2 = WorkLog(day_id=day.id, project_name="client", description="other stuff")
+    db_session.add_all([wl1, wl2])
+    await db_session.commit()
+
+    response = await client.get("/api/analytics/work-log-activity?days=90")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["date"] == today.isoformat()
+    assert data[0]["count"] == 2
+    assert sorted(data[0]["projects"]) == ["client", "oliver"]
+
+
+async def test_work_log_activity_excludes_out_of_window(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """GET /api/analytics/work-log-activity excludes days older than the window."""
+    from app.models.work_log import WorkLog
+    from datetime import timedelta
+
+    old_date = date.today() - timedelta(days=100)
+    recent_date = date.today() - timedelta(days=5)
+
+    old_day = Day(date=old_date)
+    recent_day = Day(date=recent_date)
+    db_session.add_all([old_day, recent_day])
+    await db_session.flush()
+
+    db_session.add(WorkLog(day_id=old_day.id, project_name="old", description="old work"))
+    db_session.add(WorkLog(day_id=recent_day.id, project_name="new", description="new work"))
+    await db_session.commit()
+
+    response = await client.get("/api/analytics/work-log-activity?days=90")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["projects"] == ["new"]

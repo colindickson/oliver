@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { analyticsApi, dayApi } from '../api/client'
+import { WorkLogActivityMap } from '../components/WorkLogActivityMap'
 import type { DayResponse } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ExportModal } from '../components/ExportModal'
@@ -980,6 +981,18 @@ export function Analytics() {
                 <TagCloud data={tagFrequencyData} isDark={isDark} />
               </div>
             </section>
+
+            {/* Section: Work Log Activity */}
+            <section>
+              <h2 className={sectionHeader}>Work Log Activity</h2>
+              <div className={chartCard}>
+                <h3 className={chartTitle}>12-Week Work Log Heatmap</h3>
+                <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                  Number of work logs recorded per day
+                </p>
+                <WorkLogActivityMap isDark={isDark} />
+              </div>
+            </section>
           </div>
         </div>
         <BottomTabBar />
@@ -1196,6 +1209,18 @@ export function Analytics() {
             <div className={chartCard}>
               <h3 className={chartTitle}>Completed Task Tags</h3>
               <TagCloud data={tagFrequencyData} isDark={isDark} />
+            </div>
+          </section>
+
+          {/* Section: Work Log Activity */}
+          <section>
+            <h2 className={sectionHeader}>Work Log Activity</h2>
+            <div className={chartCard}>
+              <h3 className={chartTitle}>12-Week Work Log Heatmap</h3>
+              <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                Number of work logs recorded per day
+              </p>
+              <WorkLogActivityMap isDark={isDark} />
             </div>
           </section>
 

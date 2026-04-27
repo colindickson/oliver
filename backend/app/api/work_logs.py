@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.day import Day
-from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate
+from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate, WorkLogUpdate
 from app.services.work_log_service import WorkLogService
 
 # No prefix: endpoints span two URL hierarchies (/api/days/ and /api/work-logs/).
@@ -43,6 +43,31 @@ async def list_work_logs_for_day(
 
     work_logs = await WorkLogService(db).get_by_day_id(day.id)
     return work_logs
+
+
+@router.delete("/api/work-logs/{work_log_id}", status_code=204)
+async def delete_work_log(
+    work_log_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    await WorkLogService(db).delete(work_log_id)
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.patch("/api/work-logs/{work_log_id}", response_model=WorkLogResponse)
+async def update_work_log(
+    work_log_id: int,
+    payload: WorkLogUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> WorkLogResponse:
+    work_log = await WorkLogService(db).update(
+        work_log_id,
+        project_name=payload.project_name,
+        description=payload.description,
+    )
+    await db.commit()
+    return work_log
 
 
 @router.patch("/api/work-logs/{work_log_id}/tags", response_model=WorkLogResponse)

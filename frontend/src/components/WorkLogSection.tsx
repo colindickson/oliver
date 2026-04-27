@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { workLogApi } from '../api/client'
 import type { WorkLog } from '../api/client'
 import { TagInput } from './TagInput'
+import { ConfirmableDelete } from './ConfirmableDelete'
 
 interface Props {
   date: string
@@ -91,6 +92,117 @@ function EntryTagEditor({ entry, date }: EntryTagEditorProps) {
   )
 }
 
+interface EntryRowProps {
+  entry: WorkLog
+  date: string
+}
+
+function EntryRow({ entry, date }: EntryRowProps) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draftProject, setDraftProject] = useState(entry.project_name)
+  const [draftDescription, setDraftDescription] = useState(entry.description)
+
+  const deleteEntry = useMutation({
+    mutationFn: () => workLogApi.delete(entry.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['work-logs', date] }),
+  })
+
+  const updateEntry = useMutation({
+    mutationFn: () => workLogApi.update(entry.id, {
+      project_name: draftProject.trim() || undefined,
+      description: draftDescription.trim() || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['work-logs', date] })
+      setEditing(false)
+    },
+  })
+
+  const time = new Date(entry.created_at).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  if (editing) {
+    return (
+      <div className="border-b border-stone-100 dark:border-stone-700/50 last:border-0 pb-4 last:pb-0 space-y-2">
+        <input
+          className="w-full text-sm font-semibold bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none text-stone-800 dark:text-stone-100 pb-0.5"
+          value={draftProject}
+          onChange={e => setDraftProject(e.target.value)}
+          placeholder="Project name"
+        />
+        <textarea
+          className="w-full text-sm bg-transparent border border-stone-200 dark:border-stone-700 rounded p-1.5 outline-none text-stone-600 dark:text-stone-300 resize-none"
+          value={draftDescription}
+          onChange={e => setDraftDescription(e.target.value)}
+          rows={3}
+          placeholder="Description"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => updateEntry.mutate()}
+            disabled={updateEntry.isPending}
+            className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftProject(entry.project_name)
+              setDraftDescription(entry.description)
+              setEditing(false)
+            }}
+            className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-b border-stone-100 dark:border-stone-700/50 last:border-0 pb-4 last:pb-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+            {entry.project_name}
+          </span>
+          <span className="text-xs text-stone-400 dark:text-stone-500 tabular-nums">
+            {time}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-stone-300 hover:text-stone-500 dark:text-stone-600 dark:hover:text-stone-400 transition-colors p-0.5"
+            title="Edit"
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 2l3 3-9 9H2v-3l9-9z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <ConfirmableDelete
+            onConfirm={() => deleteEntry.mutate()}
+            isLoading={deleteEntry.isPending}
+          />
+        </div>
+      </div>
+      {entry.description && (
+        <p className="text-sm text-stone-600 dark:text-stone-300 mt-0.5 whitespace-pre-wrap">
+          {entry.description}
+        </p>
+      )}
+      <EntryTagEditor entry={entry} date={date} />
+    </div>
+  )
+}
+
 export function WorkLogSection({ date }: Props) {
   const [expanded, setExpanded] = useState(false)
 
@@ -142,33 +254,7 @@ export function WorkLogSection({ date }: Props) {
               No work logged for this day yet.
             </p>
           ) : (
-            entries.map(entry => {
-              const time = new Date(entry.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-              return (
-                <div
-                  key={entry.id}
-                  className="border-b border-stone-100 dark:border-stone-700/50 last:border-0 pb-4 last:pb-0"
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">
-                      {entry.project_name}
-                    </span>
-                    <span className="text-xs text-stone-400 dark:text-stone-500 tabular-nums">
-                      {time}
-                    </span>
-                  </div>
-                  {entry.description && (
-                    <p className="text-sm text-stone-600 dark:text-stone-300 mt-0.5 whitespace-pre-wrap">
-                      {entry.description}
-                    </p>
-                  )}
-                  <EntryTagEditor entry={entry} date={date} />
-                </div>
-              )
-            })
+            entries.map(entry => <EntryRow key={entry.id} entry={entry} date={date} />)
           )}
         </div>
       )}

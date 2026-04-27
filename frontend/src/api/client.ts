@@ -200,11 +200,19 @@ export interface TodayDeepWorkResponse {
   goal_seconds: number
 }
 
+export interface WorkLogActivityDay {
+  date: string
+  count: number
+  projects: string[]
+}
+
 export const analyticsApi = {
   getSummary: (days = 30) => api.get<AnalyticsSummary>(`/analytics/summary?days=${days}`).then(r => r.data),
   getStreaks: () => api.get<StreaksData>('/analytics/streaks').then(r => r.data),
   getCategories: () => api.get<CategoriesData>('/analytics/categories').then(r => r.data),
   getTodayDeepWork: () => api.get<TodayDeepWorkResponse>('/analytics/today-deep-work').then(r => r.data),
+  getWorkLogActivity: (days = 90) =>
+    api.get<WorkLogActivityDay[]>(`/analytics/work-log-activity?days=${days}`).then(r => r.data),
 }
 
 export interface Reminder {
@@ -404,9 +412,18 @@ export interface WorkLog {
   tags: string[]
 }
 
+export interface WorkLogUpdate {
+  project_name?: string
+  description?: string
+}
+
 export const workLogApi = {
   listByDate: (date: string) =>
     api.get<WorkLog[]>(`/days/${date}/work-logs`).then(r => r.data),
   updateTags: (id: number, tags: string[]) =>
     api.patch<WorkLog>(`/work-logs/${id}/tags`, { tags }).then(r => r.data),
+  delete: (id: number) =>
+    api.delete(`/work-logs/${id}`).then(r => r.data),
+  update: (id: number, data: WorkLogUpdate) =>
+    api.patch<WorkLog>(`/work-logs/${id}`, data).then(r => r.data),
 }

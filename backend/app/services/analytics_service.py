@@ -17,6 +17,7 @@ from app.models.day import Day
 from app.models.day_off import DayOff
 from app.models.task import Task
 from app.models.timer_session import TimerSession
+from app.models.work_log import WorkLog
 from oliver_shared import CATEGORY_DEEP_WORK, DEEP_WORK_GOAL_SECONDS, STATUS_COMPLETED
 
 
@@ -265,3 +266,41 @@ class AnalyticsService:
         total_seconds = int(result.scalar_one() or 0)
 
         return {"total_seconds": total_seconds, "goal_seconds": DEEP_WORK_GOAL_SECONDS}
+
+    # ------------------------------------------------------------------
+    # Work log activity
+    # ------------------------------------------------------------------
+
+    async def get_work_log_activity(self, days: int = 90) -> list[dict]:
+        """Return per-day work log counts and project names for the given window.
+
+        Args:
+            days: Number of calendar days to include, counting back from today.
+
+        Returns:
+            List of dicts with keys ``date``, ``count``, and ``projects``.
+        """
+        today = date.today()
+        cutoff = today - timedelta(days=days - 1)
+
+        result = await self._db.execute(
+            select(Day.date, WorkLog.project_name)
+            .join(WorkLog, WorkLog.day_id == Day.id)
+            .where(Day.date >= cutoff)
+            .where(Day.date <= today)
+            .order_by(Day.date.asc())
+        )
+        rows = result.all()
+
+        buckets: dict[str, dict] = {}
+        for day_date, project_name in rows:
+            date_str = day_date.isoformat()
+            if date_str not in buckets:
+                buckets[date_str] = {"date": date_str, "count": 0, "projects": set()}
+            buckets[date_str]["count"] += 1
+            buckets[date_str]["projects"].add(project_name)
+
+        return [
+            {"date": d["date"], "count": d["count"], "projects": sorted(d["projects"])}
+            for d in sorted(buckets.values(), key=lambda x: x["date"])
+        ]

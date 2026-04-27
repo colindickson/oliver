@@ -72,3 +72,17 @@ class TodayDeepWorkResponse(BaseModel):
 
     total_seconds: int
     goal_seconds: int
+
+
+class WorkLogActivityDay(BaseModel):
+    """Per-day work log activity summary for the heatmap.
+
+    Attributes:
+        date: ISO date string (YYYY-MM-DD).
+        count: Number of work log entries on this day.
+        projects: Distinct project names logged, sorted alphabetically.
+    """
+
+    date: str
+    count: int
+    projects: list[str]
