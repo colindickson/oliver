@@ -24,6 +24,7 @@ from tools.metadata import set_day_metadata
 from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
+from tools.work_log import log_work
 
 mcp = FastMCP("Oliver")
 
@@ -159,6 +160,21 @@ def is_day_off_tool(date: str) -> str:
 def notify_tool(source: str, content: str) -> str:
     """Send a notification to the Oliver UI. source identifies the sender (e.g. 'claude-cowork'). content is the message (max 500 chars)."""
     return notify(source, content)
+
+
+@mcp.tool()
+def log_work_tool(
+    project_name: str,
+    description: str,
+    tags: list[str] | None = None,
+) -> str:
+    """Record work done on a project. Always logs to today's date.
+
+    project_name: Free-text project identifier (e.g. 'oliver', 'client-api').
+    description: What was done.
+    tags: Optional list of tag names (max 5).
+    """
+    return log_work(project_name, description, tags or [])
 
 
 if __name__ == "__main__":
