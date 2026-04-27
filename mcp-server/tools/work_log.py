@@ -3,6 +3,7 @@
 import json
 from datetime import date
 
+import models  # noqa: F401 — ensures all ORM models are registered before session use
 from models.work_log import WorkLog
 from tools.daily import get_session, _get_or_create_day
 from tools.log_utils import log_call
