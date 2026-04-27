@@ -4,3 +4,4 @@ from models.goal import Goal  # noqa: F401 — registers goal tables with Base
 from models.task_template import TaskTemplate  # noqa: F401 — registers task_templates table with Base
 from models.timer_session import TimerSession  # noqa: F401 — registers timer_sessions table with Base
 from models.work_log import WorkLog  # noqa: F401 — registers work_logs table with Base
+from models.project_default import ProjectDefault  # noqa: F401 — registers project_defaults table with Base

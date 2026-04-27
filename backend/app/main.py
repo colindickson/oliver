@@ -15,12 +15,14 @@ from app.exceptions import (
     DayNotFoundError,
     GoalNotFoundError,
     InvalidOperationError,
+    ProjectDefaultNotFoundError,
     ScheduleNotFoundError,
     TaskNotFoundError,
     TemplateNotFoundError,
     WorkLogNotFoundError,
 )
 from app.api import analytics as analytics_router
+from app.api import project_defaults as project_defaults_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
 from app.api import work_logs as work_logs_router
@@ -98,12 +100,18 @@ async def work_log_not_found_handler(request: Request, exc: WorkLogNotFoundError
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 
+@app.exception_handler(ProjectDefaultNotFoundError)
+async def project_default_not_found_handler(request: Request, exc: ProjectDefaultNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
 @app.exception_handler(IntegrityError)
 async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": "Data conflict: the operation violated a database constraint"})
 
 
 app.include_router(analytics_router.router)
+app.include_router(project_defaults_router.router)
 app.include_router(backlog_router.router)
 app.include_router(work_logs_router.router)
 app.include_router(days_router.router)

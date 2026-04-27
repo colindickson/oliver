@@ -4,11 +4,12 @@ import json
 from datetime import date
 
 import models  # noqa: F401 — ensures all ORM models are registered before session use
+from models.project_default import ProjectDefault
 from models.work_log import WorkLog
 from tools.daily import get_session, _get_or_create_day
 from tools.log_utils import log_call
 from tools.tasks import _get_or_create_tags
-from oliver_shared import validate_tag_count
+from oliver_shared import validate_tag_count, MAX_TAGS_PER_TASK
 
 
 def log_work(project_name: str, description: str, tags: list[str] | None = None) -> str:
@@ -17,7 +18,8 @@ def log_work(project_name: str, description: str, tags: list[str] | None = None)
     Args:
         project_name: Free-text project identifier (e.g. 'oliver', 'client-api').
         description: What was done.
-        tags: Optional list of tag names (max 5).
+        tags: Optional list of tag names (max 5). Project default tags are merged in
+              automatically to fill remaining slots.
 
     Returns:
         JSON-encoded dict with the created work log's id, project_name,
@@ -36,6 +38,19 @@ def log_work(project_name: str, description: str, tags: list[str] | None = None)
 
     try:
         with get_session() as session:
+            # Merge in project default tags: provided tags take priority,
+            # defaults fill remaining slots up to MAX_TAGS_PER_TASK
+            pd = session.query(ProjectDefault).filter(
+                ProjectDefault.project_name == project_name
+            ).first()
+            default_tags: list[str] = pd.default_tags if pd else []
+
+            provided_lower = {t.lower() for t in tags}
+            merged = list(tags)
+            for dt in default_tags:
+                if dt.lower() not in provided_lower and len(merged) < MAX_TAGS_PER_TASK:
+                    merged.append(dt)
+
             day = _get_or_create_day(session, date.today())
             work_log = WorkLog(
                 day_id=day.id,
@@ -44,8 +59,8 @@ def log_work(project_name: str, description: str, tags: list[str] | None = None)
             )
             session.add(work_log)
             session.flush()
-            if tags:
-                work_log.tags = _get_or_create_tags(session, tags)
+            if merged:
+                work_log.tags = _get_or_create_tags(session, merged)
             session.refresh(work_log)
             result = {
                 "id": work_log.id,

@@ -24,6 +24,7 @@ from tools.metadata import set_day_metadata
 from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
+from tools.project_defaults import get_project_defaults, set_project_default_tags
 from tools.work_log import log_work
 
 mcp = FastMCP("Oliver")
@@ -175,6 +176,20 @@ def log_work_tool(
     tags: Optional list of tag names (max 5).
     """
     return log_work(project_name, description, tags or [])
+
+
+@mcp.tool()
+def get_project_defaults_tool(project_name: str = "") -> str:
+    """Get default tags for a project. Pass project_name to get one project's defaults,
+    or omit to list all projects with configured defaults."""
+    return get_project_defaults(project_name)
+
+
+@mcp.tool()
+def set_project_default_tags_tool(project_name: str, default_tags: list[str]) -> str:
+    """Set the default tags automatically applied when logging work for a project.
+    Replaces any existing defaults. Max 5 tags. Pass [] to clear defaults."""
+    return set_project_default_tags(project_name, default_tags)
 
 
 if __name__ == "__main__":

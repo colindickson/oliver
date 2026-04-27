@@ -11,6 +11,7 @@ from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.goal import Goal
 from app.models.mcp_log import MCPLog
+from app.models.project_default import ProjectDefault
 from app.models.notification import Notification
 from app.models.reminder import Reminder
 from app.models.roadblock import Roadblock
@@ -30,6 +31,7 @@ __all__ = [
     "Goal",
     "MCPLog",
     "Notification",
+    "ProjectDefault",
     "Reminder",
     "Roadblock",
     "Setting",

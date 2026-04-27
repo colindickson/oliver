@@ -55,6 +55,14 @@ class WorkLogNotFoundError(Exception):
         self.work_log_id = work_log_id
 
 
+class ProjectDefaultNotFoundError(Exception):
+    """Raised when no ProjectDefault exists for the given project name."""
+
+    def __init__(self, project_name: str) -> None:
+        super().__init__(f"No project defaults found for project '{project_name}'")
+        self.project_name = project_name
+
+
 class InvalidOperationError(Exception):
     """Raised when a business-rule constraint is violated.
 
