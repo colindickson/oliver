@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { workLogApi } from '../api/client'
+import { workLogApi, projectDefaultApi } from '../api/client'
 import type { WorkLog } from '../api/client'
 import { TagInput } from './TagInput'
 import { ConfirmableDelete } from './ConfirmableDelete'
@@ -92,6 +92,77 @@ function EntryTagEditor({ entry, date }: EntryTagEditorProps) {
   )
 }
 
+interface ProjectDefaultEditorProps {
+  projectName: string
+}
+
+function ProjectDefaultEditor({ projectName }: ProjectDefaultEditorProps) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [draftTags, setDraftTags] = useState<string[]>([])
+
+  const { data: pd } = useQuery({
+    queryKey: ['project-defaults', projectName],
+    queryFn: () => projectDefaultApi.get(projectName).catch(() => ({ default_tags: [] as string[] })),
+    enabled: open,
+  })
+
+  useEffect(() => {
+    if (pd) setDraftTags(pd.default_tags)
+  }, [pd])
+
+  const save = useMutation({
+    mutationFn: (tags: string[]) =>
+      projectDefaultApi.upsert(projectName, { default_tags: tags }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project-defaults', projectName] })
+      setOpen(false)
+    },
+  })
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-stone-300 hover:text-stone-500 dark:text-stone-600 dark:hover:text-stone-400 transition-colors p-0.5"
+        title={`Default tags for ${projectName}`}
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="8" cy="8" r="2.5" />
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" strokeLinecap="round" />
+        </svg>
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 space-y-2 p-2 rounded-lg bg-stone-50 dark:bg-stone-700/50 border border-stone-200 dark:border-stone-700">
+      <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">
+        Default tags for <span className="text-stone-700 dark:text-stone-200">{projectName}</span>
+      </p>
+      <TagInput value={draftTags} onChange={setDraftTags} />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => save.mutate(draftTags)}
+          disabled={save.isPending}
+          className="text-xs bg-stone-800 text-white rounded-lg px-3 py-1.5 hover:bg-stone-700 disabled:opacity-50 transition-all dark:bg-stone-600 dark:hover:bg-stone-500"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-xs text-stone-400 hover:text-stone-600 transition-colors px-2 dark:text-stone-500 dark:hover:text-stone-300"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface EntryRowProps {
   entry: WorkLog
   date: string
@@ -177,6 +248,7 @@ function EntryRow({ entry, date }: EntryRowProps) {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <ProjectDefaultEditor projectName={entry.project_name} />
           <button
             type="button"
             onClick={() => setEditing(true)}

@@ -412,6 +412,25 @@ export interface WorkLog {
   tags: string[]
 }
 
+export interface ProjectDefault {
+  id: number
+  project_name: string
+  default_tags: string[]
+}
+
+export interface ProjectDefaultUpsert {
+  default_tags: string[]
+}
+
+export const projectDefaultApi = {
+  list: () =>
+    api.get<ProjectDefault[]>('/project-defaults').then(r => r.data),
+  get: (projectName: string) =>
+    api.get<ProjectDefault>(`/project-defaults/${encodeURIComponent(projectName)}`).then(r => r.data),
+  upsert: (projectName: string, payload: ProjectDefaultUpsert) =>
+    api.put<ProjectDefault>(`/project-defaults/${encodeURIComponent(projectName)}`, payload).then(r => r.data),
+}
+
 export interface WorkLogUpdate {
   project_name?: string
   description?: string
