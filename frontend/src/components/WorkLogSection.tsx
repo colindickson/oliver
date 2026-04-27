@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { workLogApi } from '../api/client'
 import type { WorkLog } from '../api/client'
-import { TagInput } from '../components/TagInput'
+import { TagInput } from './TagInput'
 
 interface Props {
   date: string
@@ -23,6 +23,9 @@ function EntryTagEditor({ entry, date }: EntryTagEditorProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['work-logs', date] })
       setEditing(false)
+    },
+    onError: () => {
+      console.error('Failed to update work log tags')
     },
   })
 
@@ -59,8 +62,9 @@ function EntryTagEditor({ entry, date }: EntryTagEditorProps) {
 
   if (entry.tags.length > 0) {
     return (
-      <div
-        className="flex flex-wrap gap-1 mt-2 cursor-pointer"
+      <button
+        type="button"
+        className="flex flex-wrap gap-1 mt-2 text-left"
         onClick={() => setEditing(true)}
         title="Click to edit tags"
       >
@@ -72,7 +76,7 @@ function EntryTagEditor({ entry, date }: EntryTagEditorProps) {
             #{tag}
           </span>
         ))}
-      </div>
+      </button>
     )
   }
 
@@ -157,7 +161,7 @@ export function WorkLogSection({ date }: Props) {
                     </span>
                   </div>
                   {entry.description && (
-                    <p className="text-sm text-stone-600 dark:text-stone-300 mt-0.5">
+                    <p className="text-sm text-stone-600 dark:text-stone-300 mt-0.5 whitespace-pre-wrap">
                       {entry.description}
                     </p>
                   )}
