@@ -17,6 +17,7 @@ from app.models.day import Day
 from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate
 from app.services.work_log_service import WorkLogService
 
+# No prefix: endpoints span two URL hierarchies (/api/days/ and /api/work-logs/).
 router = APIRouter(tags=["work_logs"])
 
 

@@ -47,6 +47,14 @@ class ScheduleNotFoundError(Exception):
         self.schedule_id = schedule_id
 
 
+class WorkLogNotFoundError(Exception):
+    """Raised when a WorkLog with the requested primary key does not exist."""
+
+    def __init__(self, work_log_id: int) -> None:
+        super().__init__(f"WorkLog {work_log_id} not found")
+        self.work_log_id = work_log_id
+
+
 class InvalidOperationError(Exception):
     """Raised when a business-rule constraint is violated.
 

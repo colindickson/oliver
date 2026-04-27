@@ -18,6 +18,7 @@ from app.exceptions import (
     ScheduleNotFoundError,
     TaskNotFoundError,
     TemplateNotFoundError,
+    WorkLogNotFoundError,
 )
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
@@ -89,6 +90,11 @@ async def template_not_found_handler(request: Request, exc: TemplateNotFoundErro
 
 @app.exception_handler(ScheduleNotFoundError)
 async def schedule_not_found_handler(request: Request, exc: ScheduleNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(WorkLogNotFoundError)
+async def work_log_not_found_handler(request: Request, exc: WorkLogNotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 

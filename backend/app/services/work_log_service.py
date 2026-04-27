@@ -5,7 +5,9 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import InvalidOperationError
+from oliver_shared import MAX_TAGS_PER_TASK
+
+from app.exceptions import InvalidOperationError, WorkLogNotFoundError
 from app.models.work_log import WorkLog
 from app.services.tag_service import TagService
 
@@ -45,14 +47,18 @@ class WorkLogService:
         Raises:
             InvalidOperationError: 404 if no WorkLog with ``work_log_id`` exists.
         """
+        if len(tag_names) > MAX_TAGS_PER_TASK:
+            raise InvalidOperationError(
+                f"A work log may have at most {MAX_TAGS_PER_TASK} tags",
+                http_status_code=400,
+            )
+
         result = await self._db.execute(
             select(WorkLog).where(WorkLog.id == work_log_id)
         )
         work_log = result.scalar_one_or_none()
         if work_log is None:
-            raise InvalidOperationError(
-                f"WorkLog {work_log_id} not found", http_status_code=404
-            )
+            raise WorkLogNotFoundError(work_log_id)
 
         tag_objects = await TagService(self._db).resolve_tags(tag_names)
         work_log.tags = tag_objects

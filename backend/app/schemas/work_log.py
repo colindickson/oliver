@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas._shared import TagCoercionMixin
 
@@ -38,4 +38,4 @@ class WorkLogTagsUpdate(BaseModel):
         tags: Replacement tag list. [] removes all tags.
     """
 
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] = []
