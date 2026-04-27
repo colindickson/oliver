@@ -22,6 +22,7 @@ from app.exceptions import (
 from app.api import analytics as analytics_router
 from app.api import backlog as backlog_router
 from app.api import days as days_router
+from app.api import work_logs as work_logs_router
 from app.api import goals as goals_router
 from app.api import mcp_logs as mcp_logs_router
 from app.api import notifications as notifications_router
@@ -98,6 +99,7 @@ async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSON
 
 app.include_router(analytics_router.router)
 app.include_router(backlog_router.router)
+app.include_router(work_logs_router.router)
 app.include_router(days_router.router)
 app.include_router(goals_router.router)
 app.include_router(mcp_logs_router.router)
