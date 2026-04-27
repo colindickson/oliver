@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.day_off import DayOff
     from app.models.day_rating import DayRating
     from app.models.roadblock import Roadblock
+    from app.models.work_log import WorkLog
 
 
 class Day(Base):
@@ -87,4 +88,11 @@ class Day(Base):
         uselist=False,
         lazy="selectin",
         cascade="all, delete-orphan",
+    )
+
+    work_logs: Mapped[list[WorkLog]] = relationship(
+        "WorkLog",
+        back_populates="day",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
