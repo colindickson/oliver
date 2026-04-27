@@ -394,3 +394,19 @@ export const mcpLogsApi = {
   revert: (id: number) =>
     api.post<MCPLogResponse>(`/mcp-logs/${id}/revert`).then(r => r.data),
 }
+
+export interface WorkLog {
+  id: number
+  day_id: number
+  project_name: string
+  description: string
+  created_at: string   // ISO 8601 UTC timestamp
+  tags: string[]
+}
+
+export const workLogApi = {
+  listByDate: (date: string) =>
+    api.get<WorkLog[]>(`/days/${date}/work-logs`).then(r => r.data),
+  updateTags: (id: number, tags: string[]) =>
+    api.patch<WorkLog>(`/work-logs/${id}/tags`, { tags }).then(r => r.data),
+}

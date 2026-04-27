@@ -8,6 +8,7 @@ import { ConfirmableDelete } from '../components/ConfirmableDelete'
 import { TagInput } from '../components/TagInput'
 import { DayNotes } from '../components/DayNotes'
 import { DayRating } from '../components/DayRating'
+import { WorkLogSection } from '../components/WorkLogSection'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTaskEdit } from '../hooks/useTaskEdit'
 import { useMobile } from '../contexts/MobileContext'
@@ -683,6 +684,7 @@ export function DayDetail() {
                 <DayRating key={`rating-${day.id}`} dayId={day.id} initialRating={day.rating}
                   onSave={(dayId, rating) => upsertRating.mutateAsync({ dayId, rating })}
                 />
+                <WorkLogSection date={date!} />
 
                 {/* Day Off */}
                 <div className="rounded-2xl border border-stone-700/50 bg-stone-800/50 p-5">
@@ -968,6 +970,7 @@ export function DayDetail() {
                     upsertRating.mutateAsync({ dayId, rating })
                   }
                 />
+                <WorkLogSection date={date!} />
 
                 {/* Day Off Toggle */}
                 <div className="rounded-2xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/50 p-5">
