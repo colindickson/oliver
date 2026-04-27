@@ -168,14 +168,17 @@ def log_work_tool(
     project_name: str,
     description: str,
     tags: list[str] | None = None,
+    date_str: str = "",
 ) -> str:
-    """Record work done on a project. Always logs to today's date.
+    """Record work done on a project.
 
     project_name: Free-text project identifier (e.g. 'oliver', 'client-api').
     description: What was done.
     tags: Optional list of tag names (max 5).
+    date_str: ISO-8601 date string (YYYY-MM-DD). Omit or pass "" to log for today.
+              Use this to backfill work done on past dates.
     """
-    return log_work(project_name, description, tags or [])
+    return log_work(project_name, description, tags or [], date_str)
 
 
 @mcp.tool()
