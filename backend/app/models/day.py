@@ -31,6 +31,7 @@ class Day(Base):
         roadblocks: Optional roadblock notes for the day.
         rating: Optional subjective ratings for the day.
         day_metadata: Optional environmental metadata (weather, moon phase).
+        work_logs: All work log entries logged against this day.
     """
 
     __tablename__ = "days"
