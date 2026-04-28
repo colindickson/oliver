@@ -12,6 +12,39 @@ from tools.tasks import _get_or_create_tags
 from oliver_shared import validate_tag_count, MAX_TAGS_PER_TASK
 
 
+def _create_work_log_in_session(
+    session,
+    project_name: str,
+    description: str,
+    tags: list[str],
+    target_date: date,
+) -> dict:
+    pd = session.query(ProjectDefault).filter(
+        ProjectDefault.project_name == project_name
+    ).first()
+    default_tags: list[str] = pd.default_tags if pd else []
+    provided_lower = {t.lower() for t in tags}
+    merged = list(tags)
+    for dt in default_tags:
+        if dt.lower() not in provided_lower and len(merged) < MAX_TAGS_PER_TASK:
+            merged.append(dt)
+    day = _get_or_create_day(session, target_date)
+    work_log = WorkLog(day_id=day.id, project_name=project_name, description=description)
+    session.add(work_log)
+    session.flush()
+    if merged:
+        work_log.tags = _get_or_create_tags(session, merged)
+    session.refresh(work_log)
+    return {
+        "id": work_log.id,
+        "project_name": work_log.project_name,
+        "description": work_log.description,
+        "date": target_date.isoformat(),
+        "created_at": work_log.created_at.isoformat() if work_log.created_at else None,
+        "tags": [t.name for t in work_log.tags],
+    }
+
+
 def log_work(
     project_name: str,
     description: str,
@@ -54,38 +87,7 @@ def log_work(
 
     try:
         with get_session() as session:
-            # Merge in project default tags: provided tags take priority,
-            # defaults fill remaining slots up to MAX_TAGS_PER_TASK
-            pd = session.query(ProjectDefault).filter(
-                ProjectDefault.project_name == project_name
-            ).first()
-            default_tags: list[str] = pd.default_tags if pd else []
-
-            provided_lower = {t.lower() for t in tags}
-            merged = list(tags)
-            for dt in default_tags:
-                if dt.lower() not in provided_lower and len(merged) < MAX_TAGS_PER_TASK:
-                    merged.append(dt)
-
-            day = _get_or_create_day(session, target_date)
-            work_log = WorkLog(
-                day_id=day.id,
-                project_name=project_name,
-                description=description,
-            )
-            session.add(work_log)
-            session.flush()
-            if merged:
-                work_log.tags = _get_or_create_tags(session, merged)
-            session.refresh(work_log)
-            result = {
-                "id": work_log.id,
-                "project_name": work_log.project_name,
-                "description": work_log.description,
-                "date": target_date.isoformat(),
-                "created_at": work_log.created_at.isoformat() if work_log.created_at else None,
-                "tags": [t.name for t in work_log.tags],
-            }
+            result = _create_work_log_in_session(session, project_name, description, tags, target_date)
         result_json = json.dumps(result)
         log_call("log_work", params, result_json, "success")
         return result_json
@@ -120,6 +122,15 @@ def batch_log_work(entries: list[dict]) -> str:
         tags = entry.get("tags") or []
         date_str = entry.get("date_str", "")
 
+        if not project_name:
+            error_json = json.dumps({"error": f"Entry {i}: 'project_name' is required."})
+            log_call("batch_log_work", params, error_json, "error")
+            return error_json
+        if not description:
+            error_json = json.dumps({"error": f"Entry {i}: 'description' is required."})
+            log_call("batch_log_work", params, error_json, "error")
+            return error_json
+
         if date_str:
             try:
                 target_date = date.fromisoformat(date_str)
@@ -146,37 +157,8 @@ def batch_log_work(entries: list[dict]) -> str:
         with get_session() as session:
             results = []
             for project_name, description, tags, target_date in parsed:
-                # Merge project default tags
-                pd = session.query(ProjectDefault).filter(
-                    ProjectDefault.project_name == project_name
-                ).first()
-                default_tags: list[str] = pd.default_tags if pd else []
-
-                provided_lower = {t.lower() for t in tags}
-                merged = list(tags)
-                for dt in default_tags:
-                    if dt.lower() not in provided_lower and len(merged) < MAX_TAGS_PER_TASK:
-                        merged.append(dt)
-
-                day = _get_or_create_day(session, target_date)
-                work_log = WorkLog(
-                    day_id=day.id,
-                    project_name=project_name,
-                    description=description,
-                )
-                session.add(work_log)
-                session.flush()
-                if merged:
-                    work_log.tags = _get_or_create_tags(session, merged)
-                session.refresh(work_log)
-                results.append({
-                    "id": work_log.id,
-                    "project_name": work_log.project_name,
-                    "description": work_log.description,
-                    "date": target_date.isoformat(),
-                    "created_at": work_log.created_at.isoformat() if work_log.created_at else None,
-                    "tags": [t.name for t in work_log.tags],
-                })
+                result = _create_work_log_in_session(session, project_name, description, tags, target_date)
+                results.append(result)
         result_json = json.dumps(results)
         log_call("batch_log_work", params, result_json, "success")
         return result_json
