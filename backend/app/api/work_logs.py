@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.day import Day
-from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate, WorkLogUpdate
+from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate, WorkLogUpdate, WorkLogBatchCreate
 from app.services.work_log_service import WorkLogService
 
 # No prefix: endpoints span two URL hierarchies (/api/days/ and /api/work-logs/).
@@ -68,6 +68,17 @@ async def update_work_log(
     )
     await db.commit()
     return work_log
+
+
+@router.post("/api/work-logs/batch", response_model=list[WorkLogResponse])
+async def batch_create_work_logs(
+    payload: WorkLogBatchCreate,
+    db: AsyncSession = Depends(get_db),
+) -> list[WorkLogResponse]:
+    """Atomically create multiple work log entries across any number of dates."""
+    work_logs = await WorkLogService(db).create_batch(payload.entries)
+    await db.commit()
+    return work_logs
 
 
 @router.patch("/api/work-logs/{work_log_id}/tags", response_model=WorkLogResponse)
