@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date as date_type
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oliver_shared import MAX_TAGS_PER_TASK
@@ -95,10 +96,17 @@ class WorkLogService:
             )
             self._db.add(wl)
             await self._db.flush()
+            # Re-fetch with selectinload so the tags collection is async-initialized
+            result = await self._db.execute(
+                select(WorkLog)
+                .where(WorkLog.id == wl.id)
+                .options(selectinload(WorkLog.tags))
+            )
+            wl = result.scalar_one()
             if entry.tags:
                 wl.tags = await tag_service.resolve_tags(entry.tags)
                 await self._db.flush()
-            await self._db.refresh(wl)
+                await self._db.refresh(wl)
             work_logs.append(wl)
 
         return work_logs
