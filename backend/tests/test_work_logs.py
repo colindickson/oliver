@@ -192,7 +192,7 @@ async def test_batch_create_work_logs_happy_path(client: AsyncClient) -> None:
     assert body[1]["day_id"] != body[0]["day_id"]
 
 
-async def test_batch_create_work_logs_atomic_on_tag_error(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_batch_create_work_logs_rejects_excess_tags(client: AsyncClient, db_session: AsyncSession) -> None:
     """POST /api/work-logs/batch returns 400 and saves nothing when any entry exceeds tag limit."""
     from sqlalchemy import select as sa_select
     from app.models import WorkLog as WLModel

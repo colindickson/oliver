@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.day import Day
-from app.schemas.work_log import WorkLogResponse, WorkLogTagsUpdate, WorkLogUpdate, WorkLogBatchCreate
+from app.schemas.work_log import WorkLogBatchCreate, WorkLogResponse, WorkLogTagsUpdate, WorkLogUpdate
 from app.services.work_log_service import WorkLogService
 
 # No prefix: endpoints span two URL hierarchies (/api/days/ and /api/work-logs/).
