@@ -163,3 +163,68 @@ async def test_update_work_log_not_found(client: AsyncClient) -> None:
     )
     assert response.status_code == 404
     assert "99999" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# POST /api/work-logs/batch
+# ---------------------------------------------------------------------------
+
+
+async def test_batch_create_work_logs_happy_path(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch creates 3 entries across 2 dates, returns them in order."""
+    payload = {
+        "entries": [
+            {"project_name": "oliver", "description": "Entry A", "tags": ["backend"], "date": "2026-01-01"},
+            {"project_name": "client-api", "description": "Entry B", "tags": [], "date": "2026-01-02"},
+            {"project_name": "oliver", "description": "Entry C", "tags": ["frontend"], "date": "2026-01-01"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 3
+    assert body[0]["project_name"] == "oliver"
+    assert body[0]["description"] == "Entry A"
+    assert body[0]["tags"] == ["backend"]
+    assert body[1]["project_name"] == "client-api"
+    assert body[2]["description"] == "Entry C"
+    assert body[0]["day_id"] == body[2]["day_id"]
+    assert body[1]["day_id"] != body[0]["day_id"]
+
+
+async def test_batch_create_work_logs_atomic_on_tag_error(client: AsyncClient, db_session: AsyncSession) -> None:
+    """POST /api/work-logs/batch returns 400 and saves nothing when any entry exceeds tag limit."""
+    from sqlalchemy import select as sa_select
+    from app.models import WorkLog as WLModel
+
+    payload = {
+        "entries": [
+            {"project_name": "good", "description": "Fine entry", "tags": [], "date": "2026-02-01"},
+            {"project_name": "bad", "description": "Too many tags", "tags": ["a", "b", "c", "d", "e", "f"], "date": "2026-02-02"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 400
+
+    result = await db_session.execute(sa_select(WLModel))
+    assert result.scalars().all() == []
+
+
+async def test_batch_create_work_logs_empty_entries(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch returns 422 when entries list is empty."""
+    response = await client.post("/api/work-logs/batch", json={"entries": []})
+    assert response.status_code == 422
+
+
+async def test_batch_create_work_logs_creates_day_rows(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch auto-creates Day rows for dates that don't exist yet."""
+    payload = {
+        "entries": [
+            {"project_name": "newday", "description": "No day exists yet", "tags": [], "date": "2030-06-15"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["project_name"] == "newday"
