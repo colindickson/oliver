@@ -519,7 +519,7 @@ async def test_work_log_activity_empty(client: AsyncClient) -> None:
 async def test_work_log_activity_single_day(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """GET /api/analytics/work-log-activity returns one entry per day with count and projects."""
+    """GET /api/analytics/work-log-activity returns one entry per day with count and per-type counts."""
     from app.models.work_log import WorkLog
 
     today = date.today()
@@ -527,8 +527,8 @@ async def test_work_log_activity_single_day(
     db_session.add(day)
     await db_session.flush()
 
-    wl1 = WorkLog(day_id=day.id, project_name="oliver", description="did stuff")
-    wl2 = WorkLog(day_id=day.id, project_name="client", description="other stuff")
+    wl1 = WorkLog(day_id=day.id, project_name="oliver", description="did stuff", log_type="commit")
+    wl2 = WorkLog(day_id=day.id, project_name="client", description="other stuff", log_type=None)
     db_session.add_all([wl1, wl2])
     await db_session.commit()
 
@@ -538,7 +538,11 @@ async def test_work_log_activity_single_day(
     assert len(data) == 1
     assert data[0]["date"] == today.isoformat()
     assert data[0]["count"] == 2
-    assert sorted(data[0]["projects"]) == ["client", "oliver"]
+    assert data[0]["commit"] == 1
+    assert data[0]["untyped"] == 1
+    assert data[0]["pr"] == 0
+    assert data[0]["review"] == 0
+    assert data[0]["research"] == 0
 
 
 async def test_work_log_activity_excludes_out_of_window(
@@ -564,4 +568,5 @@ async def test_work_log_activity_excludes_out_of_window(
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]["projects"] == ["new"]
+    assert data[0]["count"] == 1
+    assert data[0]["untyped"] == 1

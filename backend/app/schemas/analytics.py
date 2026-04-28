@@ -75,14 +75,22 @@ class TodayDeepWorkResponse(BaseModel):
 
 
 class WorkLogActivityDay(BaseModel):
-    """Per-day work log activity summary for the heatmap.
+    """Per-day work log activity summary for the bar chart.
 
     Attributes:
         date: ISO date string (YYYY-MM-DD).
-        count: Number of work log entries on this day.
-        projects: Distinct project names logged, sorted alphabetically.
+        count: Total number of work log entries on this day.
+        commit: Count of commit-type logs.
+        pr: Count of pr-type logs.
+        review: Count of review-type logs.
+        research: Count of research-type logs.
+        untyped: Count of logs with no log_type set.
     """
 
     date: str
     count: int
-    projects: list[str]
+    commit: int
+    pr: int
+    review: int
+    research: int
+    untyped: int

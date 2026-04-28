@@ -203,7 +203,11 @@ export interface TodayDeepWorkResponse {
 export interface WorkLogActivityDay {
   date: string
   count: number
-  projects: string[]
+  commit: number
+  pr: number
+  review: number
+  research: number
+  untyped: number
 }
 
 export const analyticsApi = {

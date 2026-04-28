@@ -86,7 +86,7 @@ async def get_work_log_activity(
     days: int = Query(default=90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
 ) -> list[WorkLogActivityDay]:
-    """Return per-day work log counts for the heatmap.
+    """Return per-day work log counts for the bar chart, segmented by log type.
 
     Args:
         days: Rolling window size (1–365). Defaults to 90.

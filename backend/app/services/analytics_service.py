@@ -272,19 +272,20 @@ class AnalyticsService:
     # ------------------------------------------------------------------
 
     async def get_work_log_activity(self, days: int = 90) -> list[dict]:
-        """Return per-day work log counts and project names for the given window.
+        """Return per-day work log counts segmented by log_type for the given window.
 
         Args:
             days: Number of calendar days to include, counting back from today.
 
         Returns:
-            List of dicts with keys ``date``, ``count``, and ``projects``.
+            List of dicts with keys ``date``, ``count``, ``commit``, ``pr``,
+            ``review``, ``research``, and ``untyped``.
         """
         today = date.today()
         cutoff = today - timedelta(days=days - 1)
 
         result = await self._db.execute(
-            select(Day.date, WorkLog.project_name)
+            select(Day.date, WorkLog.log_type)
             .join(WorkLog, WorkLog.day_id == Day.id)
             .where(Day.date >= cutoff)
             .where(Day.date <= today)
@@ -292,15 +293,14 @@ class AnalyticsService:
         )
         rows = result.all()
 
+        LOG_TYPES = ("commit", "pr", "review", "research")
         buckets: dict[str, dict] = {}
-        for day_date, project_name in rows:
+        for day_date, log_type in rows:
             date_str = day_date.isoformat()
             if date_str not in buckets:
-                buckets[date_str] = {"date": date_str, "count": 0, "projects": set()}
+                buckets[date_str] = {"date": date_str, "count": 0, "commit": 0, "pr": 0, "review": 0, "research": 0, "untyped": 0}
             buckets[date_str]["count"] += 1
-            buckets[date_str]["projects"].add(project_name)
+            key = log_type if log_type in LOG_TYPES else "untyped"
+            buckets[date_str][key] += 1
 
-        return [
-            {"date": d["date"], "count": d["count"], "projects": sorted(d["projects"])}
-            for d in sorted(buckets.values(), key=lambda x: x["date"])
-        ]
+        return sorted(buckets.values(), key=lambda x: x["date"])
