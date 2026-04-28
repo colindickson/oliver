@@ -169,6 +169,7 @@ def log_work_tool(
     description: str,
     tags: list[str] | None = None,
     date_str: str = "",
+    log_type: str | None = None,
 ) -> str:
     """Record work done on a project.
 
@@ -177,8 +178,9 @@ def log_work_tool(
     tags: Optional list of tag names (max 5).
     date_str: ISO-8601 date string (YYYY-MM-DD). Omit or pass "" to log for today.
               Use this to backfill work done on past dates.
+    log_type: Optional activity type — one of: commit, pr, review, research.
     """
-    return log_work(project_name, description, tags or [], date_str)
+    return log_work(project_name, description, tags or [], date_str, log_type=log_type)
 
 
 @mcp.tool()
@@ -193,6 +195,7 @@ def batch_log_work_tool(entries: list[dict]) -> str:
         description  (str, required) — what was done
         tags         (list[str], optional) — tag names, max 5
         date_str     (str, optional) — YYYY-MM-DD, omit for today
+        log_type     (str, optional) — one of: commit, pr, review, research
 
     All entries are validated before any DB writes. If any entry fails,
     nothing is saved.
