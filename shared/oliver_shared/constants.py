@@ -32,3 +32,10 @@ DEEP_WORK_GOAL_SECONDS = 10800
 
 # Business rules
 MAX_TAGS_PER_TASK = 5
+
+# Work log activity types
+LOG_TYPE_COMMIT = "commit"
+LOG_TYPE_PR = "pr"
+LOG_TYPE_REVIEW = "review"
+LOG_TYPE_RESEARCH = "research"
+VALID_LOG_TYPES = frozenset({LOG_TYPE_COMMIT, LOG_TYPE_PR, LOG_TYPE_REVIEW, LOG_TYPE_RESEARCH})

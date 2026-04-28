@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oliver_shared import MAX_TAGS_PER_TASK
 
 from app.exceptions import InvalidOperationError, WorkLogNotFoundError
+
+_UNSET = object()
 from app.models.day import Day
 from app.models.work_log import WorkLog
 from app.schemas.work_log import WorkLogCreate
@@ -55,6 +57,7 @@ class WorkLogService:
         work_log_id: int,
         project_name: str | None = None,
         description: str | None = None,
+        log_type: str | None | object = _UNSET,
     ) -> WorkLog:
         result = await self._db.execute(
             select(WorkLog).where(WorkLog.id == work_log_id)
@@ -66,6 +69,8 @@ class WorkLogService:
             work_log.project_name = project_name
         if description is not None:
             work_log.description = description
+        if log_type is not _UNSET:
+            work_log.log_type = log_type  # type: ignore[assignment]
         await self._db.flush()
         await self._db.refresh(work_log)
         return work_log
@@ -93,6 +98,7 @@ class WorkLogService:
                 day_id=date_to_day[entry.date].id,
                 project_name=entry.project_name,
                 description=entry.description,
+                log_type=entry.log_type,
             )
             self._db.add(wl)
             await self._db.flush()

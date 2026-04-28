@@ -1,6 +1,6 @@
 """Shared validation functions for business rules."""
 
-from oliver_shared.constants import MAX_TAGS_PER_TASK
+from oliver_shared.constants import MAX_TAGS_PER_TASK, VALID_LOG_TYPES
 
 
 def normalize_tag_name(name: str) -> str:
@@ -13,6 +13,13 @@ def normalize_tag_name(name: str) -> str:
         The normalized tag name.
     """
     return name.strip().lower()
+
+
+def validate_log_type(log_type: str | None) -> None:
+    if log_type is not None and log_type not in VALID_LOG_TYPES:
+        raise ValueError(
+            f"Invalid log_type '{log_type}'. Must be one of: {', '.join(sorted(VALID_LOG_TYPES))}"
+        )
 
 
 def validate_tag_count(tags: list) -> None:

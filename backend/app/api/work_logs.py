@@ -61,11 +61,13 @@ async def update_work_log(
     payload: WorkLogUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> WorkLogResponse:
-    work_log = await WorkLogService(db).update(
-        work_log_id,
-        project_name=payload.project_name,
-        description=payload.description,
-    )
+    kwargs: dict = {
+        "project_name": payload.project_name,
+        "description": payload.description,
+    }
+    if "log_type" in payload.model_fields_set:
+        kwargs["log_type"] = payload.log_type
+    work_log = await WorkLogService(db).update(work_log_id, **kwargs)
     await db.commit()
     return work_log
 

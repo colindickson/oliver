@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date as date_type
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -28,6 +29,7 @@ class WorkLogResponse(TagCoercionMixin):
     day_id: int
     project_name: str
     description: str
+    log_type: str | None = None
     created_at: datetime
     tags: list[str] = []
 
@@ -47,6 +49,7 @@ class WorkLogUpdate(BaseModel):
 
     project_name: str | None = None
     description: str | None = None
+    log_type: Literal["commit", "pr", "review", "research"] | None = None
 
 
 class WorkLogCreate(BaseModel):
@@ -56,6 +59,7 @@ class WorkLogCreate(BaseModel):
     description: str
     date: date_type
     tags: list[str] = []
+    log_type: Literal["commit", "pr", "review", "research"] | None = None
 
 
 class WorkLogBatchCreate(BaseModel):

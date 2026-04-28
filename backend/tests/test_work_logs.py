@@ -71,6 +71,7 @@ async def test_list_work_logs_returns_entries(
     assert entry["day_id"] == day.id
     assert entry["project_name"] == "Oliver"
     assert entry["description"] == "Implemented work log tests"
+    assert entry["log_type"] is None
     assert entry["tags"] == []
     assert "created_at" in entry
 
@@ -228,3 +229,80 @@ async def test_batch_create_work_logs_creates_day_rows(client: AsyncClient) -> N
     body = response.json()
     assert len(body) == 1
     assert body[0]["project_name"] == "newday"
+
+
+# ---------------------------------------------------------------------------
+# log_type field
+# ---------------------------------------------------------------------------
+
+
+async def test_batch_create_with_log_type(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch stores and returns log_type when provided."""
+    payload = {
+        "entries": [
+            {"project_name": "oliver", "description": "Merged feature", "date": "2026-03-01", "log_type": "commit"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["log_type"] == "commit"
+
+
+async def test_batch_create_log_type_defaults_to_null(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch returns log_type=null when field is absent."""
+    payload = {
+        "entries": [
+            {"project_name": "oliver", "description": "No type given", "date": "2026-03-02"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["log_type"] is None
+
+
+async def test_batch_create_invalid_log_type(client: AsyncClient) -> None:
+    """POST /api/work-logs/batch returns 422 when log_type is not a valid value."""
+    payload = {
+        "entries": [
+            {"project_name": "oliver", "description": "Bad type", "date": "2026-03-03", "log_type": "invalid"},
+        ]
+    }
+    response = await client.post("/api/work-logs/batch", json=payload)
+    assert response.status_code == 422
+
+
+async def test_update_work_log_log_type(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} sets log_type when provided."""
+    response = await client.patch(
+        f"/api/work-logs/{work_log.id}",
+        json={"log_type": "pr"},
+    )
+    assert response.status_code == 200
+    assert response.json()["log_type"] == "pr"
+
+
+async def test_update_work_log_clears_log_type(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} with log_type=null clears an existing log_type."""
+    await client.patch(f"/api/work-logs/{work_log.id}", json={"log_type": "commit"})
+    response = await client.patch(f"/api/work-logs/{work_log.id}", json={"log_type": None})
+    assert response.status_code == 200
+    assert response.json()["log_type"] is None
+
+
+async def test_update_work_log_log_type_absent_does_not_clear(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} without log_type key does not clear an existing log_type."""
+    await client.patch(f"/api/work-logs/{work_log.id}", json={"log_type": "commit"})
+    response = await client.patch(f"/api/work-logs/{work_log.id}", json={"description": "updated"})
+    assert response.status_code == 200
+    assert response.json()["log_type"] == "commit"
+
+
+async def test_update_work_log_invalid_log_type(client: AsyncClient, work_log: WorkLog) -> None:
+    """PATCH /api/work-logs/{id} returns 422 when log_type is not a valid value."""
+    response = await client.patch(
+        f"/api/work-logs/{work_log.id}",
+        json={"log_type": "invalid"},
+    )
+    assert response.status_code == 422

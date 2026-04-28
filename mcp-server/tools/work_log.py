@@ -9,7 +9,7 @@ from models.work_log import WorkLog
 from tools.daily import get_session, _get_or_create_day
 from tools.log_utils import log_call
 from tools.tasks import _get_or_create_tags
-from oliver_shared import validate_tag_count, MAX_TAGS_PER_TASK
+from oliver_shared import validate_tag_count, validate_log_type, MAX_TAGS_PER_TASK
 
 
 def _create_work_log_in_session(
@@ -18,6 +18,7 @@ def _create_work_log_in_session(
     description: str,
     tags: list[str],
     target_date: date,
+    log_type: str | None = None,
 ) -> dict:
     pd = session.query(ProjectDefault).filter(
         ProjectDefault.project_name == project_name
@@ -29,7 +30,7 @@ def _create_work_log_in_session(
         if dt.lower() not in provided_lower and len(merged) < MAX_TAGS_PER_TASK:
             merged.append(dt)
     day = _get_or_create_day(session, target_date)
-    work_log = WorkLog(day_id=day.id, project_name=project_name, description=description)
+    work_log = WorkLog(day_id=day.id, project_name=project_name, description=description, log_type=log_type)
     session.add(work_log)
     session.flush()
     if merged:
@@ -39,6 +40,7 @@ def _create_work_log_in_session(
         "id": work_log.id,
         "project_name": work_log.project_name,
         "description": work_log.description,
+        "log_type": work_log.log_type,
         "date": target_date.isoformat(),
         "created_at": work_log.created_at.isoformat() if work_log.created_at else None,
         "tags": [t.name for t in work_log.tags],
@@ -50,6 +52,7 @@ def log_work(
     description: str,
     tags: list[str] | None = None,
     date_str: str = "",
+    log_type: str | None = None,
 ) -> str:
     """Record a work log entry for a given date (defaults to today).
 
@@ -59,14 +62,15 @@ def log_work(
         tags: Optional list of tag names (max 5). Project default tags are merged in
               automatically to fill remaining slots.
         date_str: ISO-8601 date (YYYY-MM-DD). Omit or pass "" to log for today.
+        log_type: Optional activity type: 'commit', 'pr', 'review', or 'research'.
 
     Returns:
         JSON-encoded dict with the created work log's id, project_name,
-        description, date, created_at, and tags.
+        description, log_type, date, created_at, and tags.
     """
     if tags is None:
         tags = []
-    params = {"project_name": project_name, "description": description, "tags": tags, "date_str": date_str}
+    params = {"project_name": project_name, "description": description, "tags": tags, "date_str": date_str, "log_type": log_type}
 
     if date_str:
         try:
@@ -86,8 +90,15 @@ def log_work(
         return error_json
 
     try:
+        validate_log_type(log_type)
+    except ValueError as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("log_work", params, error_json, "error")
+        return error_json
+
+    try:
         with get_session() as session:
-            result = _create_work_log_in_session(session, project_name, description, tags, target_date)
+            result = _create_work_log_in_session(session, project_name, description, tags, target_date, log_type=log_type)
         result_json = json.dumps(result)
         log_call("log_work", params, result_json, "success")
         return result_json
@@ -105,9 +116,10 @@ def batch_log_work(entries: list[dict]) -> str:
         description  (str, required)
         tags         (list[str], optional, default [])
         date_str     (str, optional, ISO-8601 YYYY-MM-DD, default "" = today)
+        log_type     (str, optional, one of: commit, pr, review, research)
 
     All entries are validated upfront. If any entry fails (bad date, too many
-    tags), no entries are saved and an error JSON is returned.
+    tags, invalid log_type), no entries are saved and an error JSON is returned.
 
     Returns:
         JSON array of result dicts on success, or {"error": "..."} on failure.
@@ -115,12 +127,13 @@ def batch_log_work(entries: list[dict]) -> str:
     params = {"entries": entries}
 
     # --- Upfront validation pass ---
-    parsed: list[tuple[str, str, list[str], date]] = []
+    parsed: list[tuple[str, str, list[str], date, str | None]] = []
     for i, entry in enumerate(entries):
         project_name = entry.get("project_name", "")
         description = entry.get("description", "")
         tags = entry.get("tags") or []
         date_str = entry.get("date_str", "")
+        log_type = entry.get("log_type")
 
         if not project_name:
             error_json = json.dumps({"error": f"Entry {i}: 'project_name' is required."})
@@ -150,14 +163,21 @@ def batch_log_work(entries: list[dict]) -> str:
             log_call("batch_log_work", params, error_json, "error")
             return error_json
 
-        parsed.append((project_name, description, tags, target_date))
+        try:
+            validate_log_type(log_type)
+        except ValueError as e:
+            error_json = json.dumps({"error": f"Entry {i} ('{project_name}'): {e}"})
+            log_call("batch_log_work", params, error_json, "error")
+            return error_json
+
+        parsed.append((project_name, description, tags, target_date, log_type))
 
     # --- Single session for all inserts ---
     try:
         with get_session() as session:
             results = []
-            for project_name, description, tags, target_date in parsed:
-                result = _create_work_log_in_session(session, project_name, description, tags, target_date)
+            for project_name, description, tags, target_date, log_type in parsed:
+                result = _create_work_log_in_session(session, project_name, description, tags, target_date, log_type=log_type)
                 results.append(result)
         result_json = json.dumps(results)
         log_call("batch_log_work", params, result_json, "success")

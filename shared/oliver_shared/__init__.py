@@ -6,6 +6,10 @@ from oliver_shared.constants import (
     CATEGORY_SHORT_TASK,
     DEEP_WORK_GOAL_SECONDS,
     FOCUS_GOAL_KEY,
+    LOG_TYPE_COMMIT,
+    LOG_TYPE_PR,
+    LOG_TYPE_RESEARCH,
+    LOG_TYPE_REVIEW,
     MAX_TAGS_PER_TASK,
     RECURRING_DAYS_OFF_KEY,
     STATUS_COMPLETED,
@@ -16,10 +20,11 @@ from oliver_shared.constants import (
     STATUS_ROLLED_FORWARD,
     TIMER_DISPLAY_KEY,
     VALID_CATEGORIES,
+    VALID_LOG_TYPES,
     VALID_STATUSES,
     VALID_WEEKDAYS,
 )
-from oliver_shared.validation import normalize_tag_name, validate_tag_count
+from oliver_shared.validation import normalize_tag_name, validate_log_type, validate_tag_count
 
 __all__ = [
     "CATEGORY_DEEP_WORK",
@@ -27,6 +32,10 @@ __all__ = [
     "CATEGORY_SHORT_TASK",
     "DEEP_WORK_GOAL_SECONDS",
     "FOCUS_GOAL_KEY",
+    "LOG_TYPE_COMMIT",
+    "LOG_TYPE_PR",
+    "LOG_TYPE_RESEARCH",
+    "LOG_TYPE_REVIEW",
     "MAX_TAGS_PER_TASK",
     "RECURRING_DAYS_OFF_KEY",
     "STATUS_COMPLETED",
@@ -37,8 +46,10 @@ __all__ = [
     "STATUS_ROLLED_FORWARD",
     "TIMER_DISPLAY_KEY",
     "VALID_CATEGORIES",
+    "VALID_LOG_TYPES",
     "VALID_STATUSES",
     "VALID_WEEKDAYS",
     "normalize_tag_name",
+    "validate_log_type",
     "validate_tag_count",
 ]

@@ -1,6 +1,6 @@
 """WorkLog model and work_log_tags association table."""
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -24,6 +24,10 @@ class WorkLog(Base):
     day_id = Column(Integer, ForeignKey("days.id", ondelete="CASCADE"), nullable=False)
     project_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
+    log_type = Column(
+        Enum("commit", "pr", "review", "research", name="log_type"),
+        nullable=True,
+    )
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tags = relationship("Tag", secondary=work_log_tags_table, lazy="selectin")
