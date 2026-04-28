@@ -25,7 +25,7 @@ from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
 from tools.project_defaults import get_project_defaults, set_project_default_tags
-from tools.work_log import log_work
+from tools.work_log import log_work, batch_log_work
 
 mcp = FastMCP("Oliver")
 
@@ -179,6 +179,25 @@ def log_work_tool(
               Use this to backfill work done on past dates.
     """
     return log_work(project_name, description, tags or [], date_str)
+
+
+@mcp.tool()
+def batch_log_work_tool(entries: list[dict]) -> str:
+    """Atomically record multiple work log entries in one call.
+
+    Use this instead of calling log_work_tool N times when you have
+    multiple entries to log — especially for backfilling historical work.
+
+    entries: List of dicts, each with:
+        project_name (str, required) — free-text project identifier
+        description  (str, required) — what was done
+        tags         (list[str], optional) — tag names, max 5
+        date_str     (str, optional) — YYYY-MM-DD, omit for today
+
+    All entries are validated before any DB writes. If any entry fails,
+    nothing is saved.
+    """
+    return batch_log_work(entries)
 
 
 @mcp.tool()
