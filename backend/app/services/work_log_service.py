@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import date as date_type
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oliver_shared import MAX_TAGS_PER_TASK
 
 from app.exceptions import InvalidOperationError, WorkLogNotFoundError
+from app.models.day import Day
 from app.models.work_log import WorkLog
+from app.schemas.work_log import WorkLogCreate
+from app.services.day_service import DayService
 from app.services.tag_service import TagService
 
 
@@ -63,6 +68,40 @@ class WorkLogService:
         await self._db.flush()
         await self._db.refresh(work_log)
         return work_log
+
+    async def create_batch(self, entries: list[WorkLogCreate]) -> list[WorkLog]:
+        # Upfront validation — fail fast before touching the DB
+        for i, entry in enumerate(entries):
+            if len(entry.tags) > MAX_TAGS_PER_TASK:
+                raise InvalidOperationError(
+                    f"Entry {i} ('{entry.project_name}'): max {MAX_TAGS_PER_TASK} tags allowed",
+                    http_status_code=400,
+                )
+
+        day_service = DayService(self._db)
+        tag_service = TagService(self._db)
+
+        unique_dates: set[date_type] = {entry.date for entry in entries}
+        date_to_day: dict[date_type, Day] = {}
+        for d in unique_dates:
+            date_to_day[d] = await day_service.get_or_create_by_date(d)
+
+        work_logs: list[WorkLog] = []
+        for entry in entries:
+            wl = WorkLog(
+                day_id=date_to_day[entry.date].id,
+                project_name=entry.project_name,
+                description=entry.description,
+            )
+            self._db.add(wl)
+            await self._db.flush()
+            if entry.tags:
+                wl.tags = await tag_service.resolve_tags(entry.tags)
+                await self._db.flush()
+            await self._db.refresh(wl)
+            work_logs.append(wl)
+
+        return work_logs
 
     async def update_tags(self, work_log_id: int, tag_names: list[str]) -> WorkLog:
         """Replace the tags on a WorkLog with the given tag names.
