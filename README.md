@@ -102,6 +102,7 @@ make install-mcp-claude-desktop  # Claude Desktop only
 | `notify` | Push a notification to the Oliver UI (source + message, visible as a toast popup and in the bell inbox) |
 | `log_work` | Record work done on a project — project name, description, optional tags, optional date (defaults to today), and optional type (`commit`, `pr`, `review`, `research`) |
 | `batch_log_work` | Atomically record multiple work log entries in one call — useful for backfilling historical work; all entries are validated before any writes |
+| `get_work_logs` | Retrieve work logs for a date range (defaults to last 7 days), optionally filtered by type (`commit`, `pr`, `review`, `research`) |
 | `get_project_defaults` | Get the default tags configured for a project (or list all projects with defaults) |
 | `set_project_default_tags` | Set default tags automatically applied when logging work for a project; replaces existing defaults, pass `[]` to clear |
 

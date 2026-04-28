@@ -1,9 +1,10 @@
 """Work log tool: record work done on a project for a given date."""
 
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import models  # noqa: F401 — ensures all ORM models are registered before session use
+from models.day import Day
 from models.project_default import ProjectDefault
 from models.work_log import WorkLog
 from tools.daily import get_session, _get_or_create_day
@@ -185,4 +186,79 @@ def batch_log_work(entries: list[dict]) -> str:
     except Exception as e:
         error_json = json.dumps({"error": str(e)})
         log_call("batch_log_work", params, error_json, "error")
+        return error_json
+
+
+def get_work_logs(
+    start_date_str: str = "",
+    end_date_str: str = "",
+    log_type: str | None = None,
+) -> str:
+    """Retrieve work logs within a date range, optionally filtered by type.
+
+    Args:
+        start_date_str: ISO-8601 date (YYYY-MM-DD). Defaults to 7 days ago.
+        end_date_str:   ISO-8601 date (YYYY-MM-DD). Defaults to today.
+        log_type:       Optional filter — one of: commit, pr, review, research.
+
+    Returns:
+        JSON array of work log dicts on success, or {"error": "..."} on failure.
+    """
+    params = {"start_date_str": start_date_str, "end_date_str": end_date_str, "log_type": log_type}
+
+    if start_date_str:
+        try:
+            start = date.fromisoformat(start_date_str)
+        except ValueError:
+            error_json = json.dumps({"error": f"Invalid date format '{start_date_str}'. Use YYYY-MM-DD."})
+            log_call("get_work_logs", params, error_json, "error")
+            return error_json
+    else:
+        start = date.today() - timedelta(days=6)
+
+    if end_date_str:
+        try:
+            end = date.fromisoformat(end_date_str)
+        except ValueError:
+            error_json = json.dumps({"error": f"Invalid date format '{end_date_str}'. Use YYYY-MM-DD."})
+            log_call("get_work_logs", params, error_json, "error")
+            return error_json
+    else:
+        end = date.today()
+
+    if log_type is not None:
+        try:
+            validate_log_type(log_type)
+        except ValueError as e:
+            error_json = json.dumps({"error": str(e)})
+            log_call("get_work_logs", params, error_json, "error")
+            return error_json
+
+    try:
+        with get_session() as session:
+            q = (
+                session.query(WorkLog, Day.date)
+                .join(Day, WorkLog.day_id == Day.id)
+                .filter(Day.date >= start, Day.date <= end)
+            )
+            if log_type is not None:
+                q = q.filter(WorkLog.log_type == log_type)
+            rows = q.order_by(Day.date.desc(), WorkLog.created_at.desc()).all()
+            results = []
+            for wl, day_date in rows:
+                results.append({
+                    "id": wl.id,
+                    "date": day_date.isoformat() if day_date else None,
+                    "project_name": wl.project_name,
+                    "description": wl.description,
+                    "log_type": wl.log_type,
+                    "tags": [t.name for t in wl.tags],
+                    "created_at": wl.created_at.isoformat() if wl.created_at else None,
+                })
+        result_json = json.dumps(results)
+        log_call("get_work_logs", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("get_work_logs", params, error_json, "error")
         return error_json

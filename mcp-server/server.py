@@ -25,7 +25,7 @@ from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
 from tools.timer import start_timer, stop_timer
 from tools.project_defaults import get_project_defaults, set_project_default_tags
-from tools.work_log import log_work, batch_log_work
+from tools.work_log import log_work, batch_log_work, get_work_logs
 
 mcp = FastMCP("Oliver")
 
@@ -201,6 +201,22 @@ def batch_log_work_tool(entries: list[dict]) -> str:
     nothing is saved.
     """
     return batch_log_work(entries)
+
+
+@mcp.tool()
+def get_work_logs_tool(
+    start_date: str = "",
+    end_date: str = "",
+    log_type: str | None = None,
+) -> str:
+    """Retrieve work logs within a date range, optionally filtered by type.
+
+    start_date: ISO-8601 date (YYYY-MM-DD). Defaults to 7 days ago.
+    end_date:   ISO-8601 date (YYYY-MM-DD). Defaults to today.
+    log_type:   Optional filter — one of: commit, pr, review, research.
+                Omit or pass null to return all types.
+    """
+    return get_work_logs(start_date, end_date, log_type)
 
 
 @mcp.tool()
