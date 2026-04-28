@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date as date_type
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas._shared import TagCoercionMixin
 
@@ -46,3 +47,18 @@ class WorkLogUpdate(BaseModel):
 
     project_name: str | None = None
     description: str | None = None
+
+
+class WorkLogCreate(BaseModel):
+    """Payload for a single work log entry in a batch request."""
+
+    project_name: str
+    description: str
+    tags: list[str] = []
+    date: date_type
+
+
+class WorkLogBatchCreate(BaseModel):
+    """Payload for creating multiple work log entries atomically."""
+
+    entries: list[WorkLogCreate] = Field(min_length=1)
