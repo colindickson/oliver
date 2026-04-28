@@ -54,8 +54,8 @@ class WorkLogCreate(BaseModel):
 
     project_name: str
     description: str
-    tags: list[str] = []
     date: date_type
+    tags: list[str] = []
 
 
 class WorkLogBatchCreate(BaseModel):
