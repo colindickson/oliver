@@ -100,6 +100,10 @@ make install-mcp-claude-desktop  # Claude Desktop only
 | `is_day_off` | Check if a date is a day off — via recurring weekday config or an explicit day-off record |
 | `set_day_metadata` | Record weather condition, temperature, and moon phase for a day |
 | `notify` | Push a notification to the Oliver UI (source + message, visible as a toast popup and in the bell inbox) |
+| `log_work` | Record work done on a project — project name, description, optional tags, optional date (defaults to today), and optional type (`commit`, `pr`, `review`, `research`) |
+| `batch_log_work` | Atomically record multiple work log entries in one call — useful for backfilling historical work; all entries are validated before any writes |
+| `get_project_defaults` | Get the default tags configured for a project (or list all projects with defaults) |
+| `set_project_default_tags` | Set default tags automatically applied when logging work for a project; replaces existing defaults, pass `[]` to clear |
 
 ### Example: Planning your day with Claude
 
