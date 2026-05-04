@@ -23,8 +23,23 @@ from app.services.day_service import DayService
 router = APIRouter(prefix="/api/days", tags=["days"])
 
 
-# NOTE: GET /api/days/off must be registered BEFORE GET /api/days/{day_date}
-# to prevent FastAPI from trying to parse "off" as a date.
+# NOTE: Fixed-path routes (/off, /today, /next-working-day) must be registered
+# BEFORE GET /api/days/{day_date} to prevent FastAPI from parsing them as dates.
+
+
+@router.get("/next-working-day")
+async def get_next_working_day(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    """Return the next working day after today, skipping weekends and days-off.
+
+    Args:
+        db: Injected async database session.
+
+    Returns:
+        A dict with key ``date`` formatted as ``YYYY-MM-DD``.
+    """
+    service = DayService(db)
+    next_day = await service.get_next_working_day()
+    return {"date": next_day.strftime("%Y-%m-%d")}
 
 
 @router.get("/off", response_model=list[DayOffResponse])

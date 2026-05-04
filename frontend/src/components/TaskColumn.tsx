@@ -30,8 +30,7 @@ interface Props {
   onDelete: (id: number) => void
   onReorder: (taskIds: number[]) => void
   onMoveToBacklog?: (task: Task) => void
-  onContinueTomorrow?: (task: Task) => void
-  onRollForward?: (task: Task) => void
+  onContinue?: (taskId: number) => void
   onScheduleFromBacklog?: (task: Task) => void
   onInstantiateFromTemplate?: (template: TaskTemplate) => void
 }
@@ -59,11 +58,10 @@ interface SortableTaskCardProps {
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
   onMoveToBacklog?: (task: Task) => void
-  onContinueTomorrow?: (task: Task) => void
-  onRollForward?: (task: Task) => void
+  onContinue?: () => void
 }
 
-function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow, onRollForward }: SortableTaskCardProps) {
+function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinue }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
 
@@ -93,7 +91,7 @@ function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onConti
         </svg>
       </button>
       <div className="flex-1 min-w-0">
-        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} onMoveToBacklog={onMoveToBacklog} onContinueTomorrow={onContinueTomorrow} onRollForward={onRollForward} />
+        <TaskCard task={task} onComplete={onComplete} onDelete={onDelete} onMoveToBacklog={onMoveToBacklog} onContinue={onContinue} />
       </div>
     </div>
   )
@@ -109,8 +107,7 @@ export function TaskColumn({
   onDelete,
   onReorder,
   onMoveToBacklog,
-  onContinueTomorrow,
-  onRollForward,
+  onContinue,
   onScheduleFromBacklog,
   onInstantiateFromTemplate,
 }: Props) {
@@ -242,8 +239,7 @@ export function TaskColumn({
                 onComplete={onComplete}
                 onDelete={onDelete}
                 onMoveToBacklog={onMoveToBacklog}
-                onContinueTomorrow={onContinueTomorrow}
-                onRollForward={onRollForward}
+                onContinue={onContinue ? () => onContinue(task.id) : undefined}
               />
             ))}
           </div>

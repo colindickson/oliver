@@ -111,6 +111,8 @@ export const dayApi = {
     api.put<DayOff>(`/days/${day_id}/day-off`, { reason, note }).then(r => r.data),
   removeDayOff: (day_id: number) =>
     api.delete(`/days/${day_id}/day-off`).then(r => r.data),
+  getNextWorkingDay: (): Promise<{ date: string }> =>
+    api.get('/days/next-working-day').then(r => r.data),
 }
 
 export const settingsApi = {
@@ -141,10 +143,8 @@ export const taskApi = {
     api.post('/tasks/reorder', { task_ids }).then(r => r.data),
   moveToBacklog: (id: number) =>
     api.post<Task>(`/tasks/${id}/move-to-backlog`).then(r => r.data),
-  continueTomorrow: (id: number) =>
-    api.post<Task>(`/tasks/${id}/continue-tomorrow`).then(r => r.data),
-  rollForward: (id: number, targetDate: string) =>
-    api.post<Task>(`/tasks/${id}/roll-forward`, { target_date: targetDate }).then(r => r.data),
+  continue: (id: number, targetDate?: string) =>
+    api.post<Task>(`/tasks/${id}/continue`, { target_date: targetDate ?? null }).then(r => r.data),
 }
 
 export interface TimerState {

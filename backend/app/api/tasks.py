@@ -32,10 +32,10 @@ from oliver_shared import STATUS_COMPLETED
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
-class RollForwardPayload(BaseModel):
-    """Payload for rolling a task forward to a future date."""
+class ContinuePayload(BaseModel):
+    """Payload for continuing a task on a target date."""
 
-    target_date: date
+    target_date: date | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -310,67 +310,28 @@ async def move_task_to_backlog(
     return task
 
 
-@router.post("/{task_id}/continue-tomorrow", response_model=TaskResponse)
-async def continue_task_tomorrow(
-    task_id: int, db: AsyncSession = Depends(get_db)
+@router.post("/{task_id}/continue", response_model=TaskResponse)
+async def continue_task(
+    task_id: int, payload: ContinuePayload = ContinuePayload(), db: AsyncSession = Depends(get_db)
 ) -> TaskResponse:
-    """Mark a deep work task completed and create a copy on tomorrow's day.
-
-    The original task is stamped completed. A new pending task is created
-    for tomorrow with the same title, description, and tags.
+    """Mark a task completed and create a continuation on a target day.
 
     Args:
         task_id: Primary key of the Task to continue.
+        payload: Optional ``target_date``; defaults to next working day.
         db: Injected async database session.
 
     Returns:
-        The newly created TaskResponse for tomorrow.
+        The newly created TaskResponse for the continuation.
 
     Raises:
         HTTPException: 404 if no Task with ``task_id`` exists.
-        HTTPException: 422 if the task is not a deep_work task.
+        HTTPException: 422 if task is in a terminal state or already continued.
+        HTTPException: 400 if ``target_date`` is not strictly in the future.
     """
     service = TaskService(db)
-    new_task = await service.continue_tomorrow(task_id)
+    _, new_task = await service.continue_task(task_id, payload.target_date)
 
-    # Reload with roll relationships to match roll_forward's enriched response shape
-    result = await db.execute(
-        select(Task)
-        .where(Task.id == new_task.id)
-        .options(
-            selectinload(Task.rolled_from).selectinload(Task.day),
-            selectinload(Task.rolled_to).selectinload(Task.day),
-        )
-    )
-    loaded = result.scalar_one()
-    return build_task_response(loaded)
-
-
-@router.post("/{task_id}/roll-forward", response_model=TaskResponse)
-async def roll_forward_task(
-    task_id: int, body: RollForwardPayload, db: AsyncSession = Depends(get_db)
-) -> dict:
-    """Create a new task on a future date as a roll-forward of an incomplete task.
-
-    The original task is marked as rolled_forward as a historical record. The new task
-    has ``rolled_from_task_id`` set to the original, creating a traceable chain.
-
-    Args:
-        task_id: Primary key of the source Task to roll forward.
-        body: Contains ``target_date`` (must be in the future).
-        db: Injected async database session.
-
-    Returns:
-        The newly created TaskResponse with ``rolled_from_date`` populated.
-
-    Raises:
-        HTTPException: 404 if no Task with ``task_id`` exists.
-        HTTPException: 422 if task is completed, already rolled, or target_date is not future.
-    """
-    service = TaskService(db)
-    new_task = await service.roll_forward(task_id, body.target_date)
-
-    # Reload with roll relationships to build enriched response
     result = await db.execute(
         select(Task)
         .where(Task.id == new_task.id)

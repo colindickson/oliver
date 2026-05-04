@@ -12,124 +12,63 @@ from app.exceptions import InvalidOperationError, TaskNotFoundError
 from app.models.task import Task
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
-from oliver_shared import CATEGORY_DEEP_WORK, STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD
+from oliver_shared import STATUS_COMPLETED, STATUS_PENDING, STATUS_ROLLED_FORWARD
 
 
 class TaskService:
-    """Encapsulates task orchestration operations (continue_tomorrow, roll_forward)."""
+    """Encapsulates task orchestration operations."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    async def continue_tomorrow(self, task_id: int) -> Task:
-        """Mark a deep work task completed and create a copy on tomorrow's working day.
-
-        The original task is stamped completed. A new pending task is created
-        for tomorrow with the same title, description, and tags.
+    async def continue_task(
+        self, task_id: int, target_date: date | None = None
+    ) -> tuple[Task, Task]:
+        """Mark a task completed and schedule a continuation on a target day.
 
         Args:
             task_id: Primary key of the Task to continue.
+            target_date: Optional future date for the new task; defaults to next working day.
 
         Returns:
-            The newly created Task for tomorrow.
+            Tuple of (original_task, new_task).
 
         Raises:
-            HTTPException: 404 if no Task with ``task_id`` exists.
-            HTTPException: 422 if task is not a deep_work task.
+            TaskNotFoundError: 404 if no Task with ``task_id`` exists.
+            InvalidOperationError: 422 if task is in a terminal state or already continued.
+            InvalidOperationError: 400 if ``target_date`` is not strictly in the future.
         """
-        # Fetch original task with tags already loaded
-        result = await self._db.execute(select(Task).where(Task.id == task_id))
-        task = result.scalar_one_or_none()
-        if task is None:
-            raise TaskNotFoundError(task_id)
-
-        if task.category != CATEGORY_DEEP_WORK:
-            raise InvalidOperationError("Only deep_work tasks can be continued tomorrow")
-
-        # Read tag names before any mutations (already loaded)
-        tag_names = [tag.name for tag in task.tags]
-
-        # Get or create the next working day
-        day_service = DayService(self._db)
-        next_day = await day_service.get_next_working_day()
-        tomorrow_day = await day_service.get_or_create_by_date(next_day)
-
-        # Mark original completed
-        task.status = STATUS_COMPLETED
-        task.completed_at = datetime.now(timezone.utc)
-
-        # Resolve tag objects for the new task
-        tag_service = TagService(self._db)
-        tag_objects = await tag_service.resolve_tags(tag_names)
-
-        # Create continuation task
-        new_task = Task(
-            day_id=tomorrow_day.id,
-            category=CATEGORY_DEEP_WORK,
-            title=task.title,
-            description=task.description,
-            status=STATUS_PENDING,
-            order_index=0,
-        )
-        new_task.tags = tag_objects
-        self._db.add(new_task)
-
-        # Flush to make changes visible within the session; route handler commits.
-        await self._db.flush()
-        await self._db.refresh(new_task)
-        return new_task
-
-    async def roll_forward(self, task_id: int, target_date: date) -> Task:
-        """Create a new task on a future date as a roll-forward of an incomplete task.
-
-        The original task is left incomplete but marked as rolled_forward.
-        The new task has ``rolled_from_task_id`` set, creating a traceable chain.
-
-        Args:
-            task_id: Primary key of the source Task to roll forward.
-            target_date: The date to roll the task forward to (must be in the future).
-
-        Returns:
-            The newly created Task with rolled_from_task_id set.
-
-        Raises:
-            HTTPException: 404 if no Task with ``task_id`` exists.
-            HTTPException: 422 if task is completed, already rolled, or target_date is not future.
-        """
-        # Fetch with roll relationships for validation
         result = await self._db.execute(
             select(Task)
             .where(Task.id == task_id)
-            .options(
-                selectinload(Task.rolled_from),
-                selectinload(Task.rolled_to),
-            )
+            .options(selectinload(Task.rolled_to))
         )
         task = result.scalar_one_or_none()
         if task is None:
             raise TaskNotFoundError(task_id)
 
         if task.status in (STATUS_COMPLETED, STATUS_ROLLED_FORWARD):
-            raise InvalidOperationError("Cannot roll forward a completed or already-rolled task")
+            raise InvalidOperationError("Task is already in a terminal state")
 
         if task.rolled_to is not None:
-            raise InvalidOperationError("Task has already been rolled forward")
+            raise InvalidOperationError("Task has already been continued")
 
-        if target_date <= date.today():
-            raise InvalidOperationError("target_date must be in the future")
+        if target_date is not None and target_date <= date.today():
+            raise InvalidOperationError("target_date must be in the future", http_status_code=400)
 
-        # Read tag names
         tag_names = [tag.name for tag in task.tags]
 
-        # Get or create the target day
         day_service = DayService(self._db)
+        if target_date is None:
+            target_date = await day_service.get_next_working_day()
         target_day = await day_service.get_or_create_by_date(target_date)
 
-        # Resolve tag objects for the new task
+        task.status = STATUS_COMPLETED
+        task.completed_at = datetime.now(timezone.utc)
+
         tag_service = TagService(self._db)
         tag_objects = await tag_service.resolve_tags(tag_names)
 
-        # Create the rolled-forward task
         new_task = Task(
             day_id=target_day.id,
             category=task.category,
@@ -142,9 +81,6 @@ class TaskService:
         new_task.tags = tag_objects
         self._db.add(new_task)
 
-        # Mark original as rolled_forward
-        task.status = STATUS_ROLLED_FORWARD
-
         await self._db.flush()
         await self._db.refresh(new_task)
-        return new_task
+        return task, new_task

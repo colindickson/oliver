@@ -317,14 +317,14 @@ async def test_reorder_tasks(client: AsyncClient, day: Day) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /api/tasks/{task_id}/continue-tomorrow
+# POST /api/tasks/{task_id}/continue
 # ---------------------------------------------------------------------------
 
 
-async def test_continue_tomorrow_marks_original_completed(
+async def test_continue_marks_original_completed(
     client: AsyncClient, day: Day
 ) -> None:
-    """continue-tomorrow sets the original task status to completed."""
+    """POST /continue sets the original task status to completed."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_DEEP_WORK,
@@ -334,19 +334,18 @@ async def test_continue_tomorrow_marks_original_completed(
     })
     task_id = create_resp.json()["id"]
 
-    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
-    # Verify original is now completed
     original_resp = await client.get(f"/api/tasks/{task_id}")
     assert original_resp.json()["status"] == STATUS_COMPLETED
     assert original_resp.json()["completed_at"] is not None
 
 
-async def test_continue_tomorrow_creates_copy_on_next_day(
+async def test_continue_creates_copy_on_next_day(
     client: AsyncClient, day: Day
 ) -> None:
-    """continue-tomorrow returns a new pending deep_work task for tomorrow."""
+    """POST /continue returns a new pending task for the next working day."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_DEEP_WORK,
@@ -356,7 +355,7 @@ async def test_continue_tomorrow_creates_copy_on_next_day(
     })
     task_id = create_resp.json()["id"]
 
-    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -366,18 +365,13 @@ async def test_continue_tomorrow_creates_copy_on_next_day(
     assert body["category"] == CATEGORY_DEEP_WORK
     assert body["status"] == STATUS_PENDING
     assert body["completed_at"] is None
-
-    # Verify the new task is on tomorrow's day
-    tomorrow_str = str(date.today() + timedelta(days=1))
-    day_resp = await client.get(f"/api/days/{tomorrow_str}")
-    assert day_resp.status_code == 200
-    assert day_resp.json()["id"] == body["day_id"]
+    assert body["rolled_from_task_id"] == task_id
 
 
-async def test_continue_tomorrow_copies_tags(
+async def test_continue_copies_tags(
     client: AsyncClient, day: Day
 ) -> None:
-    """continue-tomorrow carries tags over to the new task."""
+    """POST /continue carries tags over to the new task."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_DEEP_WORK,
@@ -385,27 +379,25 @@ async def test_continue_tomorrow_copies_tags(
         "order_index": 0,
         "tags": ["focus", "project-x"],
     })
-    assert sorted(create_resp.json()["tags"]) == ["focus", "project-x"], "Precondition: tags must be persisted on create"
+    assert sorted(create_resp.json()["tags"]) == ["focus", "project-x"]
     task_id = create_resp.json()["id"]
 
-    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
     assert sorted(resp.json()["tags"]) == ["focus", "project-x"]
 
 
-async def test_continue_tomorrow_404_for_missing_task(
-    client: AsyncClient,
-) -> None:
-    """continue-tomorrow returns 404 when the task does not exist."""
-    resp = await client.post("/api/tasks/99999/continue-tomorrow")
+async def test_continue_404_for_missing_task(client: AsyncClient) -> None:
+    """POST /continue returns 404 when the task does not exist."""
+    resp = await client.post("/api/tasks/99999/continue")
     assert resp.status_code == 404
 
 
-async def test_continue_tomorrow_rejects_non_deep_work_task(
+async def test_continue_task_non_deep_work_succeeds(
     client: AsyncClient, day: Day
 ) -> None:
-    """continue-tomorrow returns 422 for tasks that are not deep_work."""
+    """POST /continue works for all task types, not just deep_work."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -414,18 +406,18 @@ async def test_continue_tomorrow_rejects_non_deep_work_task(
     })
     task_id = create_resp.json()["id"]
 
-    resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
 
-    assert resp.status_code == 422
-    assert "deep_work" in resp.json()["detail"]
+    assert resp.status_code == 200
+    assert resp.json()["category"] == CATEGORY_SHORT_TASK
 
 
 # ---------------------------------------------------------------------------
-# POST /api/tasks/{task_id}/continue-tomorrow — next working day logic
+# POST /api/tasks/{task_id}/continue — next working day logic
 # ---------------------------------------------------------------------------
 
 
-async def test_continue_tomorrow_skips_weekend_with_recurring_days_off(
+async def test_continue_skips_weekend_with_recurring_days_off(
     client: AsyncClient, day: Day, db_session: AsyncSession
 ) -> None:
     """Friday + weekends recurring off → task lands on Monday."""
@@ -445,7 +437,7 @@ async def test_continue_tomorrow_skips_weekend_with_recurring_days_off(
 
     with patch("app.services.day_service.date") as mock_date:
         mock_date.today.return_value = friday
-        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+        resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
     monday = date(2025, 6, 9)
@@ -454,7 +446,7 @@ async def test_continue_tomorrow_skips_weekend_with_recurring_days_off(
     assert day_resp.json()["id"] == resp.json()["day_id"]
 
 
-async def test_continue_tomorrow_lands_on_saturday_without_recurring_days_off(
+async def test_continue_lands_on_saturday_without_recurring_days_off(
     client: AsyncClient, day: Day
 ) -> None:
     """Friday + no recurring days off → task lands on Saturday."""
@@ -470,7 +462,7 @@ async def test_continue_tomorrow_lands_on_saturday_without_recurring_days_off(
 
     with patch("app.services.day_service.date") as mock_date:
         mock_date.today.return_value = friday
-        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+        resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
     saturday = date(2025, 6, 7)
@@ -479,7 +471,7 @@ async def test_continue_tomorrow_lands_on_saturday_without_recurring_days_off(
     assert day_resp.json()["id"] == resp.json()["day_id"]
 
 
-async def test_continue_tomorrow_skips_individual_day_off(
+async def test_continue_skips_individual_day_off(
     client: AsyncClient, day: Day, db_session: AsyncSession
 ) -> None:
     """Tomorrow individually marked as day off → task skips to the day after."""
@@ -501,7 +493,7 @@ async def test_continue_tomorrow_skips_individual_day_off(
 
     with patch("app.services.day_service.date") as mock_date:
         mock_date.today.return_value = today
-        resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
+        resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 200
     wednesday = date(2025, 6, 4)
@@ -511,14 +503,14 @@ async def test_continue_tomorrow_skips_individual_day_off(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/tasks/{id}/roll-forward
+# POST /api/tasks/{task_id}/continue — with explicit target_date
 # ---------------------------------------------------------------------------
 
 
-async def test_roll_forward_creates_task_on_target_day(
+async def test_continue_with_target_date_creates_task_on_target_day(
     client: AsyncClient, day: Day
 ) -> None:
-    """Roll forward creates a new task on the specified future date."""
+    """POST /continue with target_date creates a new task on the specified future date."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -528,10 +520,7 @@ async def test_roll_forward_creates_task_on_target_day(
     task_id = create_resp.json()["id"]
 
     future_date = (date.today() + timedelta(days=3)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+    resp = await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": future_date})
 
     assert resp.status_code == 200
     body = resp.json()
@@ -541,10 +530,10 @@ async def test_roll_forward_creates_task_on_target_day(
     assert body["rolled_from_date"] is not None
 
 
-async def test_roll_forward_marks_original_as_rolled_forward(
+async def test_continue_with_target_date_marks_original_completed(
     client: AsyncClient, day: Day
 ) -> None:
-    """The original task is marked rolled_forward after rolling forward."""
+    """POST /continue marks the original task completed (not rolled_forward)."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -554,17 +543,14 @@ async def test_roll_forward_marks_original_as_rolled_forward(
     task_id = create_resp.json()["id"]
 
     future_date = (date.today() + timedelta(days=2)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+    await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": future_date})
 
     original_resp = await client.get(f"/api/tasks/{task_id}")
     assert original_resp.status_code == 200
-    assert original_resp.json()["status"] == STATUS_ROLLED_FORWARD
+    assert original_resp.json()["status"] == STATUS_COMPLETED
 
 
-async def test_roll_forward_sets_rolled_from_task_id(
+async def test_continue_with_target_date_sets_rolled_from_task_id(
     client: AsyncClient, day: Day
 ) -> None:
     """New task has rolled_from_task_id pointing to the original."""
@@ -577,18 +563,15 @@ async def test_roll_forward_sets_rolled_from_task_id(
     task_id = create_resp.json()["id"]
 
     future_date = (date.today() + timedelta(days=1)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+    resp = await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": future_date})
 
     assert resp.json()["rolled_from_task_id"] == task_id
 
 
-async def test_roll_forward_rejects_completed_task(
+async def test_continue_rejects_completed_task(
     client: AsyncClient, day: Day
 ) -> None:
-    """Rolling forward a completed task returns 422."""
+    """POST /continue on a completed task returns 422."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -599,19 +582,40 @@ async def test_roll_forward_rejects_completed_task(
 
     await client.patch(f"/api/tasks/{task_id}/status", json={"status": STATUS_COMPLETED})
 
-    future_date = (date.today() + timedelta(days=1)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
 
     assert resp.status_code == 422
 
 
-async def test_roll_forward_rejects_past_date(
+async def test_continue_task_rejects_terminal_status(
     client: AsyncClient, day: Day
 ) -> None:
-    """Rolling forward to a past or today's date returns 422."""
+    """POST /continue on a rolled_forward task also returns 422."""
+    create_resp = await client.post("/api/tasks", json={
+        "day_id": day.id,
+        "category": CATEGORY_SHORT_TASK,
+        "title": "Rolled task",
+        "order_index": 0,
+    })
+    task_id = create_resp.json()["id"]
+
+    # Continue it once so original becomes completed
+    future_date = (date.today() + timedelta(days=2)).isoformat()
+    await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": future_date})
+
+    # Verify original is now completed
+    original_resp = await client.get(f"/api/tasks/{task_id}")
+    assert original_resp.json()["status"] == STATUS_COMPLETED
+
+    # Attempting to continue the completed original should fail
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
+    assert resp.status_code == 422
+
+
+async def test_continue_with_target_date_rejects_past_date(
+    client: AsyncClient, day: Day
+) -> None:
+    """POST /continue with a past target_date returns 400."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -621,18 +625,15 @@ async def test_roll_forward_rejects_past_date(
     task_id = create_resp.json()["id"]
 
     past_date = (date.today() - timedelta(days=1)).isoformat()
+    resp = await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": past_date})
 
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": past_date})
-
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
-async def test_roll_forward_rejects_already_rolled_task(
+async def test_continue_task_rejects_already_continued(
     client: AsyncClient, day: Day
 ) -> None:
-    """Rolling forward a task that already has a rolled-to child returns 422."""
+    """POST /continue on a task that already has a continuation returns 422."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
@@ -642,57 +643,42 @@ async def test_roll_forward_rejects_already_rolled_task(
     task_id = create_resp.json()["id"]
 
     future_date = (date.today() + timedelta(days=2)).isoformat()
+    await client.post(f"/api/tasks/{task_id}/continue", json={"target_date": future_date})
 
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
-
-    # Try to roll the same source task again
-    further_date = (date.today() + timedelta(days=4)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": further_date})
-
-    assert resp.status_code == 422
-
-
-async def test_cannot_roll_forward_already_rolled_task(
-    client: AsyncClient, day: Day
-) -> None:
-    """A task with rolled_forward status returns 422 when rolled again."""
-    create_resp = await client.post("/api/tasks", json={
+    # Task is now completed. The further_date test is now about terminal status.
+    # Use the new continuation task itself as the one to double-continue.
+    # The original is completed — try a fresh task to test already-continued separately.
+    create_resp2 = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_SHORT_TASK,
-        "title": "Will be rolled",
+        "title": "Source 2",
         "order_index": 0,
     })
-    task_id = create_resp.json()["id"]
+    task_id2 = create_resp2.json()["id"]
 
-    future_date = (date.today() + timedelta(days=2)).isoformat()
+    date_1 = (date.today() + timedelta(days=2)).isoformat()
+    continue_resp = await client.post(f"/api/tasks/{task_id2}/continue", json={"target_date": date_1})
+    new_task_id = continue_resp.json()["id"]
 
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date})
+    # The new (continued) task has been continued once from original.
+    # Try to continue the original again (now completed) — should fail with 422
+    resp = await client.post(f"/api/tasks/{task_id2}/continue")
+    assert resp.status_code == 422  # terminal status
 
-    # Confirm status is now rolled_forward
-    original_resp = await client.get(f"/api/tasks/{task_id}")
-    assert original_resp.json()["status"] == STATUS_ROLLED_FORWARD
+    # Try to continue the continuation task twice (it hasn't been continued yet)
+    date_2 = (date.today() + timedelta(days=4)).isoformat()
+    await client.post(f"/api/tasks/{new_task_id}/continue", json={"target_date": date_2})
 
-    # Attempting to roll it again should fail due to rolled_forward status
-    further_date = (date.today() + timedelta(days=5)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp = await client.post(f"/api/tasks/{task_id}/roll-forward", json={"target_date": further_date})
-
-    assert resp.status_code == 422
+    # Now try to continue new_task_id again — it's been continued (has rolled_to)
+    date_3 = (date.today() + timedelta(days=6)).isoformat()
+    resp2 = await client.post(f"/api/tasks/{new_task_id}/continue", json={"target_date": date_3})
+    assert resp2.status_code == 422
 
 
-async def test_roll_forward_chain(
+async def test_continue_chain(
     client: AsyncClient, day: Day
 ) -> None:
-    """A → B → C chaining: rolled task can itself be rolled forward."""
+    """A → B → C chaining: each original becomes completed."""
     create_resp = await client.post("/api/tasks", json={
         "day_id": day.id,
         "category": CATEGORY_MAINTENANCE,
@@ -702,44 +688,75 @@ async def test_roll_forward_chain(
     task_a_id = create_resp.json()["id"]
 
     date_b = (date.today() + timedelta(days=1)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp_b = await client.post(f"/api/tasks/{task_a_id}/roll-forward", json={"target_date": date_b})
+    resp_b = await client.post(f"/api/tasks/{task_a_id}/continue", json={"target_date": date_b})
 
     assert resp_b.status_code == 200
     task_b_id = resp_b.json()["id"]
     assert task_b_id != task_a_id
 
     date_c = (date.today() + timedelta(days=3)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        resp_c = await client.post(f"/api/tasks/{task_b_id}/roll-forward", json={"target_date": date_c})
+    resp_c = await client.post(f"/api/tasks/{task_b_id}/continue", json={"target_date": date_c})
 
     assert resp_c.status_code == 200
     task_c = resp_c.json()
     assert task_c["rolled_from_task_id"] == task_b_id
 
-    # Task A should be rolled_forward after being superseded by B
     task_a_resp = await client.get(f"/api/tasks/{task_a_id}")
-    assert task_a_resp.json()["status"] == STATUS_ROLLED_FORWARD
+    assert task_a_resp.json()["status"] == STATUS_COMPLETED
 
-    # Task B should be rolled_forward after being superseded by C
     task_b_resp = await client.get(f"/api/tasks/{task_b_id}")
-    assert task_b_resp.json()["status"] == STATUS_ROLLED_FORWARD
+    assert task_b_resp.json()["status"] == STATUS_COMPLETED
 
 
 # ---------------------------------------------------------------------------
-# TaskService.continue_tomorrow() — service-level method
+# Response building consistency — ensure roll relationships are enriched
 # ---------------------------------------------------------------------------
 
 
-async def test_task_service_continue_tomorrow_creates_task(db_session: AsyncSession, day: Day) -> None:
-    """TaskService.continue_tomorrow() creates a new task on the next working day."""
+async def test_continue_response_includes_rolled_from_date(client: AsyncClient, day: Day) -> None:
+    """POST /continue response includes rolled_from_date when task has roll relationship."""
+    create_resp = await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Work", "tags": []},
+    )
+    task_id = create_resp.json()["id"]
+
+    future_date = (date.today() + timedelta(days=2)).isoformat()
+    continue_resp = await client.post(
+        f"/api/tasks/{task_id}/continue", json={"target_date": future_date}
+    )
+
+    assert continue_resp.status_code == 200
+    new_task = continue_resp.json()
+    assert "rolled_from_date" in new_task
+    assert new_task["rolled_from_date"] == day.date.isoformat()
+
+
+async def test_continue_returns_consistent_response(client: AsyncClient, day: Day) -> None:
+    """POST /continue response has the same enriched TaskResponse shape."""
+    create_resp = await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Deep work", "tags": []},
+    )
+    task_id = create_resp.json()["id"]
+
+    continue_resp = await client.post(f"/api/tasks/{task_id}/continue")
+
+    assert continue_resp.status_code == 200
+    new_task = continue_resp.json()
+    assert new_task["rolled_from_task_id"] == task_id
+    assert new_task.get("rolled_from_date") is not None
+
+
+# ---------------------------------------------------------------------------
+# TaskService.continue_task() — service-level method
+# ---------------------------------------------------------------------------
+
+
+async def test_task_service_continue_creates_task(db_session: AsyncSession, day: Day) -> None:
+    """TaskService.continue_task() creates a new task on the next working day."""
     from app.services.task_service import TaskService
 
-    # Create a deep_work task
     task = Task(
         day_id=day.id,
         category=CATEGORY_DEEP_WORK,
@@ -752,18 +769,19 @@ async def test_task_service_continue_tomorrow_creates_task(db_session: AsyncSess
     await db_session.refresh(task)
 
     service = TaskService(db_session)
-    new_task = await service.continue_tomorrow(task.id)
+    _, new_task = await service.continue_task(task.id)
 
     assert new_task.id != task.id
     assert new_task.title == task.title
     assert new_task.status == STATUS_PENDING
     assert new_task.day_id != task.day_id
+    assert new_task.rolled_from_task_id == task.id
 
 
-async def test_task_service_continue_tomorrow_marks_original_completed(
+async def test_task_service_continue_marks_original_completed(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.continue_tomorrow() marks original task completed."""
+    """TaskService.continue_task() marks original task completed."""
     from app.services.task_service import TaskService
 
     task = Task(
@@ -778,22 +796,20 @@ async def test_task_service_continue_tomorrow_marks_original_completed(
     await db_session.refresh(task)
 
     service = TaskService(db_session)
-    await service.continue_tomorrow(task.id)
+    await service.continue_task(task.id)
 
-    # Verify original is marked completed
     await db_session.refresh(task)
     assert task.status == STATUS_COMPLETED
     assert task.completed_at is not None
 
 
-async def test_task_service_continue_tomorrow_copies_tags(
+async def test_task_service_continue_copies_tags(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.continue_tomorrow() preserves tags on the new task."""
+    """TaskService.continue_task() preserves tags on the new task."""
     from app.models.tag import Tag
     from app.services.task_service import TaskService
 
-    # Create tags
     tag1 = Tag(name="focus")
     tag2 = Tag(name="urgent")
     db_session.add(tag1)
@@ -813,22 +829,26 @@ async def test_task_service_continue_tomorrow_copies_tags(
     await db_session.refresh(task)
 
     service = TaskService(db_session)
-    new_task = await service.continue_tomorrow(task.id)
+    _, new_task = await service.continue_task(task.id)
 
     assert {t.name for t in new_task.tags} == {"focus", "urgent"}
 
 
-async def test_task_service_continue_tomorrow_rejects_non_deep_work(
+async def test_continue_task_without_target_date_uses_next_working_day(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.continue_tomorrow() raises InvalidOperationError for non-deep_work tasks."""
-    from app.exceptions import InvalidOperationError
+    """TaskService.continue_task() with no date uses get_next_working_day()."""
     from app.services.task_service import TaskService
+
+    friday = date(2025, 6, 6)
+    day_service = DayService(db_session)
+    await day_service.set_recurring_days_off(["saturday", "sunday"])
+    await db_session.commit()
 
     task = Task(
         day_id=day.id,
         category=CATEGORY_SHORT_TASK,
-        title="Quick task",
+        title="Any task",
         status=STATUS_PENDING,
         order_index=0,
     )
@@ -838,95 +858,31 @@ async def test_task_service_continue_tomorrow_rejects_non_deep_work(
 
     service = TaskService(db_session)
 
-    with pytest.raises(InvalidOperationError) as exc_info:
-        await service.continue_tomorrow(task.id)
+    with patch("app.services.day_service.date") as mock_date:
+        mock_date.today.return_value = friday
+        _, new_task = await service.continue_task(task.id)
 
-    assert "deep_work" in str(exc_info.value).lower()
-
-
-# ---------------------------------------------------------------------------
-# TaskService.roll_forward() — service-level method
-# ---------------------------------------------------------------------------
+    monday = date(2025, 6, 9)
+    target_day = await day_service.get_or_create_by_date(monday)
+    assert new_task.day_id == target_day.id
 
 
-async def test_task_service_roll_forward_creates_task(db_session: AsyncSession, day: Day) -> None:
-    """TaskService.roll_forward() creates a new task on the target date."""
+async def test_task_service_continue_raises_task_not_found_error(
+    db_session: AsyncSession,
+) -> None:
+    """TaskService.continue_task() raises TaskNotFoundError for a missing task id."""
+    from app.exceptions import TaskNotFoundError
     from app.services.task_service import TaskService
 
-    task = Task(
-        day_id=day.id,
-        category=CATEGORY_DEEP_WORK,
-        title="Incomplete work",
-        status=STATUS_PENDING,
-        order_index=0,
-    )
-    db_session.add(task)
-    await db_session.commit()
-    await db_session.refresh(task)
-
     service = TaskService(db_session)
-    target_date = date.today() + timedelta(days=2)
-    new_task = await service.roll_forward(task.id, target_date)
-
-    assert new_task.id != task.id
-    assert new_task.title == task.title
-    assert new_task.status == STATUS_PENDING
+    with pytest.raises(TaskNotFoundError):
+        await service.continue_task(99999)
 
 
-async def test_task_service_roll_forward_marks_original_rolled_forward(
+async def test_task_service_continue_rejects_completed_task(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.roll_forward() marks original task as rolled_forward."""
-    from app.services.task_service import TaskService
-
-    task = Task(
-        day_id=day.id,
-        category=CATEGORY_DEEP_WORK,
-        title="Work",
-        status=STATUS_PENDING,
-        order_index=0,
-    )
-    db_session.add(task)
-    await db_session.commit()
-    await db_session.refresh(task)
-
-    service = TaskService(db_session)
-    target_date = date.today() + timedelta(days=2)
-    await service.roll_forward(task.id, target_date)
-
-    # Verify original is marked rolled_forward
-    await db_session.refresh(task)
-    assert task.status == STATUS_ROLLED_FORWARD
-
-
-async def test_task_service_roll_forward_sets_relationship(
-    db_session: AsyncSession, day: Day
-) -> None:
-    """TaskService.roll_forward() sets rolled_from_task_id on the new task."""
-    from app.services.task_service import TaskService
-
-    task = Task(
-        day_id=day.id,
-        category=CATEGORY_DEEP_WORK,
-        title="Work",
-        status=STATUS_PENDING,
-        order_index=0,
-    )
-    db_session.add(task)
-    await db_session.commit()
-    await db_session.refresh(task)
-
-    service = TaskService(db_session)
-    target_date = date.today() + timedelta(days=2)
-    new_task = await service.roll_forward(task.id, target_date)
-
-    assert new_task.rolled_from_task_id == task.id
-
-
-async def test_task_service_roll_forward_rejects_completed_task(
-    db_session: AsyncSession, day: Day
-) -> None:
-    """TaskService.roll_forward() raises InvalidOperationError for completed tasks."""
+    """TaskService.continue_task() raises InvalidOperationError for completed tasks."""
     from app.exceptions import InvalidOperationError
     from app.services.task_service import TaskService
 
@@ -946,15 +902,15 @@ async def test_task_service_roll_forward_rejects_completed_task(
     target_date = date.today() + timedelta(days=2)
 
     with pytest.raises(InvalidOperationError) as exc_info:
-        await service.roll_forward(task.id, target_date)
+        await service.continue_task(task.id, target_date)
 
-    assert "completed" in str(exc_info.value).lower() or "rolled" in str(exc_info.value).lower()
+    assert "terminal" in str(exc_info.value).lower()
 
 
-async def test_task_service_roll_forward_rejects_past_date(
+async def test_task_service_continue_rejects_past_date(
     db_session: AsyncSession, day: Day
 ) -> None:
-    """TaskService.roll_forward() raises InvalidOperationError for past dates."""
+    """TaskService.continue_task() raises InvalidOperationError (400) for past dates."""
     from app.exceptions import InvalidOperationError
     from app.services.task_service import TaskService
 
@@ -973,115 +929,7 @@ async def test_task_service_roll_forward_rejects_past_date(
     past_date = date.today() - timedelta(days=1)
 
     with pytest.raises(InvalidOperationError) as exc_info:
-        await service.roll_forward(task.id, past_date)
+        await service.continue_task(task.id, past_date)
 
-    assert "future" in str(exc_info.value).lower() or "past" in str(exc_info.value).lower()
-
-
-# ---------------------------------------------------------------------------
-# Response building consistency — ensure roll relationships are enriched
-# ---------------------------------------------------------------------------
-
-
-async def test_roll_forward_response_includes_roll_dates(client: AsyncClient, day: Day) -> None:
-    """roll_forward response includes rolled_from_date when task has roll relationship."""
-    # Create a task on today
-    create_resp = await client.post(
-        "/api/tasks",
-        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Work", "tags": []},
-    )
-    task_id = create_resp.json()["id"]
-
-    # Roll forward to future date
-    future_date = (date.today() + timedelta(days=2)).isoformat()
-
-    with patch("app.api.tasks.date") as mock_date:
-        mock_date.today.return_value = date.today()
-        roll_resp = await client.post(
-            f"/api/tasks/{task_id}/roll-forward", json={"target_date": future_date}
-        )
-
-    assert roll_resp.status_code == 200
-    rolled_task = roll_resp.json()
-
-    # Verify the rolled task includes rolled_from_date
-    assert "rolled_from_date" in rolled_task
-    assert rolled_task["rolled_from_date"] == day.date.isoformat()
-
-
-async def test_continue_tomorrow_returns_consistent_response(client: AsyncClient, day: Day) -> None:
-    """continue_tomorrow response is a consistent enriched TaskResponse (same shape as roll_forward)."""
-    # Create a deep_work task
-    create_resp = await client.post(
-        "/api/tasks",
-        json={
-            "day_id": day.id,
-            "category": CATEGORY_DEEP_WORK,
-            "title": "Deep work",
-            "tags": [],
-        },
-    )
-    task_id = create_resp.json()["id"]
-
-    # Continue to tomorrow
-    continue_resp = await client.post(f"/api/tasks/{task_id}/continue-tomorrow")
-
-    assert continue_resp.status_code == 200
-    new_task = continue_resp.json()
-
-    # The new task has no roll relationships, so these fields should be absent or null
-    # (it doesn't have rolled_from_task_id, so rolled_from_date should not be present)
-    assert new_task.get("rolled_from_task_id") is None
-    assert "rolled_from_date" not in new_task or new_task.get("rolled_from_date") is None
-
-
-# ---------------------------------------------------------------------------
-# Domain exceptions — services raise typed exceptions, not HTTPException
-# ---------------------------------------------------------------------------
-
-
-async def test_task_service_continue_tomorrow_raises_task_not_found_error(
-    db_session: AsyncSession,
-) -> None:
-    """TaskService.continue_tomorrow() raises TaskNotFoundError for a missing task id."""
-    from app.exceptions import TaskNotFoundError
-    from app.services.task_service import TaskService
-
-    service = TaskService(db_session)
-    with pytest.raises(TaskNotFoundError):
-        await service.continue_tomorrow(99999)
-
-
-async def test_task_service_roll_forward_raises_task_not_found_error(
-    db_session: AsyncSession, day: Day
-) -> None:
-    """TaskService.roll_forward() raises TaskNotFoundError for a missing task id."""
-    from app.exceptions import TaskNotFoundError
-    from app.services.task_service import TaskService
-
-    service = TaskService(db_session)
-    with pytest.raises(TaskNotFoundError):
-        await service.roll_forward(99999, date.today() + timedelta(days=2))
-
-
-async def test_task_service_continue_tomorrow_raises_invalid_operation_for_non_deep_work(
-    db_session: AsyncSession, day: Day
-) -> None:
-    """TaskService.continue_tomorrow() raises InvalidOperationError for non-deep_work tasks."""
-    from app.exceptions import InvalidOperationError
-    from app.services.task_service import TaskService
-
-    task = Task(
-        day_id=day.id,
-        category=CATEGORY_SHORT_TASK,
-        title="Quick task",
-        status=STATUS_PENDING,
-        order_index=0,
-    )
-    db_session.add(task)
-    await db_session.commit()
-    await db_session.refresh(task)
-
-    service = TaskService(db_session)
-    with pytest.raises(InvalidOperationError):
-        await service.continue_tomorrow(task.id)
+    assert exc_info.value.http_status_code == 400
+    assert "future" in str(exc_info.value).lower()

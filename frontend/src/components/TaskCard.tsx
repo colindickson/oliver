@@ -12,11 +12,10 @@ interface Props {
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
   onMoveToBacklog?: (task: Task) => void
-  onContinueTomorrow?: (task: Task) => void
-  onRollForward?: (task: Task) => void
+  onContinue?: () => void
 }
 
-export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinueTomorrow, onRollForward }: Props) {
+export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContinue }: Props) {
   const isCompleted = task.status === 'completed'
   const [showReminder, setShowReminder] = useState(false)
 
@@ -134,12 +133,12 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
           )}
           {task.rolled_from_date && (
             <p className="text-xs text-stone-400 mt-1 dark:text-stone-500">
-              ← from {formatRollDate(task.rolled_from_date)}
+              ← continued from {formatRollDate(task.rolled_from_date)}
             </p>
           )}
           {task.rolled_to_date && (
             <p className="text-xs text-stone-400 mt-1 dark:text-stone-500">
-              → rolled to {formatRollDate(task.rolled_to_date)}
+              → continued to {formatRollDate(task.rolled_to_date)}
             </p>
           )}
         </div>
@@ -187,31 +186,14 @@ export function TaskCard({ task, onComplete, onDelete, onMoveToBacklog, onContin
             </button>
           )}
 
-          {/* Continue tomorrow — deep work only, hidden when completed */}
-          {onContinueTomorrow && task.category === 'deep_work' && !isCompleted && (
+          {/* Continue — all incomplete tasks not yet continued */}
+          {onContinue && !isCompleted && !task.rolled_to_task_id && task.status !== 'rolled_forward' && (
             <button
               type="button"
-              onClick={() => onContinueTomorrow(task)}
+              onClick={onContinue}
               className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-terracotta-400 hover:bg-terracotta-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-terracotta-300 dark:hover:bg-stone-700"
-              aria-label="Continue tomorrow"
-              title="Continue tomorrow"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M7 2v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M2 7a5 5 0 1 0 5-5" strokeLinecap="round" />
-                <path d="M2 4V7h3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-
-          {/* Roll forward — all incomplete tasks not yet rolled */}
-          {onRollForward && !isCompleted && !task.rolled_to_task_id && (
-            <button
-              type="button"
-              onClick={() => onRollForward(task)}
-              className="w-6 h-6 flex items-center justify-center text-stone-300 hover:text-moss-500 hover:bg-moss-50 rounded transition-colors focus:opacity-100 dark:text-stone-600 dark:hover:text-moss-300 dark:hover:bg-stone-700"
-              aria-label="Roll forward"
-              title="Roll forward"
+              aria-label="Continue"
+              title="Continue"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M2 7h9M8 4l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
