@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type TaskTemplate, type RecurrenceType } from '../api/client'
+import { toLocalDateStr } from '../utils/format'
 
 const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
   weekly: 'Weekly',
@@ -11,7 +12,7 @@ const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
 function tomorrow(): string {
   const d = new Date()
   d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateStr(d)
 }
 
 interface Props {

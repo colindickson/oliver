@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dayApi, settingsApi, type DayResponse } from '../api/client'
+import { toLocalDateStr } from '../utils/format'
 
 interface CalendarPickerProps {
   selectedDate: string
@@ -100,7 +101,7 @@ export function CalendarPicker({ selectedDate, onSelectDate, minDate }: Calendar
         {cells.map((cellDate, i) => {
           if (!cellDate) return <div key={i} className="aspect-square" />
 
-          const dateStr = cellDate.toISOString().slice(0, 10)
+          const dateStr = toLocalDateStr(cellDate)
           const isDisabled = dateStr < minDate
           const dayData = dayMap.get(dateStr)
           const allTasks = dayData?.tasks ?? []
@@ -140,7 +141,7 @@ export function CalendarPicker({ selectedDate, onSelectDate, minDate }: Calendar
             <button
               key={dateStr}
               type="button"
-              onClick={() => onSelectDate(selectedDate === dateStr ? '' : dateStr)}
+              onClick={() => onSelectDate(dateStr)}
               className={`
                 aspect-square flex flex-col items-center justify-center rounded-md text-[11px] font-medium
                 transition-all duration-150 cursor-pointer hover:bg-stone-600/70

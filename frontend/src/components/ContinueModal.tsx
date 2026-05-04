@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { dayApi } from '../api/client'
 import { CalendarPicker } from './CalendarPicker'
-import { formatRollDate } from '../utils/format'
+import { formatRollDate, toLocalDateStr } from '../utils/format'
 
 interface ContinueModalProps {
   isOpen: boolean
@@ -13,7 +13,7 @@ interface ContinueModalProps {
 export function ContinueModal({ isOpen, onClose, onConfirm, taskTitle }: ContinueModalProps) {
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const minDate = tomorrow.toISOString().slice(0, 10)
+  const minDate = toLocalDateStr(tomorrow)
 
   const [selectedDate, setSelectedDate] = useState('')
 
