@@ -23,7 +23,6 @@ from tools.days_off import (
 from tools.metadata import set_day_metadata
 from tools.notifications import notify
 from tools.tasks import complete_task, create_task, delete_task, update_task
-from tools.timer import start_timer, stop_timer
 from tools.project_defaults import get_project_defaults, set_project_default_tags
 from tools.work_log import log_work, batch_log_work, get_work_logs
 
@@ -78,18 +77,6 @@ def delete_task_tool(task_id: int) -> str:
 def complete_task_tool(task_id: int) -> str:
     """Mark a task as completed."""
     return complete_task(task_id)
-
-
-@mcp.tool()
-def start_timer_tool(task_id: int) -> str:
-    """Start the timer for a task. Resumes accumulated time if paused on the same task."""
-    return start_timer(task_id)
-
-
-@mcp.tool()
-def stop_timer_tool(task_id: int) -> str:
-    """Stop the running timer and record the session."""
-    return stop_timer(task_id)
 
 
 @mcp.tool()

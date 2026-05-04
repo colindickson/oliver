@@ -89,8 +89,6 @@ make install-mcp-claude-desktop  # Claude Desktop only
 | `update_task` | Update a task's title, description, status, or tags by ID |
 | `complete_task` | Mark a task as completed by ID |
 | `delete_task` | Delete a task by ID |
-| `start_timer` | Start the timer for a task (resumes if previously paused) |
-| `stop_timer` | Stop the running timer and record the session |
 | `get_analytics` | Get productivity analytics for the past N days |
 | `mark_day_off` | Mark a day as off with a reason (`sick_day`, `vacation`, `holiday`, `personal_day`, `weekend`) and optional note |
 | `unmark_day_off` | Remove the off-day designation for a date |
