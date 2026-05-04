@@ -288,6 +288,24 @@ async def test_patch_status_returns_404(client: AsyncClient) -> None:
     assert response.status_code == 404
 
 
+async def test_patch_status_unmark_complete(client: AsyncClient, day: Day) -> None:
+    """A completed task can be reverted to pending (unmark complete)."""
+    create_resp = await client.post(
+        "/api/tasks",
+        json={"day_id": day.id, "category": CATEGORY_DEEP_WORK, "title": "Reversible"},
+    )
+    task_id = create_resp.json()["id"]
+
+    await client.patch(f"/api/tasks/{task_id}/status", json={"status": STATUS_COMPLETED})
+
+    response = await client.patch(f"/api/tasks/{task_id}/status", json={"status": STATUS_PENDING})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == STATUS_PENDING
+    assert body["completed_at"] is None
+
+
 # ---------------------------------------------------------------------------
 # POST /api/tasks/reorder
 # ---------------------------------------------------------------------------

@@ -267,7 +267,7 @@ async def update_task_status(
     task = await _get_task_or_404(task_id, db)
 
     # Terminal states cannot be left.
-    TERMINAL_STATES = {"completed", "rolled_forward"}
+    TERMINAL_STATES = {"rolled_forward"}
     if task.status in TERMINAL_STATES:
         raise HTTPException(
             status_code=422,
