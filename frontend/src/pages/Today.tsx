@@ -110,8 +110,10 @@ export function Today() {
   const continueTaskMutation = useMutation({
     mutationFn: ({ id, targetDate }: { id: number; targetDate: string }) =>
       taskApi.continue(id, targetDate),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['day', 'today'] })
+      qc.invalidateQueries({ queryKey: ['day', variables.targetDate] })
+      qc.invalidateQueries({ queryKey: ['days', 'all'] })
       qc.invalidateQueries({ queryKey: ['goal'] })
       qc.invalidateQueries({ queryKey: ['goals'] })
     },

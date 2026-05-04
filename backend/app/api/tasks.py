@@ -331,6 +331,7 @@ async def continue_task(
     """
     service = TaskService(db)
     _, new_task = await service.continue_task(task_id, payload.target_date)
+    await db.commit()
 
     result = await db.execute(
         select(Task)
