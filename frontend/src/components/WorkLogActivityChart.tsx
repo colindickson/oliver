@@ -4,6 +4,7 @@ import {
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
@@ -75,20 +76,17 @@ export function WorkLogActivityChart({ days, isDark }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={data.length > 30 ? 6 : 12}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
           dataKey="date"
           tickFormatter={formatChartDate}
           interval={interval}
           tick={{ fontSize: 11, fill: axisColor }}
-          axisLine={false}
-          tickLine={false}
         />
         <YAxis
           allowDecimals={false}
           tick={{ fontSize: 11, fill: axisColor }}
-          axisLine={false}
-          tickLine={false}
         />
         <Tooltip content={(props) => <CustomTooltip {...props} isDark={isDark} />} />
         <Legend iconType="square" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
