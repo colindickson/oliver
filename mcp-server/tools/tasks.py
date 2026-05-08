@@ -226,6 +226,62 @@ def delete_task(task_id: int) -> str:
         return error_json
 
 
+def add_backlog_task(
+    title: str,
+    description: str = "",
+    tags: list[str] | None = None,
+) -> str:
+    """Add a task to the backlog (no day assigned, no category).
+
+    Returns:
+        JSON-encoded dict with created task or error.
+    """
+    if tags is None:
+        tags = []
+
+    params = {"title": title, "description": description, "tags": tags}
+
+    try:
+        validate_tag_count(tags)
+    except ValueError as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("add_backlog_task", params, error_json, "error")
+        return error_json
+
+    try:
+        with get_session() as session:
+            existing_count = session.query(Task).filter(Task.day_id.is_(None)).count()
+            task = Task(
+                day_id=None,
+                category=None,
+                title=title,
+                description=description or None,
+                order_index=existing_count,
+            )
+            session.add(task)
+            session.flush()
+
+            if tags:
+                task.tags = _get_or_create_tags(session, tags)
+
+            result = {
+                "id": task.id,
+                "title": task.title,
+                "category": task.category,
+                "status": task.status,
+                "tags": [t.name for t in task.tags],
+                "day_id": task.day_id,
+            }
+
+        result_json = json.dumps(result)
+        log_call("add_backlog_task", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("add_backlog_task", params, error_json, "error")
+        return error_json
+
+
 def complete_task(task_id: int) -> str:
     """Mark a task as completed.
 

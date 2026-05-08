@@ -22,7 +22,7 @@ from tools.days_off import (
 )
 from tools.metadata import set_day_metadata
 from tools.notifications import notify
-from tools.tasks import complete_task, create_task, delete_task, update_task
+from tools.tasks import add_backlog_task, complete_task, create_task, delete_task, update_task
 from tools.project_defaults import get_project_defaults, set_project_default_tags
 from tools.work_log import log_work, batch_log_work, get_work_logs
 
@@ -77,6 +77,22 @@ def delete_task_tool(task_id: int) -> str:
 def complete_task_tool(task_id: int) -> str:
     """Mark a task as completed."""
     return complete_task(task_id)
+
+
+@mcp.tool()
+def add_task_to_backlog(
+    title: str,
+    description: str = "",
+    tags: list[str] | None = None,
+) -> str:
+    """Add a new task to the backlog. Backlog tasks have no assigned day or category.
+
+    Args:
+        title: Task title (required)
+        description: Optional task description
+        tags: Optional list of tag names (max 5)
+    """
+    return add_backlog_task(title, description, tags or [])
 
 
 @mcp.tool()

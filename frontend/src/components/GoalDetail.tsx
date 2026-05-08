@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { GoalDetail as GoalDetailType, Task } from '../api/client'
+import { taskApi } from '../api/client'
 import { TagInput } from './TagInput'
 import { GoalTaskPicker } from './GoalTaskPicker'
 import { ConfirmableDelete } from './ConfirmableDelete'
@@ -16,7 +18,12 @@ interface Props {
   onUnarchive?: () => void
 }
 
-function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
+interface TaskRowProps {
+  task: Task & { dayDate?: string }
+  onComplete?: (task: Task) => void
+}
+
+function TaskRow({ task, onComplete }: TaskRowProps) {
   const statusIcon = {
     completed: (
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" className="text-moss-500 dark:text-moss-400">
@@ -49,7 +56,15 @@ function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
         ? 'opacity-50'
         : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'
     }`}>
-      <span className="flex-shrink-0">{statusIcon[task.status]}</span>
+      <button
+        type="button"
+        onClick={() => onComplete?.(task)}
+        className="flex-shrink-0 cursor-pointer hover:opacity-70 transition-opacity disabled:cursor-default"
+        aria-label={task.status === 'completed' ? 'Mark incomplete' : 'Mark complete'}
+        disabled={!onComplete}
+      >
+        {statusIcon[task.status]}
+      </button>
       <span className={`flex-1 text-sm min-w-0 truncate ${
         task.status === 'completed'
           ? 'line-through text-stone-400 dark:text-stone-500'
@@ -72,6 +87,15 @@ function TaskRow({ task }: { task: Task & { dayDate?: string } }) {
 
 export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus, readOnly, onArchive, onUnarchive }: Props) {
   const { goal, updateGoal, setStatus, archiveGoal, unarchiveGoal } = useGoalDetail(goalId)
+  const qc = useQueryClient()
+  const toggleTaskComplete = useMutation({
+    mutationFn: (task: Task) =>
+      taskApi.setStatus(task.id, task.status === 'completed' ? 'pending' : 'completed'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [editingDesc, setEditingDesc] = useState(false)
@@ -382,7 +406,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             <p className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-1">
               Remaining ({remaining.length})
             </p>
-            {remaining.map(t => <TaskRow key={t.id} task={t} />)}
+            {remaining.map(t => <TaskRow key={t.id} task={t} onComplete={(t) => toggleTaskComplete.mutate(t)} />)}
           </div>
         )}
 
@@ -391,7 +415,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             <p className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-1">
               Completed ({completed.length})
             </p>
-            {completed.map(t => <TaskRow key={t.id} task={t} />)}
+            {completed.map(t => <TaskRow key={t.id} task={t} onComplete={(t) => toggleTaskComplete.mutate(t)} />)}
           </div>
         )}
       </div>
