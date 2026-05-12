@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,8 +67,9 @@ class DayService:
                 day = result.scalar_one()
             await self._db.refresh(day)
 
-        await self.apply_due_schedules(day, target_date)
-        await self._db.refresh(day)
+        changed = await self.apply_due_schedules(day, target_date)
+        if changed:
+            await self._db.refresh(day)
         return day
 
     async def get_by_date(self, target_date: date) -> Day | None:
@@ -289,14 +290,27 @@ class DayService:
             candidate += timedelta(days=1)
         return from_date + timedelta(days=1)  # unreachable fallback
 
-    async def apply_due_schedules(self, day: Day, target_date: date) -> None:
+    async def apply_due_schedules(self, day: Day, target_date: date) -> bool:
         """Instantiate tasks for any schedules due on or before target_date.
 
         For each schedule with next_run_date <= target_date:
         - Creates a task if next_run_date == target_date AND day is not a day off
         - Always advances next_run_date past target_date (catches missed occurrences)
         Idempotent: once next_run_date advances past target_date, it won't re-match.
+
+        Returns:
+            True if any schedules were processed (tasks may have been created),
+            False if no schedules were due (no-op, no lock acquired).
         """
+        # Lightweight pre-check: avoid acquiring FOR UPDATE lock when nothing is due.
+        due_count = await self._db.scalar(
+            select(func.count()).select_from(TemplateSchedule).where(
+                TemplateSchedule.next_run_date <= target_date
+            )
+        )
+        if not due_count:
+            return False
+
         is_day_off = day.day_off is not None
 
         result = await self._db.execute(
@@ -307,7 +321,7 @@ class DayService:
         schedules = list(result.scalars().all())
 
         if not schedules:
-            return
+            return False
 
         template_service = TemplateService(self._db)
 
@@ -335,3 +349,4 @@ class DayService:
                 )
 
         await self._db.flush()  # commit is handled by the route handler (days.py)
+        return True
