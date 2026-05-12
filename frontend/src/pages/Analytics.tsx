@@ -72,43 +72,48 @@ interface TrendsPoint {
   moonPhase: string | null
   condition: string | null
   temperature: number | null
+  isDayOff: boolean
 }
 
-interface TaskVolumePoint { date: string; deep_work: number; short_task: number; maintenance: number }
+interface TaskVolumePoint { date: string; deep_work: number; short_task: number; maintenance: number; isDayOff: boolean }
 
-function filterDaysToWindow(days: DayResponse[], windowDays: number): DayResponse[] {
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - windowDays)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
-  const todayStr = new Date().toISOString().slice(0, 10)
-  return days
-    .filter(d => d.date >= cutoffStr && d.date < todayStr)
-    .filter(d => !d.day_off)                      // exclude days marked as off
-    .filter(d => d.tasks.length > 0 || d.notes)   // exclude empty days (no tasks AND no note)
-    .sort((a, b) => a.date.localeCompare(b.date))
+function buildDateRange(periodDays: number, allDays: DayResponse[]): Array<{ date: string; day: DayResponse | null }> {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const result = []
+  for (let i = periodDays; i >= 1; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().slice(0, 10)
+    const day = allDays.find(r => r.date === dateStr) ?? null
+    result.push({ date: dateStr, day })
+  }
+  return result
 }
 
-function buildTrendsData(days: DayResponse[]): TrendsPoint[] {
-  return days.map(d => {
-    const total = d.tasks.length
-    const completed = d.tasks.filter(t => t.status === 'completed').length
+function buildTrendsData(dateRange: Array<{ date: string; day: DayResponse | null }>): TrendsPoint[] {
+  return dateRange.map(({ date, day }) => {
+    const total = day?.tasks.length ?? 0
+    const completed = day?.tasks.filter(t => t.status === 'completed').length ?? 0
     return {
-      date: formatChartDate(d.date),
+      date: formatChartDate(date),
       completionRate: total > 0 ? Math.round((completed / total) * 100) : null,
-      energy: d.rating?.energy ?? null,
-      moonPhase: d.day_metadata?.moon_phase ?? null,
-      condition: d.day_metadata?.condition ?? null,
-      temperature: d.day_metadata?.temperature_c ?? null,
+      energy: day?.rating?.energy ?? null,
+      moonPhase: day?.day_metadata?.moon_phase ?? null,
+      condition: day?.day_metadata?.condition ?? null,
+      temperature: day?.day_metadata?.temperature_c ?? null,
+      isDayOff: day?.day_off != null,
     }
   })
 }
 
-function buildTaskVolumeData(days: DayResponse[]): TaskVolumePoint[] {
-  return days.map(d => ({
-    date: formatChartDate(d.date),
-    deep_work: d.tasks.filter(t => t.category === 'deep_work').length,
-    short_task: d.tasks.filter(t => t.category === 'short_task').length,
-    maintenance: d.tasks.filter(t => t.category === 'maintenance').length,
+function buildTaskVolumeData(dateRange: Array<{ date: string; day: DayResponse | null }>): TaskVolumePoint[] {
+  return dateRange.map(({ date, day }) => ({
+    date: formatChartDate(date),
+    deep_work: day?.tasks.filter(t => t.category === 'deep_work').length ?? 0,
+    short_task: day?.tasks.filter(t => t.category === 'short_task').length ?? 0,
+    maintenance: day?.tasks.filter(t => t.category === 'maintenance').length ?? 0,
+    isDayOff: day?.day_off != null,
   }))
 }
 
@@ -145,6 +150,7 @@ function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }:
   const moon = point?.moonPhase ? MOON_ICONS[point.moonPhase] : null
   const weather = point?.condition ? WEATHER_ICONS[point.condition] : null
   const icons = [moon, weather].filter(Boolean).join('')
+  const isDayOff = point?.isDayOff ?? false
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -158,7 +164,12 @@ function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }:
       >
         {payload?.value}
       </text>
-      {icons && (
+      {isDayOff && (
+        <text x={0} y={0} dy={26} textAnchor="middle" fill="#6b7280" fontSize={9}>
+          off
+        </text>
+      )}
+      {!isDayOff && icons && (
         <text
           x={0}
           y={0}
@@ -167,6 +178,32 @@ function TrendsTick({ x = 0, y = 0, payload, index = 0, trendsData, tickColor }:
           fontSize={10}
         >
           {icons}
+        </text>
+      )}
+    </g>
+  )
+}
+
+interface TaskVolumeTickProps {
+  x?: number
+  y?: number
+  payload?: { value: string }
+  index?: number
+  taskVolumeData: TaskVolumePoint[]
+  tickColor: string
+}
+
+function TaskVolumeTick({ x = 0, y = 0, payload, index = 0, taskVolumeData, tickColor }: TaskVolumeTickProps) {
+  const point = taskVolumeData[index]
+  const isDayOff = point?.isDayOff ?? false
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fill={tickColor} fontSize={11}>
+        {payload?.value}
+      </text>
+      {isDayOff && (
+        <text x={0} y={0} dy={26} textAnchor="middle" fill="#6b7280" fontSize={9}>
+          off
         </text>
       )}
     </g>
@@ -475,13 +512,16 @@ export function Analytics() {
     queryFn: dayApi.getAll,
   })
 
-  const { windowedDays, trendsData, taskVolumeData, tagFrequencyData } = useMemo(() => {
-    const windowedDays = filterDaysToWindow(allDays, periodDays)
+  const { trendsData, taskVolumeData, tagFrequencyData, offDayDates } = useMemo(() => {
+    const dateRange = buildDateRange(periodDays, allDays)
+    const workingDays = dateRange
+      .map(e => e.day)
+      .filter((d): d is DayResponse => d !== null && d.day_off == null)
     return {
-      windowedDays,
-      trendsData: buildTrendsData(windowedDays),
-      taskVolumeData: buildTaskVolumeData(windowedDays),
-      tagFrequencyData: buildTagFrequencyData(windowedDays),
+      trendsData: buildTrendsData(dateRange),
+      taskVolumeData: buildTaskVolumeData(dateRange),
+      tagFrequencyData: buildTagFrequencyData(workingDays),
+      offDayDates: new Set(allDays.filter(d => d.day_off != null).map(d => d.date)),
     }
   }, [allDays, periodDays])
 
@@ -713,8 +753,15 @@ export function Analytics() {
                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                         <XAxis
                           dataKey="date"
-                          tick={{ fill: tickColor, fontSize: 11 }}
+                          height={50}
                           interval={xAxisInterval(taskVolumeData.length)}
+                          tick={(props) => (
+                            <TaskVolumeTick
+                              {...props}
+                              taskVolumeData={taskVolumeData}
+                              tickColor={tickColor}
+                            />
+                          )}
                         />
                         <YAxis yAxisId="left" allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} />
                         <Tooltip contentStyle={tooltipStyle} />
@@ -760,7 +807,7 @@ export function Analytics() {
               <h2 className={sectionHeader}>Work Logs by Type</h2>
               <div className={chartCard}>
                 <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
-                <WorkLogActivityChart days={periodDays} isDark={isDark} />
+                <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
               </div>
             </section>
           </div>
@@ -978,7 +1025,7 @@ export function Analytics() {
             <h2 className={sectionHeader}>Work Logs by Type</h2>
             <div className={chartCard}>
               <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
-              <WorkLogActivityChart days={periodDays} isDark={isDark} />
+              <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
             </div>
           </section>
 

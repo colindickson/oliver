@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart,
@@ -11,6 +12,7 @@ import {
   type TooltipProps as RechartsTooltipProps,
 } from 'recharts'
 import { analyticsApi } from '../api/client'
+import type { WorkLogActivityDay } from '../api/client'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 const COMMIT_COLOR = '#5b5bd6'
@@ -18,6 +20,33 @@ const PR_COLOR = '#e86b3a'
 const REVIEW_COLOR = '#4a8a4a'
 const RESEARCH_COLOR = '#d97706'
 const UNTYPED_COLOR = '#a8a29e'
+
+interface WorkLogTickProps {
+  x?: number
+  y?: number
+  payload?: { value: string }
+  index?: number
+  filledData: WorkLogActivityDay[]
+  offDayDates: Set<string>
+  axisColor: string
+}
+
+function WorkLogTick({ x = 0, y = 0, payload, index = 0, filledData, offDayDates, axisColor }: WorkLogTickProps) {
+  const item = filledData[index]
+  const isDayOff = item ? offDayDates.has(item.date) : false
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fill={axisColor} fontSize={11}>
+        {payload?.value ? formatChartDate(payload.value) : ''}
+      </text>
+      {isDayOff && (
+        <text x={0} y={0} dy={26} textAnchor="middle" fill="#6b7280" fontSize={9}>
+          off
+        </text>
+      )}
+    </g>
+  )
+}
 
 function formatChartDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -53,13 +82,26 @@ function CustomTooltip({ active, payload, label, isDark }: CustomTooltipProps) {
 interface Props {
   days: number
   isDark: boolean
+  offDayDates: Set<string>
 }
 
-export function WorkLogActivityChart({ days, isDark }: Props) {
+export function WorkLogActivityChart({ days, isDark, offDayDates }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ['workLogActivity', days],
     queryFn: () => analyticsApi.getWorkLogActivity(days),
   })
+
+  const filledData = useMemo((): WorkLogActivityDay[] => {
+    const byDate = new Map((data ?? []).map(d => [d.date, d]))
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - (days - i))
+      const dateStr = d.toISOString().slice(0, 10)
+      return byDate.get(dateStr) ?? { date: dateStr, count: 0, commit: 0, pr: 0, review: 0, research: 0, untyped: 0 }
+    })
+  }, [data, days])
 
   const axisColor = isDark ? '#5c5750' : '#a8a29e'
   const gridColor = isDark ? '#2a2520' : '#f0ece8'
@@ -68,21 +110,24 @@ export function WorkLogActivityChart({ days, isDark }: Props) {
     return <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: axisColor, fontSize: 13 }}>Loading…</div>
   }
 
-  if (!data || data.length === 0) {
-    return <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: axisColor, fontSize: 13 }}>No work logs in this period</div>
-  }
-
-  const interval = Math.max(0, Math.floor(data.length / 8) - 1)
+  const interval = Math.max(0, Math.floor(filledData.length / 8) - 1)
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+      <BarChart data={filledData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
           dataKey="date"
-          tickFormatter={formatChartDate}
+          height={50}
           interval={interval}
-          tick={{ fontSize: 11, fill: axisColor }}
+          tick={(props) => (
+            <WorkLogTick
+              {...props}
+              filledData={filledData}
+              offDayDates={offDayDates}
+              axisColor={axisColor}
+            />
+          )}
         />
         <YAxis
           allowDecimals={false}
