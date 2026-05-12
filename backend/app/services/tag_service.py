@@ -28,9 +28,10 @@ class TagService:
             tag = Tag(name=normalised)
             self._db.add(tag)
             try:
-                await self._db.flush()
+                async with self._db.begin_nested():
+                    await self._db.flush()
             except IntegrityError:
-                await self._db.rollback()
+                self._db.expunge(tag)  # remove stale pending object before re-SELECT
                 result = await self._db.execute(select(Tag).where(Tag.name == normalised))
                 tag = result.scalar_one()
         return tag

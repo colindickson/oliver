@@ -60,9 +60,10 @@ class DayService:
             day = Day(date=target_date, created_at=datetime.now(timezone.utc))
             self._db.add(day)
             try:
-                await self._db.flush()
+                async with self._db.begin_nested():
+                    await self._db.flush()
             except IntegrityError:
-                await self._db.rollback()
+                self._db.expunge(day)  # remove stale pending object before re-SELECT
                 result = await self._db.execute(select(Day).where(Day.date == target_date))
                 day = result.scalar_one()
             await self._db.refresh(day)
