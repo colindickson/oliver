@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import TaskNotFoundError
 from app.models.setting import Setting
 from app.models.task import Task
 from app.models.timer_session import TimerSession
@@ -146,7 +147,7 @@ class TimerService:
         # Validate the task exists before starting the timer
         task_result = await self._db.execute(select(Task).where(Task.id == task_id))
         if task_result.scalar_one_or_none() is None:
-            raise ValueError(f"Task {task_id} not found")
+            raise TaskNotFoundError(task_id)
 
         state_with_version = await self._get_state()
         now = datetime.now(timezone.utc)
@@ -278,7 +279,7 @@ class TimerService:
         """
         task_result = await self._db.execute(select(Task).where(Task.id == task_id))
         if task_result.scalar_one_or_none() is None:
-            raise ValueError(f"Task {task_id} not found")
+            raise TaskNotFoundError(task_id)
 
         # If the active timer belongs to this task, bump its accumulated_seconds
         # so the live timer display reflects the manually added time.
