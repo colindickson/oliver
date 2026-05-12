@@ -96,9 +96,20 @@ async def reorder_tasks(
     Returns:
         ``{"reordered": True}`` on success.
     """
-    for new_index, task_id in enumerate(body.task_ids):
-        task = await _get_task_or_404(task_id, db)
-        task.order_index = new_index
+    ids = body.task_ids
+    result = await db.execute(select(Task).where(Task.id.in_(ids)))
+    tasks_by_id = {task.id: task for task in result.scalars().all()}
+
+    missing = [tid for tid in ids if tid not in tasks_by_id]
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Tasks not found: {missing}",
+        )
+
+    for new_index, task_id in enumerate(ids):
+        tasks_by_id[task_id].order_index = new_index
+
     await db.commit()
     return {"reordered": True}
 
