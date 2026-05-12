@@ -10,11 +10,8 @@ import { TAG_COLORS, TAG_BG, TAG_TEXT, TAG_ORDER } from '../constants/tagColors'
 function buildChartData(logs: WorkLog[]) {
   const counts: Record<string, number> = {}
   for (const log of logs) {
-    const tags = log.tags.length > 0 ? log.tags : ['untyped']
-    for (const tag of tags) {
-      const key = TAG_ORDER.includes(tag as typeof TAG_ORDER[number]) ? tag : 'untyped'
-      counts[key] = (counts[key] ?? 0) + 1
-    }
+    const primaryTag = log.tags.find(t => TAG_ORDER.includes(t as typeof TAG_ORDER[number])) ?? 'untyped'
+    counts[primaryTag] = (counts[primaryTag] ?? 0) + 1
   }
   return TAG_ORDER
     .filter(t => counts[t] > 0)
@@ -36,7 +33,7 @@ export function TodayWorkLogPanel() {
     [logs]
   )
 
-  const chartData = buildChartData(logs)
+  const chartData = useMemo(() => buildChartData(logs), [logs])
   const total = logs.length
 
   const bg        = isDark ? 'bg-stone-800/80'            : 'bg-white'
