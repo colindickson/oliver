@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import TaskNotFoundError
 from app.models.reminder import Reminder
+from app.models.task import Task
 
 
 class ReminderService:
@@ -36,6 +38,10 @@ class ReminderService:
         Returns:
             The newly created :class:`Reminder` with its database-assigned id.
         """
+        task_result = await self._db.execute(select(Task).where(Task.id == task_id))
+        if task_result.scalar_one_or_none() is None:
+            raise TaskNotFoundError(task_id)
+
         reminder = Reminder(
             task_id=task_id,
             remind_at=remind_at,
