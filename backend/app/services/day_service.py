@@ -7,7 +7,6 @@ the service itself remains independently testable.
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -21,10 +20,9 @@ from app.models.day_metadata import DayMetadata
 from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.roadblock import Roadblock
-from app.models.setting import Setting
 from app.models.task_template import TaskTemplate, TemplateSchedule
+from app.services.settings_service import SettingsService
 from app.services.template_service import compute_next_run, TemplateService
-from oliver_shared import FOCUS_GOAL_KEY, RECURRING_DAYS_OFF_KEY, TIMER_DISPLAY_KEY
 
 
 class DayService:
@@ -34,8 +32,9 @@ class DayService:
         db: An open SQLAlchemy async session injected by the caller.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, settings_service: SettingsService | None = None) -> None:
         self._db = db
+        self._settings = settings_service or SettingsService(db)
 
     async def get_or_create_today(self) -> Day:
         """Return the Day record for the current calendar date, creating it if absent.
@@ -265,105 +264,6 @@ class DayService:
         result = await self._db.execute(select(DayOff).order_by(DayOff.day_id.desc()))
         return list(result.scalars().all())
 
-    async def get_timer_display(self) -> bool:
-        """Return whether the focus timer should be displayed.
-
-        Returns:
-            True (default) if the timer should be shown, False if hidden.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting is None:
-            return True
-        return json.loads(setting.value)
-
-    async def set_timer_display(self, enabled: bool) -> bool:
-        """Save the timer display preference to settings.
-
-        Args:
-            enabled: Whether the timer should be displayed.
-
-        Returns:
-            The saved boolean value.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(enabled)
-        else:
-            setting = Setting(key=TIMER_DISPLAY_KEY, value=json.dumps(enabled))
-            self._db.add(setting)
-        await self._db.flush()
-        return enabled
-
-    async def get_focus_goal_id(self) -> int | None:
-        """Return the current focus goal ID, or None if not set.
-
-        Returns:
-            The focus goal ID, or None.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
-        )
-        if setting is None:
-            return None
-        return json.loads(setting.value)
-
-    async def set_focus_goal_id(self, goal_id: int | None) -> int | None:
-        """Save the focus goal ID to settings.
-
-        Args:
-            goal_id: The goal ID to set as focus, or None to clear.
-
-        Returns:
-            The saved goal ID.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(goal_id)
-        else:
-            setting = Setting(key=FOCUS_GOAL_KEY, value=json.dumps(goal_id))
-            self._db.add(setting)
-        await self._db.flush()
-        return goal_id
-
-    async def get_recurring_days_off(self) -> list[str]:
-        """Return the list of recurring off weekday names from settings.
-
-        Returns:
-            A list of lowercase weekday names, or empty list if not set.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
-        )
-        if setting is None:
-            return []
-        return json.loads(setting.value)
-
-    async def set_recurring_days_off(self, days: list[str]) -> list[str]:
-        """Save the recurring off weekday names to settings.
-
-        Args:
-            days: List of lowercase weekday names to store.
-
-        Returns:
-            The saved list of weekday names.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(days)
-        else:
-            setting = Setting(key=RECURRING_DAYS_OFF_KEY, value=json.dumps(days))
-            self._db.add(setting)
-        await self._db.flush()
-        return days
-
     async def get_next_working_day(self, from_date: date | None = None) -> date:
         """Return the next working day after from_date, skipping recurring and individual days off.
 
@@ -376,7 +276,7 @@ class DayService:
         """
         if from_date is None:
             from_date = date.today()
-        recurring_off = await self.get_recurring_days_off()
+        recurring_off = await self._settings.get_recurring_days_off()
         candidate = from_date + timedelta(days=1)
         for _ in range(60):  # safety cap
             if candidate.strftime("%A").lower() not in recurring_off:

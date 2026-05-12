@@ -23,6 +23,7 @@ from app.models.task import (
 from oliver_shared import STATUS_ROLLED_FORWARD
 from oliver_shared import CATEGORY_MAINTENANCE  # noqa: F401
 from app.services.day_service import DayService
+from app.services.settings_service import SettingsService
 
 
 @pytest.fixture
@@ -441,8 +442,8 @@ async def test_continue_skips_weekend_with_recurring_days_off(
     """Friday + weekends recurring off → task lands on Monday."""
     friday = date(2025, 6, 6)  # Known Friday
 
-    day_service = DayService(db_session)
-    await day_service.set_recurring_days_off(["saturday", "sunday"])
+    settings_service = SettingsService(db_session)
+    await settings_service.set_recurring_days_off(["saturday", "sunday"])
     await db_session.commit()
 
     create_resp = await client.post("/api/tasks", json={
@@ -859,8 +860,8 @@ async def test_continue_task_without_target_date_uses_next_working_day(
     from app.services.task_service import TaskService
 
     friday = date(2025, 6, 6)
-    day_service = DayService(db_session)
-    await day_service.set_recurring_days_off(["saturday", "sunday"])
+    settings_service = SettingsService(db_session)
+    await settings_service.set_recurring_days_off(["saturday", "sunday"])
     await db_session.commit()
 
     task = Task(
