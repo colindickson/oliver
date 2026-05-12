@@ -13,6 +13,7 @@ import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
 import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { FocusGoalBanner } from '../components/FocusGoalBanner'
+import { TodayWorkLogPanel } from '../components/TodayWorkLogPanel'
 import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { CATEGORIES, CATEGORY_LIST, type CategoryKey } from '../constants/categories'
 
@@ -421,31 +422,43 @@ export function Today() {
             ))}
           </div>
 
-          {/* Notes, Roadblocks, and Rating */}
-          <div className="max-w-2xl space-y-6">
-            <DayNotes
-              label="Notes"
-              dayId={day.id}
-              initialContent={day.notes?.content ?? ''}
-              onSave={(dayId, content) =>
-                upsertNotes.mutateAsync({ dayId, content })
-              }
-            />
-            <DayNotes
-              label="Roadblocks"
-              dayId={day.id}
-              initialContent={day.roadblocks?.content ?? ''}
-              onSave={(dayId, content) =>
-                upsertRoadblocks.mutateAsync({ dayId, content })
-              }
-            />
-            <DayRating
-              dayId={day.id}
-              initialRating={day.rating}
-              onSave={(dayId, rating) =>
-                upsertRating.mutateAsync({ dayId, rating })
-              }
-            />
+          {/* Notes, Roadblocks, Rating + Work Log */}
+          <div className="w-full space-y-4">
+            {/* Three cards in a row */}
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <DayNotes
+                  label="Notes"
+                  dayId={day.id}
+                  initialContent={day.notes?.content ?? ''}
+                  onSave={(dayId, content) =>
+                    upsertNotes.mutateAsync({ dayId, content })
+                  }
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <DayNotes
+                  label="Roadblocks"
+                  dayId={day.id}
+                  initialContent={day.roadblocks?.content ?? ''}
+                  onSave={(dayId, content) =>
+                    upsertRoadblocks.mutateAsync({ dayId, content })
+                  }
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <DayRating
+                  dayId={day.id}
+                  initialRating={day.rating}
+                  onSave={(dayId, rating) =>
+                    upsertRating.mutateAsync({ dayId, rating })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Work Log panel — full width */}
+            <TodayWorkLogPanel />
           </div>
         </main>
       </div>
