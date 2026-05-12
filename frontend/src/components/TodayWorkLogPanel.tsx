@@ -10,8 +10,8 @@ import { TAG_COLORS, TAG_BG, TAG_TEXT, TAG_ORDER } from '../constants/tagColors'
 function buildChartData(logs: WorkLog[]) {
   const counts: Record<string, number> = {}
   for (const log of logs) {
-    const primaryTag = log.tags.find(t => TAG_ORDER.includes(t as typeof TAG_ORDER[number])) ?? 'untyped'
-    counts[primaryTag] = (counts[primaryTag] ?? 0) + 1
+    const key = log.log_type ?? 'untyped'
+    counts[key] = (counts[key] ?? 0) + 1
   }
   return TAG_ORDER
     .filter(t => counts[t] > 0)
@@ -126,7 +126,7 @@ export function TodayWorkLogPanel() {
                 <tr className={`border-b ${rowBorder}`}>
                   <th className={`text-left pb-2 pr-3 font-semibold tracking-wider text-[10px] uppercase ${thText}`}>Project</th>
                   <th className={`text-left pb-2 pr-3 font-semibold tracking-wider text-[10px] uppercase ${thText}`}>Description</th>
-                  <th className={`text-left pb-2 font-semibold tracking-wider text-[10px] uppercase ${thText}`}>Tags</th>
+                  <th className={`text-left pb-2 font-semibold tracking-wider text-[10px] uppercase ${thText}`}>Type</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,20 +137,17 @@ export function TodayWorkLogPanel() {
                     </td>
                     <td className={`py-1.5 pr-3 ${descText}`}>{log.description}</td>
                     <td className="py-1.5">
-                      <div className="flex flex-wrap gap-1">
-                        {(log.tags.length > 0 ? log.tags : ['untyped']).map((tag) => (
+                      {(() => {
+                        const t = log.log_type ?? 'untyped'
+                        return (
                           <span
-                            key={tag}
                             className="rounded px-1.5 py-0.5 text-[9px] font-medium"
-                            style={{
-                              background: TAG_BG[tag] ?? TAG_BG.untyped,
-                              color: TAG_TEXT[tag] ?? TAG_TEXT.untyped,
-                            }}
+                            style={{ background: TAG_BG[t] ?? TAG_BG.untyped, color: TAG_TEXT[t] ?? TAG_TEXT.untyped }}
                           >
-                            {tag}
+                            {t}
                           </span>
-                        ))}
-                      </div>
+                        )
+                      })()}
                     </td>
                   </tr>
                 ))}

@@ -412,6 +412,7 @@ export interface WorkLog {
   day_id: number
   project_name: string
   description: string
+  log_type: string | null
   created_at: string   // ISO 8601 UTC timestamp
   tags: string[]
 }
