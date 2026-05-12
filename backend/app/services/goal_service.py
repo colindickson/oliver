@@ -99,11 +99,10 @@ class GoalService:
             goal.title = payload.title
         if payload.description is not None:
             goal.description = payload.description
-        if payload.target_date is not None:
-            if payload.target_date == "CLEAR":
-                goal.target_date = None
-            else:
-                goal.target_date = date.fromisoformat(payload.target_date)
+        if payload.clear_target_date:
+            goal.target_date = None
+        elif payload.target_date is not None:
+            goal.target_date = payload.target_date
         if payload.tag_names is not None:
             goal.tags = await self._resolve_tags(payload.tag_names)
         if payload.task_ids is not None:
