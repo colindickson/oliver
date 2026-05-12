@@ -88,9 +88,9 @@ async def mark_delivered(
         HTTPException: 404 if the reminder does not exist.
     """
     reminder = await ReminderService(db).mark_delivered(reminder_id)
-    await db.commit()
     if not reminder:
         raise HTTPException(status_code=404, detail="Reminder not found")
+    await db.commit()
     return reminder
 
 
@@ -112,7 +112,7 @@ async def delete_reminder(
         HTTPException: 404 if the reminder does not exist.
     """
     deleted = await ReminderService(db).delete(reminder_id)
-    await db.commit()
     if not deleted:
         raise HTTPException(status_code=404, detail="Reminder not found")
+    await db.commit()
     return {"deleted": True}
