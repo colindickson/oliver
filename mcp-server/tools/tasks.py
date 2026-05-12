@@ -10,6 +10,7 @@ from tools.log_utils import log_call
 from oliver_shared import (
     MAX_TAGS_PER_TASK,
     STATUS_COMPLETED,
+    VALID_STATUSES,
     normalize_tag_name,
     validate_tag_count,
 )
@@ -140,6 +141,11 @@ def update_task(
     """
     params = {"task_id": task_id, "title": title, "description": description,
               "status": status, "tags": tags}
+    if status and status not in VALID_STATUSES:
+        valid = ", ".join(sorted(VALID_STATUSES))
+        error_json = json.dumps({"error": f"Invalid status '{status}'. Valid values: {valid}"})
+        log_call("update_task", params, error_json, "error")
+        return error_json
     try:
         with get_session() as session:
             task = session.query(Task).filter(Task.id == task_id).first()
