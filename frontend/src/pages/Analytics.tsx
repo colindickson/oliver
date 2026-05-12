@@ -448,7 +448,7 @@ const PERIODS = [
 // -----------------------------------------------------------------------------
 
 export function Analytics() {
-  const [periodDays, setPeriodDays] = useState<7 | 30 | 90>(7)
+  const [periodDays, setPeriodDays] = useState<7 | 30 | 90>(30)
   const [showExportModal, setShowExportModal] = useState(false)
   const { theme } = useTheme()
   const isMobile = useMobile()
