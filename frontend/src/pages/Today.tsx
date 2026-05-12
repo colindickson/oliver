@@ -426,7 +426,7 @@ export function Today() {
           <div className="w-full space-y-4">
             {/* Three cards in a row */}
             <div className="flex gap-4">
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 flex flex-col">
                 <DayNotes
                   label="Notes"
                   dayId={day.id}
@@ -434,9 +434,10 @@ export function Today() {
                   onSave={(dayId, content) =>
                     upsertNotes.mutateAsync({ dayId, content })
                   }
+                  grow
                 />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 flex flex-col">
                 <DayNotes
                   label="Roadblocks"
                   dayId={day.id}
@@ -444,6 +445,7 @@ export function Today() {
                   onSave={(dayId, content) =>
                     upsertRoadblocks.mutateAsync({ dayId, content })
                   }
+                  grow
                 />
               </div>
               <div className="flex-1 min-w-0">
