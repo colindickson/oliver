@@ -94,28 +94,28 @@ class WorkLogService:
 
         work_logs: list[WorkLog] = []
         for entry in entries:
+            tag_objects = await tag_service.resolve_tags(entry.tags) if entry.tags else []
             wl = WorkLog(
                 day_id=date_to_day[entry.date].id,
                 project_name=entry.project_name,
                 description=entry.description,
                 log_type=entry.log_type,
+                tags=tag_objects,
             )
             self._db.add(wl)
-            await self._db.flush()
-            # Re-fetch with selectinload so the tags collection is async-initialized
-            result = await self._db.execute(
-                select(WorkLog)
-                .where(WorkLog.id == wl.id)
-                .options(selectinload(WorkLog.tags))
-            )
-            wl = result.scalar_one()
-            if entry.tags:
-                wl.tags = await tag_service.resolve_tags(entry.tags)
-                await self._db.flush()
-                await self._db.refresh(wl)
             work_logs.append(wl)
 
-        return work_logs
+        await self._db.flush()
+
+        # Eagerly load tags for all inserted work logs in one query
+        ids = [wl.id for wl in work_logs]
+        result = await self._db.execute(
+            select(WorkLog)
+            .where(WorkLog.id.in_(ids))
+            .options(selectinload(WorkLog.tags))
+            .order_by(WorkLog.id)
+        )
+        return list(result.scalars().all())
 
     async def update_tags(self, work_log_id: int, tag_names: list[str]) -> WorkLog:
         """Replace the tags on a WorkLog with the given tag names.
