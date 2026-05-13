@@ -51,7 +51,7 @@ class GoalResponse(TagCoercionMixin):
     title: str
     description: str | None
     target_date: date | None
-    status: str
+    status: Literal["active", "completed"]
     completed_at: datetime | None
     archived_at: datetime | None
     created_at: datetime
