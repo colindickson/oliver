@@ -9,6 +9,7 @@ from typing import Callable, Awaitable
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import InvalidOperationError
 from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_metadata import DayMetadata
@@ -54,8 +55,18 @@ async def _revert_create_task(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_update_task(db: AsyncSession, log: MCPLog) -> None:
-    params = json.loads(log.params)
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        params = json.loads(log.params)
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     task_id = params.get("task_id")
     if not task_id:
         return
@@ -74,7 +85,12 @@ async def _revert_update_task(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     day_date_str = before.get("day_date")
     if not day_date_str:
         return
@@ -105,8 +121,18 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_complete_task(db: AsyncSession, log: MCPLog) -> None:
-    params = json.loads(log.params)
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        params = json.loads(log.params)
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     task_id = params.get("task_id")
     if not task_id:
         return
@@ -122,8 +148,18 @@ async def _revert_complete_task(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_set_daily_plan(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else {}
-    params = json.loads(log.params)
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
+    try:
+        params = json.loads(log.params)
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     date_str = params.get("date_str", "")
     target_date = date.fromisoformat(date_str) if date_str else date.today()
 
@@ -145,7 +181,12 @@ async def _revert_set_daily_plan(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_mark_day_off(db: AsyncSession, log: MCPLog) -> None:
-    params = json.loads(log.params)
+    try:
+        params = json.loads(log.params)
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     date_str = params.get("date_str", "")
     try:
         target_date = date.fromisoformat(date_str)
@@ -158,7 +199,12 @@ async def _revert_mark_day_off(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_unmark_day_off(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     if not before:
         return
     day_date_str = before.get("day_date", "")

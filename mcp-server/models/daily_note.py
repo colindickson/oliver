@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 
@@ -13,4 +13,4 @@ class DailyNote(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     day_id = Column(Integer, ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False)
     content = Column(Text, nullable=False, default="")
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

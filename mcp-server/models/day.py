@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Column, Date, DateTime, Integer
 from sqlalchemy.orm import relationship
@@ -20,6 +20,6 @@ class Day(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(Date, unique=True, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     tasks = relationship("Task", back_populates="day", cascade="all, delete-orphan")
