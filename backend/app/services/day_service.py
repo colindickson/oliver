@@ -84,19 +84,13 @@ class DayService:
         result = await self._db.execute(select(Day).where(Day.date == target_date))
         return result.scalar_one_or_none()
 
-    async def get_all(self, limit: int = 90, offset: int = 0) -> list[Day]:
-        """Return Day records ordered newest-first with optional pagination.
-
-        Args:
-            limit: Maximum number of records to return (default 90).
-            offset: Number of records to skip before returning results (default 0).
+    async def get_all(self) -> list[Day]:
+        """Return all Day records ordered newest-first.
 
         Returns:
             A list of Day instances sorted by date descending.
         """
-        result = await self._db.execute(
-            select(Day).order_by(Day.date.desc()).limit(limit).offset(offset)
-        )
+        result = await self._db.execute(select(Day).order_by(Day.date.desc()))
         return list(result.scalars().all())
 
     async def upsert_notes(self, day_id: int, content: str) -> DailyNote:
