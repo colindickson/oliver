@@ -228,7 +228,12 @@ async def _revert_unmark_day_off(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_set_recurring_days_off(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     days = before.get("days", [])
     result = await db.execute(
         select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
@@ -241,8 +246,18 @@ async def _revert_set_recurring_days_off(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_set_day_metadata(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else None
-    params = json.loads(log.params)
+    try:
+        before = json.loads(log.before_state) if log.before_state else None
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
+    try:
+        params = json.loads(log.params)
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     date_str = params.get("date_str", "")
     try:
         target_date = date.fromisoformat(date_str)
@@ -281,7 +296,12 @@ async def _revert_notify(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_start_timer(db: AsyncSession, log: MCPLog) -> None:
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     prior_state = before.get("active_timer")
     result = await db.execute(
         select(Setting).where(Setting.key == _ACTIVE_TIMER_KEY)
@@ -298,8 +318,18 @@ async def _revert_start_timer(db: AsyncSession, log: MCPLog) -> None:
 
 
 async def _revert_stop_timer(db: AsyncSession, log: MCPLog) -> None:
-    result_data = json.loads(log.result) if log.result else {}
-    before = json.loads(log.before_state) if log.before_state else {}
+    try:
+        result_data = json.loads(log.result) if log.result else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
+    try:
+        before = json.loads(log.before_state) if log.before_state else {}
+    except json.JSONDecodeError as e:
+        raise InvalidOperationError(
+            "MCP log entry has malformed JSON and cannot be reverted"
+        ) from e
     timer_session_id = result_data.get("timer_session_id")
     if timer_session_id:
         await db.execute(
