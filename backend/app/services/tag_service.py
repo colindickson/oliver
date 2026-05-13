@@ -55,10 +55,19 @@ class TagService:
                 f"A task may have at most {MAX_TAGS_PER_TASK} tags", http_status_code=400
             )
 
+        normalised = [normalize_tag_name(name) for name in names]
+
+        # Bulk-fetch all existing tags in one query
+        result = await self._db.execute(select(Tag).where(Tag.name.in_(normalised)))
+        existing: dict[str, Tag] = {tag.name: tag for tag in result.scalars()}
+
+        # Only create tags that were not found
         tag_objects = []
-        for name in names:
-            tag = await self.get_or_create_tag(name)
-            tag_objects.append(tag)
+        for name in normalised:
+            if name in existing:
+                tag_objects.append(existing[name])
+            else:
+                tag_objects.append(await self.get_or_create_tag(name))
 
         return tag_objects
 
