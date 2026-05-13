@@ -47,16 +47,16 @@ class WorkLogTagsUpdate(BaseModel):
 class WorkLogUpdate(BaseModel):
     """Payload for updating project_name or description on a WorkLog."""
 
-    project_name: str | None = None
-    description: str | None = None
+    project_name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=10000)
     log_type: Literal["commit", "pr", "review", "research"] | None = None
 
 
 class WorkLogCreate(BaseModel):
     """Payload for a single work log entry in a batch request."""
 
-    project_name: str
-    description: str
+    project_name: str = Field(min_length=1, max_length=255)
+    description: str = Field(max_length=10000)
     date: date_type
     tags: list[str] = []
     log_type: Literal["commit", "pr", "review", "research"] | None = None
