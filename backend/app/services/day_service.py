@@ -7,11 +7,10 @@ the service itself remains independently testable.
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,10 +20,9 @@ from app.models.day_metadata import DayMetadata
 from app.models.day_off import DayOff
 from app.models.day_rating import DayRating
 from app.models.roadblock import Roadblock
-from app.models.setting import Setting
 from app.models.task_template import TaskTemplate, TemplateSchedule
+from app.services.settings_service import SettingsService
 from app.services.template_service import compute_next_run, TemplateService
-from oliver_shared import FOCUS_GOAL_KEY, RECURRING_DAYS_OFF_KEY, TIMER_DISPLAY_KEY
 
 
 class DayService:
@@ -34,8 +32,9 @@ class DayService:
         db: An open SQLAlchemy async session injected by the caller.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, settings_service: SettingsService | None = None) -> None:
         self._db = db
+        self._settings = settings_service or SettingsService(db)
 
     async def get_or_create_today(self) -> Day:
         """Return the Day record for the current calendar date, creating it if absent.
@@ -60,15 +59,17 @@ class DayService:
             day = Day(date=target_date, created_at=datetime.now(timezone.utc))
             self._db.add(day)
             try:
-                await self._db.flush()
+                async with self._db.begin_nested():
+                    await self._db.flush()
             except IntegrityError:
-                await self._db.rollback()
+                self._db.expunge(day)  # remove stale pending object before re-SELECT
                 result = await self._db.execute(select(Day).where(Day.date == target_date))
                 day = result.scalar_one()
             await self._db.refresh(day)
 
-        await self.apply_due_schedules(day, target_date)
-        await self._db.refresh(day)
+        changed = await self.apply_due_schedules(day, target_date)
+        if changed:
+            await self._db.refresh(day)
         return day
 
     async def get_by_date(self, target_date: date) -> Day | None:
@@ -264,105 +265,6 @@ class DayService:
         result = await self._db.execute(select(DayOff).order_by(DayOff.day_id.desc()))
         return list(result.scalars().all())
 
-    async def get_timer_display(self) -> bool:
-        """Return whether the focus timer should be displayed.
-
-        Returns:
-            True (default) if the timer should be shown, False if hidden.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting is None:
-            return True
-        return json.loads(setting.value)
-
-    async def set_timer_display(self, enabled: bool) -> bool:
-        """Save the timer display preference to settings.
-
-        Args:
-            enabled: Whether the timer should be displayed.
-
-        Returns:
-            The saved boolean value.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(enabled)
-        else:
-            setting = Setting(key=TIMER_DISPLAY_KEY, value=json.dumps(enabled))
-            self._db.add(setting)
-        await self._db.flush()
-        return enabled
-
-    async def get_focus_goal_id(self) -> int | None:
-        """Return the current focus goal ID, or None if not set.
-
-        Returns:
-            The focus goal ID, or None.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
-        )
-        if setting is None:
-            return None
-        return json.loads(setting.value)
-
-    async def set_focus_goal_id(self, goal_id: int | None) -> int | None:
-        """Save the focus goal ID to settings.
-
-        Args:
-            goal_id: The goal ID to set as focus, or None to clear.
-
-        Returns:
-            The saved goal ID.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == FOCUS_GOAL_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(goal_id)
-        else:
-            setting = Setting(key=FOCUS_GOAL_KEY, value=json.dumps(goal_id))
-            self._db.add(setting)
-        await self._db.flush()
-        return goal_id
-
-    async def get_recurring_days_off(self) -> list[str]:
-        """Return the list of recurring off weekday names from settings.
-
-        Returns:
-            A list of lowercase weekday names, or empty list if not set.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
-        )
-        if setting is None:
-            return []
-        return json.loads(setting.value)
-
-    async def set_recurring_days_off(self, days: list[str]) -> list[str]:
-        """Save the recurring off weekday names to settings.
-
-        Args:
-            days: List of lowercase weekday names to store.
-
-        Returns:
-            The saved list of weekday names.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == RECURRING_DAYS_OFF_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(days)
-        else:
-            setting = Setting(key=RECURRING_DAYS_OFF_KEY, value=json.dumps(days))
-            self._db.add(setting)
-        await self._db.flush()
-        return days
-
     async def get_next_working_day(self, from_date: date | None = None) -> date:
         """Return the next working day after from_date, skipping recurring and individual days off.
 
@@ -375,7 +277,7 @@ class DayService:
         """
         if from_date is None:
             from_date = date.today()
-        recurring_off = await self.get_recurring_days_off()
+        recurring_off = await self._settings.get_recurring_days_off()
         candidate = from_date + timedelta(days=1)
         for _ in range(60):  # safety cap
             if candidate.strftime("%A").lower() not in recurring_off:
@@ -388,14 +290,27 @@ class DayService:
             candidate += timedelta(days=1)
         return from_date + timedelta(days=1)  # unreachable fallback
 
-    async def apply_due_schedules(self, day: Day, target_date: date) -> None:
+    async def apply_due_schedules(self, day: Day, target_date: date) -> bool:
         """Instantiate tasks for any schedules due on or before target_date.
 
         For each schedule with next_run_date <= target_date:
         - Creates a task if next_run_date == target_date AND day is not a day off
         - Always advances next_run_date past target_date (catches missed occurrences)
         Idempotent: once next_run_date advances past target_date, it won't re-match.
+
+        Returns:
+            True if any schedules were processed (tasks may have been created),
+            False if no schedules were due (no-op, no lock acquired).
         """
+        # Lightweight pre-check: avoid acquiring FOR UPDATE lock when nothing is due.
+        due_count = await self._db.scalar(
+            select(func.count()).select_from(TemplateSchedule).where(
+                TemplateSchedule.next_run_date <= target_date
+            )
+        )
+        if not due_count:
+            return False
+
         is_day_off = day.day_off is not None
 
         result = await self._db.execute(
@@ -406,7 +321,7 @@ class DayService:
         schedules = list(result.scalars().all())
 
         if not schedules:
-            return
+            return False
 
         template_service = TemplateService(self._db)
 
@@ -434,3 +349,4 @@ class DayService:
                 )
 
         await self._db.flush()  # commit is handled by the route handler (days.py)
+        return True

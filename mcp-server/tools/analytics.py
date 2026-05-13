@@ -3,6 +3,8 @@
 import json
 from datetime import date, timedelta
 
+from sqlalchemy import func, select
+
 from models.day import Day
 from models.day_off import DayOff
 from models.task import Task
@@ -36,33 +38,55 @@ def get_analytics(days: int = 30) -> str:
     try:
         cutoff = date.today() - timedelta(days=days)
         with get_session() as session:
-            off_day_ids = {row.day_id for row in session.query(DayOff).all()}
-            day_rows = session.query(Day).filter(Day.date >= cutoff).all()
-            day_rows = [d for d in day_rows if d.id not in off_day_ids]
-            total_days = len(day_rows)
-            completed_tasks = 0
-            total_tasks = 0
+            # Subquery for off-day IDs — excluded from all metrics
+            off_day_ids_subq = select(DayOff.day_id).scalar_subquery()
+
+            # Single query: count of qualifying days in the window
+            total_days: int = session.execute(
+                select(func.count(Day.id))
+                .where(Day.date >= cutoff)
+                .where(Day.id.not_in(off_day_ids_subq))
+            ).scalar_one() or 0
+
+            # Two aggregate queries: total tasks and completed tasks
+            base_task_query = (
+                select(func.count(Task.id))
+                .join(Day, Task.day_id == Day.id)
+                .where(Day.date >= cutoff)
+                .where(Day.id.not_in(off_day_ids_subq))
+            )
+
+            total_tasks: int = session.execute(base_task_query).scalar_one() or 0
+
+            completed_tasks: int = session.execute(
+                base_task_query.where(Task.status == STATUS_COMPLETED)
+            ).scalar_one() or 0
+
+            # Single query: sum timer seconds grouped by task category
             category_seconds: dict[str, int] = {
                 CATEGORY_DEEP_WORK: 0,
                 CATEGORY_SHORT_TASK: 0,
                 CATEGORY_MAINTENANCE: 0,
             }
 
-            for day in day_rows:
-                tasks = session.query(Task).filter(Task.day_id == day.id).all()
-                total_tasks += len(tasks)
-                completed_tasks += sum(1 for t in tasks if t.status == STATUS_COMPLETED)
-                for task in tasks:
-                    timer_sessions = (
-                        session.query(TimerSession)
-                        .filter(TimerSession.task_id == task.id)
-                        .all()
+            category_rows = session.execute(
+                select(
+                    Task.category,
+                    func.sum(TimerSession.duration_seconds).label("total_seconds"),
+                )
+                .join(TimerSession, TimerSession.task_id == Task.id)
+                .join(Day, Task.day_id == Day.id)
+                .where(Day.date >= cutoff)
+                .where(Day.id.not_in(off_day_ids_subq))
+                .where(TimerSession.duration_seconds.isnot(None))
+                .group_by(Task.category)
+            ).all()
+
+            for row in category_rows:
+                if row.category is not None:
+                    category_seconds[row.category] = (
+                        category_seconds.get(row.category, 0) + int(row.total_seconds or 0)
                     )
-                    for ts in timer_sessions:
-                        if ts.duration_seconds:
-                            category_seconds[task.category] = (
-                                category_seconds.get(task.category, 0) + ts.duration_seconds
-                            )
 
             completion_rate = (
                 round(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0

@@ -8,7 +8,6 @@ background processes are required.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -135,9 +134,6 @@ async def add_time(
     Raises:
         HTTPException: 404 if ``task_id`` does not exist.
     """
-    try:
-        session = await TimerService(db).add_time(body.task_id, body.seconds)
-        await db.commit()
-        return session
-    except (IntegrityError, ValueError):
-        raise HTTPException(status_code=404, detail="Task not found")
+    session = await TimerService(db).add_time(body.task_id, body.seconds)
+    await db.commit()
+    return session

@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.day import Day
 from app.schemas.daily_note import DailyNoteResponse, DailyNoteUpsert
 from app.schemas.day import DayResponse
 from app.schemas.day_metadata import DayMetadataResponse, DayMetadataUpsert
@@ -21,6 +23,31 @@ from app.schemas.roadblock import RoadblockResponse, RoadblockUpsert
 from app.services.day_service import DayService
 
 router = APIRouter(prefix="/api/days", tags=["days"])
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+async def _get_day_or_404(day_id: int, db: AsyncSession) -> Day:
+    """Fetch a Day by primary key or raise a 404 HTTPException.
+
+    Args:
+        day_id: The primary key to look up.
+        db: Open async session.
+
+    Returns:
+        The matching Day instance.
+
+    Raises:
+        HTTPException: 404 if no Day with ``day_id`` exists.
+    """
+    result = await db.execute(select(Day).where(Day.id == day_id))
+    day = result.scalar_one_or_none()
+    if day is None:
+        raise HTTPException(status_code=404, detail=f"Day {day_id} not found")
+    return day
 
 
 # NOTE: Fixed-path routes (/off, /today, /next-working-day) must be registered
@@ -121,6 +148,7 @@ async def upsert_notes(
     Returns:
         The saved DailyNoteResponse.
     """
+    await _get_day_or_404(day_id, db)
     service = DayService(db)
     note = await service.upsert_notes(day_id, payload.content)
     await db.commit()
@@ -143,6 +171,7 @@ async def upsert_roadblocks(
     Returns:
         The saved RoadblockResponse.
     """
+    await _get_day_or_404(day_id, db)
     service = DayService(db)
     roadblock = await service.upsert_roadblocks(day_id, payload.content)
     await db.commit()
@@ -165,6 +194,7 @@ async def upsert_rating(
     Returns:
         The saved DayRatingResponse.
     """
+    await _get_day_or_404(day_id, db)
     service = DayService(db)
     rating = await service.upsert_rating(
         day_id, payload.focus, payload.energy, payload.satisfaction
@@ -189,6 +219,7 @@ async def upsert_metadata(
     Returns:
         The saved DayMetadataResponse.
     """
+    await _get_day_or_404(day_id, db)
     service = DayService(db)
     meta = await service.upsert_metadata(
         day_id, payload.temperature_c, payload.condition, payload.moon_phase
@@ -213,6 +244,7 @@ async def upsert_day_off(
     Returns:
         The saved DayOffResponse.
     """
+    await _get_day_or_404(day_id, db)
     service = DayService(db)
     day_off = await service.upsert_day_off(day_id, payload.reason, payload.note)
     await db.commit()

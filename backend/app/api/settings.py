@@ -16,7 +16,7 @@ from app.schemas.settings import (
     TimerDisplayResponse,
     TimerDisplayUpdate,
 )
-from app.services.day_service import DayService
+from app.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -33,7 +33,7 @@ async def get_timer_display(
     Returns:
         A TimerDisplayResponse with the enabled boolean.
     """
-    service = DayService(db)
+    service = SettingsService(db)
     return TimerDisplayResponse(enabled=await service.get_timer_display())
 
 
@@ -51,7 +51,7 @@ async def set_timer_display(
     Returns:
         A TimerDisplayResponse with the saved boolean.
     """
-    service = DayService(db)
+    service = SettingsService(db)
     enabled = await service.set_timer_display(payload.enabled)
     await db.commit()
     return TimerDisplayResponse(enabled=enabled)
@@ -69,7 +69,7 @@ async def get_focus_goal(
     Returns:
         A FocusGoalResponse with the goal_id (or null if not set).
     """
-    service = DayService(db)
+    service = SettingsService(db)
     goal_id = await service.get_focus_goal_id()
     return FocusGoalResponse(goal_id=goal_id)
 
@@ -88,7 +88,7 @@ async def set_focus_goal(
     Returns:
         A FocusGoalResponse with the saved goal_id.
     """
-    service = DayService(db)
+    service = SettingsService(db)
     if payload.goal_id is not None:
         goal = await db.scalar(select(Goal).where(Goal.id == payload.goal_id))
         if goal is None:
@@ -112,7 +112,7 @@ async def get_recurring_days_off(
     Returns:
         A RecurringDaysOffResponse with the list of weekday names.
     """
-    service = DayService(db)
+    service = SettingsService(db)
     days = await service.get_recurring_days_off()
     return RecurringDaysOffResponse(days=days)
 
@@ -131,7 +131,7 @@ async def set_recurring_days_off(
     Returns:
         A RecurringDaysOffResponse with the saved list.
     """
-    service = DayService(db)
+    service = SettingsService(db)
     days = await service.set_recurring_days_off(payload.days)
     await db.commit()
     return RecurringDaysOffResponse(days=days)

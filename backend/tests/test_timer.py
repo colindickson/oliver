@@ -59,6 +59,13 @@ async def test_start_timer_twice_returns_409(client: AsyncClient, task: Task) ->
     assert response.status_code == 409
 
 
+async def test_start_timer_nonexistent_task_returns_404(client: AsyncClient) -> None:
+    """POST /api/timer/start with a non-existent task_id returns 404 Not Found."""
+    response = await client.post("/api/timer/start", json={"task_id": 999999})
+
+    assert response.status_code == 404
+
+
 # ---------------------------------------------------------------------------
 # GET /api/timer/current
 # ---------------------------------------------------------------------------

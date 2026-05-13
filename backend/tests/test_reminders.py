@@ -224,3 +224,16 @@ async def test_delete_reminder_returns_404_for_missing_id(
     """DELETE /api/reminders/{nonexistent_id} returns 404."""
     response = await client.delete("/api/reminders/99999")
     assert response.status_code == 404
+
+
+async def test_create_reminder_returns_404_for_nonexistent_task(
+    client: AsyncClient,
+) -> None:
+    """POST /api/reminders with a nonexistent task_id returns 404."""
+    payload = {
+        "task_id": 99999,
+        "remind_at": datetime(2025, 6, 1, 9, 0, 0).isoformat(),
+        "message": "This task does not exist",
+    }
+    response = await client.post("/api/reminders", json=payload)
+    assert response.status_code == 404

@@ -475,3 +475,63 @@ async def test_upsert_rating_rejects_value_out_of_range(
     )
 
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# 404 validation: sub-entity upsert endpoints with nonexistent day_id
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_notes_returns_404_for_missing_day(client: AsyncClient) -> None:
+    """PUT /{day_id}/notes returns 404 when the Day does not exist."""
+    response = await client.put(
+        "/api/days/999999/notes",
+        json={"content": "Should not be saved"},
+    )
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
+
+
+async def test_upsert_roadblocks_returns_404_for_missing_day(client: AsyncClient) -> None:
+    """PUT /{day_id}/roadblocks returns 404 when the Day does not exist."""
+    response = await client.put(
+        "/api/days/999999/roadblocks",
+        json={"content": "Should not be saved"},
+    )
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
+
+
+async def test_upsert_rating_returns_404_for_missing_day(client: AsyncClient) -> None:
+    """PUT /{day_id}/rating returns 404 when the Day does not exist."""
+    response = await client.put(
+        "/api/days/999999/rating",
+        json={"focus": 3, "energy": 3, "satisfaction": 3},
+    )
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
+
+
+async def test_upsert_metadata_returns_404_for_missing_day(client: AsyncClient) -> None:
+    """PUT /{day_id}/metadata returns 404 when the Day does not exist."""
+    response = await client.put(
+        "/api/days/999999/metadata",
+        json={"temperature_c": 20.0, "condition": "sunny", "moon_phase": "full_moon"},
+    )
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
+
+
+async def test_upsert_day_off_returns_404_for_missing_day(client: AsyncClient) -> None:
+    """PUT /{day_id}/day-off returns 404 when the Day does not exist."""
+    response = await client.put(
+        "/api/days/999999/day-off",
+        json={"reason": "vacation"},
+    )
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
