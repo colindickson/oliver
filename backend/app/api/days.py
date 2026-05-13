@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,17 +119,23 @@ async def get_day_by_date(
 
 
 @router.get("", response_model=list[DayResponse])
-async def list_days(db: AsyncSession = Depends(get_db)) -> list[DayResponse]:
-    """Return all Day records ordered newest-first.
+async def list_days(
+    limit: int = Query(default=90, ge=1, le=365),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> list[DayResponse]:
+    """Return Day records ordered newest-first with optional pagination.
 
     Args:
+        limit: Maximum number of records to return (1–365, default 90).
+        offset: Number of records to skip before returning results (default 0).
         db: Injected async database session.
 
     Returns:
         A list of DayResponse objects sorted by date descending.
     """
     service = DayService(db)
-    return await service.get_all()
+    return await service.get_all(limit=limit, offset=offset)
 
 
 @router.put("/{day_id}/notes", response_model=DailyNoteResponse)
