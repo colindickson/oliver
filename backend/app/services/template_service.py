@@ -153,10 +153,8 @@ class TemplateService:
         )
         task.tags = tag_objects
         self._db.add(task)
-        if flush_only:
-            await self._db.flush()
-        else:
-            await self._db.flush()
+        await self._db.flush()
+        if not flush_only:
             await self._db.refresh(task)
         return task
 
