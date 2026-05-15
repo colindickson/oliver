@@ -119,7 +119,7 @@ function buildTaskVolumeData(dateRange: Array<{ date: string; day: DayResponse |
 
 interface TagFrequencyItem { name: string; count: number; pct: number }
 
-interface StreakGridCell { date: string; completionRate: number | null }
+interface WorkLogHeatmapCell { date: string; count: number | null }
 
 function buildTagFrequencyData(days: DayResponse[]): TagFrequencyItem[] {
   const completed = days.flatMap(d => d.tasks).filter(t => t.status === 'completed')
@@ -378,31 +378,31 @@ function TagBars({ data, isDark }: TagBarsProps) {
 }
 
 // -----------------------------------------------------------------------------
-// Streak Grid — 12-week completion heatmap
+// Work Log Heatmap — 12-week work log activity grid
 // -----------------------------------------------------------------------------
 
-interface StreakGridProps { data: StreakGridCell[]; isDark: boolean }
+interface WorkLogHeatmapProps { data: WorkLogHeatmapCell[]; isDark: boolean }
 
-function StreakGrid({ data, isDark }: StreakGridProps) {
+function WorkLogHeatmap({ data, isDark }: WorkLogHeatmapProps) {
   const cellSize = 13
   const gap = 3
-  const borderBg = isDark ? '#292524' : '#e7e5e4'
+  const emptyColor = isDark ? '#292524' : '#e7e5e4'
 
-  const weeks: (number | null)[][] = []
+  const weeks: WorkLogHeatmapCell[][] = []
   for (let w = 0; w < 12; w++) {
-    const week: (number | null)[] = []
+    const week: WorkLogHeatmapCell[] = []
     for (let d = 0; d < 7; d++) {
       const idx = w * 7 + d
-      week.push(idx < data.length ? data[idx].completionRate : null)
+      week.push(idx < data.length ? data[idx] : { date: '', count: null })
     }
     weeks.push(week)
   }
 
-  function cellColor(v: number | null): string {
-    if (v === null) return borderBg
-    if (v < 40) return 'rgba(232,107,58,0.2)'
-    if (v < 70) return 'rgba(232,107,58,0.5)'
-    if (v < 90) return 'rgba(232,107,58,0.8)'
+  function cellColor(count: number | null): string {
+    if (count === null || count === 0) return emptyColor
+    if (count <= 3) return 'rgba(232,107,58,0.25)'
+    if (count <= 8) return 'rgba(232,107,58,0.55)'
+    if (count <= 15) return 'rgba(232,107,58,0.80)'
     return TERRACOTTA
   }
 
@@ -411,16 +411,20 @@ function StreakGrid({ data, isDark }: StreakGridProps) {
       <div style={{ display: 'flex', gap }}>
         {weeks.map((week, wi) => (
           <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap }}>
-            {week.map((v, di) => (
+            {week.map((cell, di) => (
               <div
                 key={di}
-                title={v !== null ? `${data[wi * 7 + di]?.date}: ${v}%` : 'No data'}
+                title={
+                  cell.count !== null && cell.count > 0
+                    ? `${cell.date}: ${cell.count} log${cell.count === 1 ? '' : 's'}`
+                    : cell.date ? `${cell.date}: no logs` : 'No data'
+                }
                 style={{
                   width: cellSize,
                   height: cellSize,
                   borderRadius: 3,
-                  background: cellColor(v),
-                  cursor: v !== null ? 'pointer' : 'default',
+                  background: cellColor(cell.count),
+                  cursor: cell.count !== null && cell.count > 0 ? 'pointer' : 'default',
                 }}
               />
             ))}
@@ -429,43 +433,65 @@ function StreakGrid({ data, isDark }: StreakGridProps) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11, color: isDark ? '#57534e' : '#a8a29e' }}>
         <span>Less</span>
-        {[0.2, 0.5, 0.8, 1].map(o => (
+        {[0.25, 0.55, 0.80, 1].map(o => (
           <div key={o} style={{ width: 10, height: 10, borderRadius: 2, background: `rgba(232,107,58,${o})` }} />
         ))}
-        <span>More</span>
+        <span>More logs</span>
       </div>
     </div>
   )
 }
 
 // -----------------------------------------------------------------------------
-// Focus Mini Card — small stat card for activity insights
+// Tag Cloud — font-size-weighted tag visualization
 // -----------------------------------------------------------------------------
 
-interface FocusMiniCardProps {
-  label: string
-  value: string | number
-  color?: string
-  isDark: boolean
+interface TagCloudProps { data: TagFrequencyItem[]; isDark: boolean }
+
+function tagCloudColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff
+  return TAG_COLORS[hash % TAG_COLORS.length]
 }
 
-function FocusMiniCard({ label, value, color, isDark }: FocusMiniCardProps) {
-  return (
-    <div style={{
-      padding: '10px 12px',
-      background: isDark ? '#111110' : '#f7f5f2',
-      borderRadius: 8,
-      border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
-    }}>
-      <div style={{ fontSize: 11, color: isDark ? '#4d4845' : '#a09890', marginBottom: 3 }}>{label}</div>
-      <div style={{
-        fontSize: 14,
-        fontWeight: 700,
-        fontFamily: "'DM Mono', Menlo, monospace",
-        color: color || (isDark ? '#f0ede8' : '#1a1816'),
-      }}>
-        {value}
+function TagCloud({ data, isDark }: TagCloudProps) {
+  if (data.length === 0) {
+    return (
+      <div className="text-sm text-stone-400 flex items-center justify-center" style={{ height: 120 }}>
+        No tagged tasks completed in this period
       </div>
+    )
+  }
+
+  const display = data.slice(0, 30)
+  const max = display[0].count
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', alignItems: 'center', padding: '4px 0' }}>
+      {display.map(t => {
+        const ratio = t.count / max
+        const fontSize = Math.round(11 + ratio * 18)
+        const fontWeight = ratio > 0.75 ? 700 : ratio > 0.5 ? 600 : ratio > 0.25 ? 500 : 400
+        const opacity = isDark ? 0.45 + ratio * 0.55 : 0.55 + ratio * 0.45
+        return (
+          <span
+            key={t.name}
+            title={`${t.name}: ${t.count} tasks`}
+            style={{
+              fontSize,
+              fontWeight,
+              color: tagCloudColor(t.name),
+              opacity,
+              lineHeight: 1.3,
+              cursor: 'default',
+              fontFamily: "'DM Mono', Menlo, monospace",
+              transition: 'opacity 0.15s ease',
+            }}
+          >
+            {t.name}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -525,66 +551,23 @@ export function Analytics() {
     }
   }, [allDays, periodDays])
 
-  const streakGridData = useMemo((): StreakGridCell[] => {
+  const { data: workLogHeatmapRaw } = useQuery({
+    queryKey: ['workLogActivity', 84],
+    queryFn: () => analyticsApi.getWorkLogActivity(84),
+  })
+
+  const heatmapCells = useMemo((): WorkLogHeatmapCell[] => {
+    const byDate = new Map((workLogHeatmapRaw ?? []).map(d => [d.date, d.count]))
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const cells: StreakGridCell[] = []
-    for (let i = 83; i >= 0; i--) {
+    return Array.from({ length: 84 }, (_, i) => {
       const d = new Date(today)
-      d.setDate(d.getDate() - i)
+      d.setDate(d.getDate() - (83 - i))
       const dateStr = d.toISOString().slice(0, 10)
-      const dayData = allDays.find(day => day.date === dateStr)
-      if (!dayData || dayData.day_off || dayData.tasks.length === 0) {
-        cells.push({ date: dateStr, completionRate: null })
-      } else {
-        const total = dayData.tasks.length
-        const completed = dayData.tasks.filter(t => t.status === 'completed').length
-        cells.push({ date: dateStr, completionRate: Math.round((completed / total) * 100) })
-      }
-    }
-    return cells
-  }, [allDays])
-
-  const focusStats = useMemo(() => {
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
-    const todayStr = now.toISOString().slice(0, 10)
-    const thisMonthDays = allDays.filter(d =>
-      d.date >= monthStart && d.date <= todayStr && !d.day_off && d.tasks.length > 0
-    )
-    const activeDays = thisMonthDays.filter(d =>
-      d.tasks.some(t => t.status === 'completed')
-    ).length
-
-    const dowNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    const dowBuckets: Record<string, { total: number; completed: number }> = {}
-    for (const name of dowNames) dowBuckets[name] = { total: 0, completed: 0 }
-
-    allDays.forEach(d => {
-      if (d.day_off || d.tasks.length === 0) return
-      const dow = new Date(d.date + 'T00:00:00').getDay()
-      const name = dowNames[dow]
-      d.tasks.forEach(t => {
-        dowBuckets[name].total++
-        if (t.status === 'completed') dowBuckets[name].completed++
-      })
+      const count = byDate.get(dateStr) ?? null
+      return { date: dateStr, count }
     })
-
-    let bestDay = '', worstDay = '', bestRate = -1, worstRate = 101
-    for (const [name, { total, completed }] of Object.entries(dowBuckets)) {
-      if (total === 0) continue
-      const rate = (completed / total) * 100
-      if (rate > bestRate) { bestRate = rate; bestDay = name }
-      if (rate < worstRate) { worstRate = rate; worstDay = name }
-    }
-
-    return {
-      longestStreak: streaks?.longest_streak ?? 0,
-      thisMonthActiveDays: activeDays,
-      bestDay: bestDay || 'N/A',
-      weakestDay: worstDay || 'N/A',
-    }
-  }, [allDays, streaks])
+  }, [workLogHeatmapRaw])
 
   const chartCard = 'bg-white dark:bg-stone-800/80 rounded-xl border border-stone-100 dark:border-stone-700 p-5 shadow-soft'
   const sectionHeader = 'text-[11px] font-mono font-bold text-stone-400 uppercase tracking-[0.08em] mb-3.5'
@@ -775,9 +758,27 @@ export function Analytics() {
               </div>
             </section>
 
-            {/* Section: Focus Areas */}
+            {/* Section: Activity */}
             <section>
-              <h2 className={sectionHeader}>Focus Areas</h2>
+              <h2 className={sectionHeader}>Activity</h2>
+              <div className="space-y-6">
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>12-Week Work Log Activity</h3>
+                  <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                    Work log entries per day over the last 12 weeks
+                  </p>
+                  <WorkLogHeatmap data={heatmapCells} isDark={isDark} />
+                </div>
+                <div className={chartCard}>
+                  <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
+                  <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
+                </div>
+              </div>
+            </section>
+
+            {/* Section: Tags */}
+            <section>
+              <h2 className={sectionHeader}>Tags</h2>
               <div className="space-y-6">
                 <div className={chartCard}>
                   <h3 className={chartTitle}>Tag Frequency</h3>
@@ -787,27 +788,12 @@ export function Analytics() {
                   <TagBars data={tagFrequencyData} isDark={isDark} />
                 </div>
                 <div className={chartCard}>
-                  <h3 className={chartTitle}>12-Week Activity</h3>
+                  <h3 className={chartTitle}>Tag Cloud</h3>
                   <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
-                    Completion rate heatmap
+                    Tag usage weighted by frequency
                   </p>
-                  <StreakGrid data={streakGridData} isDark={isDark} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-                    <FocusMiniCard label="Longest streak" value={`${focusStats.longestStreak} days`} isDark={isDark} />
-                    <FocusMiniCard label="This month" value={`${focusStats.thisMonthActiveDays} active days`} isDark={isDark} />
-                    <FocusMiniCard label="Best day" value={focusStats.bestDay} color={INDIGO} isDark={isDark} />
-                    <FocusMiniCard label="Weakest day" value={focusStats.weakestDay} color="#dc2626" isDark={isDark} />
-                  </div>
+                  <TagCloud data={tagFrequencyData} isDark={isDark} />
                 </div>
-              </div>
-            </section>
-
-            {/* Section: Work Log Activity */}
-            <section>
-              <h2 className={sectionHeader}>Work Logs by Type</h2>
-              <div className={chartCard}>
-                <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
-                <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
               </div>
             </section>
           </div>
@@ -993,10 +979,28 @@ export function Analytics() {
             </div>
           </section>
 
-          {/* Section: Focus Areas */}
+          {/* Section: Activity */}
           <section>
-            <h2 className={sectionHeader}>Focus Areas</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 14 }}>
+            <h2 className={sectionHeader}>Activity</h2>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className={chartCard}>
+                <h3 className={chartTitle}>12-Week Work Log Activity</h3>
+                <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
+                  Work log entries per day over the last 12 weeks
+                </p>
+                <WorkLogHeatmap data={heatmapCells} isDark={isDark} />
+              </div>
+              <div className={chartCard}>
+                <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
+                <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
+              </div>
+            </div>
+          </section>
+
+          {/* Section: Tags */}
+          <section>
+            <h2 className={sectionHeader}>Tags</h2>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className={chartCard}>
                 <h3 className={chartTitle}>Tag Frequency</h3>
                 <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
@@ -1005,27 +1009,12 @@ export function Analytics() {
                 <TagBars data={tagFrequencyData} isDark={isDark} />
               </div>
               <div className={chartCard}>
-                <h3 className={chartTitle}>12-Week Activity</h3>
+                <h3 className={chartTitle}>Tag Cloud</h3>
                 <p style={{ fontSize: 12, color: isDark ? '#8a847d' : '#5c5750', marginBottom: 12 }}>
-                  Completion rate heatmap
+                  Tag usage weighted by frequency
                 </p>
-                <StreakGrid data={streakGridData} isDark={isDark} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-                  <FocusMiniCard label="Longest streak" value={`${focusStats.longestStreak} days`} isDark={isDark} />
-                  <FocusMiniCard label="This month" value={`${focusStats.thisMonthActiveDays} active days`} isDark={isDark} />
-                  <FocusMiniCard label="Best day" value={focusStats.bestDay} color={INDIGO} isDark={isDark} />
-                  <FocusMiniCard label="Weakest day" value={focusStats.weakestDay} color="#dc2626" isDark={isDark} />
-                </div>
+                <TagCloud data={tagFrequencyData} isDark={isDark} />
               </div>
-            </div>
-          </section>
-
-          {/* Section: Work Log Activity */}
-          <section>
-            <h2 className={sectionHeader}>Work Logs by Type</h2>
-            <div className={chartCard}>
-              <h3 className={chartTitle}>Daily work log volume, segmented by type</h3>
-              <WorkLogActivityChart days={periodDays} isDark={isDark} offDayDates={offDayDates} />
             </div>
           </section>
 
