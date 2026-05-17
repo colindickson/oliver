@@ -1,0 +1,6 @@
+line-length = 88
+target-version = "py312"
+src = ["backend", "mcp-server"]
+
+[lint]
+select = ["E", "F", "I", "UP"]
