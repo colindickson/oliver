@@ -19,6 +19,6 @@ class Setting(Base):
 
     __tablename__ = "settings"
 
-    key: Mapped[str] = mapped_column(String, primary_key=True)
-    value: Mapped[str] = mapped_column(String, nullable=False)
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    value: Mapped[str] = mapped_column(String(8192), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

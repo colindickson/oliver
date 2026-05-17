@@ -32,7 +32,7 @@ class DayMetadata(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     day_id: Mapped[int] = mapped_column(
-        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False
+        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
     )
     temperature_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     condition: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

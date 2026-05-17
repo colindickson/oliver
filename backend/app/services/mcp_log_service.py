@@ -29,6 +29,14 @@ _ACTIVE_TIMER_KEY = "active_timer"
 _Handler = Callable[[AsyncSession, MCPLog], Awaitable[None]]
 
 
+def _require_fields(data: dict, *keys: str, context: str) -> None:
+    missing = [k for k in keys if k not in data or data[k] is None]
+    if missing:
+        raise InvalidOperationError(
+            f"Cannot revert {context}: missing required fields {missing}"
+        )
+
+
 async def _resolve_tags_for_revert(db: AsyncSession, tag_names: list[str]) -> list[Tag]:
     """Resolve tag names to Tag objects, re-creating any that were deleted.
 
@@ -49,9 +57,8 @@ async def _resolve_tags_for_revert(db: AsyncSession, tag_names: list[str]) -> li
 
 async def _revert_create_task(db: AsyncSession, log: MCPLog) -> None:
     result_data = json.loads(log.result) if log.result else {}
-    task_id = result_data.get("id")
-    if task_id:
-        await db.execute(delete(Task).where(Task.id == task_id))
+    _require_fields(result_data, "id", context="create_task")
+    await db.execute(delete(Task).where(Task.id == result_data["id"]))
 
 
 async def _revert_update_task(db: AsyncSession, log: MCPLog) -> None:
@@ -67,16 +74,15 @@ async def _revert_update_task(db: AsyncSession, log: MCPLog) -> None:
         raise InvalidOperationError(
             "MCP log entry has malformed JSON and cannot be reverted"
         ) from e
-    task_id = params.get("task_id")
-    if not task_id:
-        return
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    _require_fields(params, "task_id", context="update_task")
+    _require_fields(before, "title", "status", context="update_task")
+    result = await db.execute(select(Task).where(Task.id == params["task_id"]))
     task = result.scalar_one_or_none()
     if not task:
         return
-    task.title = before.get("title", task.title)
+    task.title = before["title"]
     task.description = before.get("description", task.description)
-    task.status = before.get("status", task.status)
+    task.status = before["status"]
     task.category = before.get("category", task.category)
 
     # Restore tags (re-create if deleted since original operation)
@@ -91,6 +97,7 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
         raise InvalidOperationError(
             "MCP log entry has malformed JSON and cannot be reverted"
         ) from e
+    _require_fields(before, "title", context="delete_task")
     day_date_str = before.get("day_date")
     if not day_date_str:
         return
@@ -107,7 +114,7 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
 
     task = Task(
         day_id=day.id,
-        title=before.get("title", ""),
+        title=before["title"],
         description=before.get("description"),
         status=before.get("status", "pending"),
         category=before.get("category"),
@@ -133,14 +140,13 @@ async def _revert_complete_task(db: AsyncSession, log: MCPLog) -> None:
         raise InvalidOperationError(
             "MCP log entry has malformed JSON and cannot be reverted"
         ) from e
-    task_id = params.get("task_id")
-    if not task_id:
-        return
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    _require_fields(params, "task_id", context="complete_task")
+    _require_fields(before, "status", context="complete_task")
+    result = await db.execute(select(Task).where(Task.id == params["task_id"]))
     task = result.scalar_one_or_none()
     if not task:
         return
-    task.status = before.get("status", task.status)
+    task.status = before["status"]
     completed_at_str = before.get("completed_at")
     task.completed_at = (
         datetime.fromisoformat(completed_at_str) if completed_at_str else None
@@ -205,9 +211,8 @@ async def _revert_unmark_day_off(db: AsyncSession, log: MCPLog) -> None:
         raise InvalidOperationError(
             "MCP log entry has malformed JSON and cannot be reverted"
         ) from e
-    if not before:
-        return
-    day_date_str = before.get("day_date", "")
+    _require_fields(before, "day_date", context="unmark_day_off")
+    day_date_str = before["day_date"]
     try:
         target_date = date.fromisoformat(day_date_str)
     except ValueError:
@@ -290,9 +295,8 @@ async def _revert_set_day_metadata(db: AsyncSession, log: MCPLog) -> None:
 
 async def _revert_notify(db: AsyncSession, log: MCPLog) -> None:
     result_data = json.loads(log.result) if log.result else {}
-    notif_id = result_data.get("id")
-    if notif_id:
-        await db.execute(delete(Notification).where(Notification.id == notif_id))
+    _require_fields(result_data, "id", context="notify")
+    await db.execute(delete(Notification).where(Notification.id == result_data["id"]))
 
 
 async def _revert_start_timer(db: AsyncSession, log: MCPLog) -> None:

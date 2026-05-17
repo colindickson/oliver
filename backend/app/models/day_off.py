@@ -28,7 +28,7 @@ class DayOff(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     day_id: Mapped[int] = mapped_column(
-        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False
+        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
     )
     reason: Mapped[str] = mapped_column(String(50), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

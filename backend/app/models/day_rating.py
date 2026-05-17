@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import CheckConstraint, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -31,10 +31,25 @@ class DayRating(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     day_id: Mapped[int] = mapped_column(
-        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False
+        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
     )
     focus: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     energy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     satisfaction: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     day: Mapped[Day] = relationship("Day", back_populates="rating")
+
+    __table_args__ = (
+        CheckConstraint(
+            "focus IS NULL OR (focus >= 1 AND focus <= 5)",
+            name="ck_day_ratings_focus_range",
+        ),
+        CheckConstraint(
+            "energy IS NULL OR (energy >= 1 AND energy <= 5)",
+            name="ck_day_ratings_energy_range",
+        ),
+        CheckConstraint(
+            "satisfaction IS NULL OR (satisfaction >= 1 AND satisfaction <= 5)",
+            name="ck_day_ratings_satisfaction_range",
+        ),
+    )

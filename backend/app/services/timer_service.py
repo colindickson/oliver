@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import TaskNotFoundError
+from app.exceptions import InvalidOperationError, TaskNotFoundError
 from app.models.setting import Setting
 from app.models.task import Task
 from app.models.timer_session import TimerSession
@@ -74,9 +74,8 @@ class TimerService:
             self._db.add(setting)
         else:
             if expected_version is not None and setting.version != expected_version:
-                raise ValueError(
-                    f"Timer state changed concurrently (expected version {expected_version}, "
-                    f"found {setting.version})"
+                raise InvalidOperationError(
+                    "Timer state changed concurrently — please retry", http_status_code=409
                 )
             setting.value = json.dumps(state)
             setting.version += 1
@@ -153,7 +152,7 @@ class TimerService:
         now = datetime.now(timezone.utc)
 
         if state_with_version is not None and state_with_version[0]["status"] == "running":
-            raise ValueError("Timer is already running")
+            raise InvalidOperationError("Timer is already running", http_status_code=409)
 
         accumulated = 0
         version = None
@@ -187,7 +186,7 @@ class TimerService:
         """
         state_with_version = await self._get_state()
         if state_with_version is None or state_with_version[0]["status"] != "running":
-            raise ValueError("No timer is currently running")
+            raise InvalidOperationError("No timer is currently running", http_status_code=409)
 
         state, version = state_with_version
         started_at = datetime.fromisoformat(state["started_at"])
@@ -218,7 +217,9 @@ class TimerService:
         """
         state_with_version = await self._get_state()
         if state_with_version is None:
-            raise ValueError("No timer is currently running or paused")
+            raise InvalidOperationError(
+                "No timer is currently running or paused", http_status_code=409
+            )
 
         state, _version = state_with_version
         accumulated = state.get("accumulated_seconds", 0)

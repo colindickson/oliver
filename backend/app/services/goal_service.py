@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import GoalNotFoundError
+from app.exceptions import GoalNotFoundError, InvalidOperationError
 from app.models.goal import (
     Goal,
     goal_tags_table,
@@ -194,11 +194,16 @@ class GoalService:
         return await tag_svc.resolve_tags(tag_names)
 
     async def _resolve_tasks(self, task_ids: list[int]) -> list[Task]:
-        """Return Task ORM objects for the given IDs (silently skips missing IDs)."""
+        """Return Task ORM objects for the given IDs, raising if any are missing."""
         if not task_ids:
             return []
         result = await self._db.execute(select(Task).where(Task.id.in_(task_ids)))
-        return list(result.scalars().all())
+        tasks = list(result.scalars().all())
+        if len(tasks) != len(task_ids):
+            found_ids = {t.id for t in tasks}
+            missing = [i for i in task_ids if i not in found_ids]
+            raise InvalidOperationError(f"Task IDs not found: {missing}")
+        return tasks
 
     async def _batch_compute_progress(
         self, goals: list[Goal]

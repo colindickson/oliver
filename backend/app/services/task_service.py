@@ -42,6 +42,7 @@ class TaskService:
             select(Task)
             .where(Task.id == task_id)
             .options(selectinload(Task.rolled_to))
+            .with_for_update()
         )
         task = result.scalar_one_or_none()
         if task is None:

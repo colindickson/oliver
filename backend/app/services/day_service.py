@@ -53,7 +53,9 @@ class DayService:
         Returns:
             The persisted Day instance for the given date.
         """
-        result = await self._db.execute(select(Day).where(Day.date == target_date))
+        result = await self._db.execute(
+            select(Day).where(Day.date == target_date).with_for_update()
+        )
         day = result.scalar_one_or_none()
         if day is None:
             day = Day(date=target_date, created_at=datetime.now(timezone.utc))

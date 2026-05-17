@@ -29,7 +29,7 @@ class DailyNote(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     day_id: Mapped[int] = mapped_column(
-        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False
+        ForeignKey("days.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     updated_at: Mapped[datetime] = mapped_column(
