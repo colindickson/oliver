@@ -145,6 +145,8 @@ export const taskApi = {
     api.post<Task>(`/tasks/${id}/move-to-backlog`).then(r => r.data),
   continue: (id: number, targetDate?: string) =>
     api.post<Task>(`/tasks/${id}/continue`, { target_date: targetDate ?? null }).then(r => r.data),
+  moveCategory: (id: number, category: NonNullable<Task['category']>, order_index?: number) =>
+    api.patch<Task>(`/tasks/${id}/move`, { category, order_index }).then(r => r.data),
 }
 
 export interface TimerState {

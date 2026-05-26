@@ -19,6 +19,7 @@ from app.models.day import Day
 from app.models.task import Task
 from app.schemas.task import (
     TaskCreate,
+    TaskMoveCategory,
     TaskReorder,
     TaskResponse,
     TaskStatusUpdate,
@@ -112,6 +113,45 @@ async def reorder_tasks(
 
     await db.commit()
     return {"reordered": True}
+
+
+# ---------------------------------------------------------------------------
+# Move between categories — must be declared BEFORE /{id} routes
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/{task_id}/move", response_model=TaskResponse)
+async def move_task_category(
+    task_id: int, body: TaskMoveCategory, db: AsyncSession = Depends(get_db)
+) -> TaskResponse:
+    """Move a task to a different category column and reindex both columns.
+
+    Args:
+        task_id: Primary key of the Task to move.
+        body: Contains destination ``category`` and optional ``order_index``.
+        db: Injected async database session.
+
+    Returns:
+        The updated TaskResponse reflecting the new category and position.
+
+    Raises:
+        HTTPException: 404 if no Task with ``task_id`` exists.
+        HTTPException: 422 if the task is not assigned to a day.
+    """
+    service = TaskService(db)
+    task = await service.move_task_category(task_id, body.category, body.order_index)
+    await db.commit()
+
+    result = await db.execute(
+        select(Task)
+        .where(Task.id == task.id)
+        .options(
+            selectinload(Task.rolled_from).selectinload(Task.day),
+            selectinload(Task.rolled_to).selectinload(Task.day),
+        )
+    )
+    loaded = result.scalar_one()
+    return build_task_response(loaded)
 
 
 # ---------------------------------------------------------------------------

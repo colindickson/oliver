@@ -101,6 +101,18 @@ class MoveToDayPayload(BaseModel):
     category: Literal["deep_work", "short_task", "maintenance"] | None = None
 
 
+class TaskMoveCategory(BaseModel):
+    """Payload to move a task to a different category column.
+
+    Attributes:
+        category: Destination category.
+        order_index: Target position in destination category; None = append to bottom.
+    """
+
+    category: Literal["deep_work", "short_task", "maintenance"]
+    order_index: int | None = None
+
+
 class TaskResponse(TagCoercionMixin):
     """Serialised representation of a Task returned by the API.
 

@@ -1,18 +1,10 @@
 import { useState } from 'react'
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from '@dnd-kit/sortable'
+import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useQuery } from '@tanstack/react-query'
 import { backlogApi, templatesApi, type Task, type TaskTemplate } from '../api/client'
@@ -23,12 +15,11 @@ import { CATEGORIES, type CategoryKey } from '../constants/categories'
 interface Props {
   title: string
   category: Task['category']
-  tasks: Task[]
+  categoryTasks: Task[]
   colorClass: CategoryKey
   onAddTask: (title: string, description: string, tags: string[]) => Promise<void>
   onComplete: (task: Task) => void
   onDelete: (id: number) => void
-  onReorder: (taskIds: number[]) => void
   onMoveToBacklog?: (task: Task) => void
   onContinue?: (taskId: number) => void
   onScheduleFromBacklog?: (task: Task) => void
@@ -73,7 +64,6 @@ function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onConti
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-start gap-1">
-      {/* Drag handle */}
       <button
         type="button"
         className="mt-3 flex-shrink-0 text-stone-200 hover:text-stone-400 cursor-grab active:cursor-grabbing transition-colors px-0.5 dark:text-stone-600 dark:hover:text-stone-400"
@@ -100,12 +90,11 @@ function SortableTaskCard({ task, onComplete, onDelete, onMoveToBacklog, onConti
 export function TaskColumn({
   title,
   category,
-  tasks,
+  categoryTasks,
   colorClass,
   onAddTask,
   onComplete,
   onDelete,
-  onReorder,
   onMoveToBacklog,
   onContinue,
   onScheduleFromBacklog,
@@ -132,38 +121,11 @@ export function TaskColumn({
     enabled: adding && addMode === 'template',
   })
 
-  // Maintain local ordered list
-  const initialCategoryTasks = tasks
-    .filter(t => t.category === category)
-    .sort((a, b) => a.order_index - b.order_index)
-  const [orderedTasks, setOrderedTasks] = useState<Task[]>(initialCategoryTasks)
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: `column-${category}` })
 
-  // Sync with server updates
-  const incomingIds = initialCategoryTasks.map(t => t.id).join(',')
-  const localIds = orderedTasks.map(t => t.id).join(',')
-  const syncedTasks =
-    incomingIds === localIds
-      ? orderedTasks.map(ot => initialCategoryTasks.find(t => t.id === ot.id) ?? ot)
-      : initialCategoryTasks
-
-  const completedCount = syncedTasks.filter(t => t.status === 'completed').length
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  )
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-
-    const oldIndex = syncedTasks.findIndex(t => t.id === active.id)
-    const newIndex = syncedTasks.findIndex(t => t.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
-
-    const reordered = arrayMove(syncedTasks, oldIndex, newIndex)
-    setOrderedTasks(reordered)
-    onReorder(reordered.map(t => t.id))
-  }
+  const completedCount = categoryTasks.filter(t => t.status === 'completed').length
+  const totalCount = categoryTasks.length
+  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
   async function handleAdd() {
     if (!newTitle.trim()) return
@@ -201,19 +163,14 @@ export function TaskColumn({
     setNewTags([])
   }
 
-  const totalCount = syncedTasks.length
-  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
-
   return (
     <div className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-stone-700 dark:border-stone-600/30 rounded-xl border border-stone-100 shadow-soft pt-0 px-5 pb-5 border-t-[3px] ${topBorderColors[colorClass]}`}>
-      {/* Column header */}
       <div className="flex items-center justify-between mt-4 mb-2">
         <h2 className="font-semibold text-sm uppercase tracking-wide">{title}</h2>
         <span className="text-xs text-stone-400 tabular-nums font-mono">
           {completedCount}/{totalCount}
         </span>
       </div>
-      {/* Progress bar */}
       <div className="h-[3px] bg-stone-100 dark:bg-stone-600 rounded-full mb-4 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${progressFillColors[colorClass]}`}
@@ -221,35 +178,27 @@ export function TaskColumn({
         />
       </div>
 
-      {/* Task list with drag-to-reorder */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
+      <SortableContext
+        id={category as string}
+        items={categoryTasks.map(t => t.id)}
+        strategy={verticalListSortingStrategy}
       >
-        <SortableContext
-          items={syncedTasks.map(t => t.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="flex flex-col gap-2 flex-1 overflow-auto">
-            {syncedTasks.map(task => (
-              <SortableTaskCard
-                key={task.id}
-                task={task}
-                onComplete={onComplete}
-                onDelete={onDelete}
-                onMoveToBacklog={onMoveToBacklog}
-                onContinue={onContinue ? () => onContinue(task.id) : undefined}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+        <div ref={setDroppableRef} className="flex flex-col gap-2 flex-1 overflow-auto min-h-[40px]">
+          {categoryTasks.map(task => (
+            <SortableTaskCard
+              key={task.id}
+              task={task}
+              onComplete={onComplete}
+              onDelete={onDelete}
+              onMoveToBacklog={onMoveToBacklog}
+              onContinue={onContinue ? () => onContinue(task.id) : undefined}
+            />
+          ))}
+        </div>
+      </SortableContext>
 
-      {/* Add task area */}
       {adding ? (
         <div className="mt-4 space-y-2 animate-fade-in">
-          {/* Mode toggle — shown when backlog or template features are available */}
           {(onScheduleFromBacklog || onInstantiateFromTemplate) && (
             <div className="flex gap-1 p-0.5 bg-stone-100 rounded-lg dark:bg-stone-600">
               <button

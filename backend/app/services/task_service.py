@@ -85,3 +85,61 @@ class TaskService:
         await self._db.flush()
         await self._db.refresh(new_task)
         return task, new_task
+
+    async def move_task_category(
+        self, task_id: int, new_category: str, order_index: int | None = None
+    ) -> Task:
+        result = await self._db.execute(
+            select(Task)
+            .where(Task.id == task_id)
+            .options(selectinload(Task.tags))
+            .with_for_update()
+        )
+        task = result.scalar_one_or_none()
+        if task is None:
+            raise TaskNotFoundError(task_id)
+
+        if task.day_id is None:
+            raise InvalidOperationError(
+                "Task must be on a day to move between categories"
+            )
+
+        if task.category == new_category:
+            if order_index is not None:
+                task.order_index = order_index
+            return task
+
+        day_id = task.day_id
+        old_category = task.category
+
+        if order_index is None:
+            count_result = await self._db.execute(
+                select(Task).where(Task.day_id == day_id, Task.category == new_category)
+            )
+            task.order_index = len(count_result.scalars().all())
+        else:
+            task.order_index = order_index
+
+        task.category = new_category
+
+        await self._db.flush()
+
+        src_result = await self._db.execute(
+            select(Task)
+            .where(Task.day_id == day_id, Task.category == old_category)
+            .order_by(Task.order_index)
+        )
+        for i, t in enumerate(src_result.scalars().all()):
+            t.order_index = i
+
+        dest_result = await self._db.execute(
+            select(Task)
+            .where(Task.day_id == day_id, Task.category == new_category)
+            .order_by(Task.order_index)
+        )
+        for i, t in enumerate(dest_result.scalars().all()):
+            t.order_index = i
+
+        await self._db.flush()
+        await self._db.refresh(task)
+        return task

@@ -1,8 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  DndContext,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import { dayApi, taskApi, backlogApi, templatesApi } from '../api/client'
 import type { Task, TaskTemplate } from '../api/client'
 import { TaskColumn } from '../components/TaskColumn'
+import { TaskCard } from '../components/TaskCard'
 import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { DayNotes } from '../components/DayNotes'
@@ -43,6 +55,7 @@ export function Today() {
   const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
   const [continueTask, setContinueTask] = useState<Task | null>(null)
+  const [activeId, setActiveId] = useState<number | null>(null)
 
   const { data: day, isLoading, isError, refetch } = useQuery({
     queryKey: ['day', 'today'],
@@ -100,6 +113,12 @@ export function Today() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
+  const moveCategory = useMutation({
+    mutationFn: ({ id, category, order_index }: { id: number; category: NonNullable<Task['category']>; order_index?: number }) =>
+      taskApi.moveCategory(id, category, order_index),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
+  })
+
   const moveToBacklog = useMutation({
     mutationFn: taskApi.moveToBacklog,
     onSuccess: () => {
@@ -139,7 +158,73 @@ export function Today() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['day', 'today'] }),
   })
 
-  // Keyboard shortcut: 'n' opens the first column's Add task form
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
+
+  const tasksByCategory = useMemo(() => {
+    const result: Record<string, Task[]> = {}
+    for (const col of columns) {
+      result[col.category] = (day?.tasks ?? [])
+        .filter(t => t.category === col.category)
+        .sort((a, b) => a.order_index - b.order_index)
+    }
+    return result
+  }, [day?.tasks])
+
+  function findCategory(taskId: number): CategoryKey | null {
+    for (const [cat, tasks] of Object.entries(tasksByCategory)) {
+      if (tasks.some(t => t.id === taskId)) return cat as CategoryKey
+    }
+    return null
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as number)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    setActiveId(null)
+    if (!over) return
+
+    const activeTaskId = active.id as number
+    const sourceCategory = findCategory(activeTaskId)
+    if (!sourceCategory) return
+
+    let destCategory: CategoryKey
+    let overTaskId: number | null = null
+
+    const overId = String(over.id)
+    if (overId.startsWith('column-')) {
+      destCategory = overId.replace('column-', '') as CategoryKey
+    } else {
+      overTaskId = over.id as number
+      destCategory = findCategory(overTaskId) ?? sourceCategory
+    }
+
+    if (sourceCategory === destCategory) {
+      const tasks = tasksByCategory[sourceCategory]
+      const oldIndex = tasks.findIndex(t => t.id === activeTaskId)
+      const newIndex = overTaskId
+        ? tasks.findIndex(t => t.id === overTaskId)
+        : tasks.length - 1
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+      const reordered = arrayMove(tasks, oldIndex, newIndex)
+      reorderTasks.mutate(reordered.map(t => t.id))
+    } else {
+      const destTasks = tasksByCategory[destCategory]
+      let targetIndex: number
+      if (overTaskId) {
+        targetIndex = destTasks.findIndex(t => t.id === overTaskId)
+        if (targetIndex === -1) targetIndex = destTasks.length
+      } else {
+        targetIndex = destTasks.length
+      }
+      moveCategory.mutate({ id: activeTaskId, category: destCategory, order_index: targetIndex })
+    }
+  }
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (
@@ -180,10 +265,6 @@ export function Today() {
 
   function handleDelete(id: number) {
     deleteTask.mutate(id)
-  }
-
-  function handleReorder(taskIds: number[]) {
-    reorderTasks.mutate(taskIds)
   }
 
   function handleMoveToBacklog(task: Task) {
@@ -259,19 +340,16 @@ export function Today() {
     )
   }
 
-  // Calculate progress
   const totalTasks = day.tasks.length
   const completedTasks = day.tasks.filter(t => t.status === 'completed').length
   const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
-  // Mobile layout
   if (isMobile) {
     const activeColumn = columns.find(c => c.category === activeTab)!
     return (
       <div className="flex flex-col h-screen bg-stone-900">
         <MobileHeader title="Today" />
 
-        {/* Date + progress */}
         <div className="px-4 py-3 flex items-center justify-between border-b border-stone-700/50 flex-shrink-0">
           <p className="text-sm text-stone-400">{formatDate(new Date())}</p>
           <div className="flex items-center gap-2">
@@ -296,10 +374,8 @@ export function Today() {
           </div>
         </div>
 
-        {/* Focus Goal Banner */}
         <FocusGoalBanner />
 
-        {/* Tab strip */}
         <div className="flex border-b border-stone-700/50 flex-shrink-0">
           {columns.map(col => (
             <button
@@ -316,24 +392,36 @@ export function Today() {
           ))}
         </div>
 
-        {/* Active column — scrollable */}
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-[120px]">
-          <TaskColumn
-            title={activeColumn.title}
-            category={activeColumn.category}
-            tasks={day.tasks}
-            colorClass={activeColumn.color}
-            onAddTask={(title, desc, tags) => handleAddTask(activeColumn.category, title, desc, tags)}
-            onComplete={handleComplete}
-            onDelete={handleDelete}
-            onReorder={handleReorder}
-            onMoveToBacklog={handleMoveToBacklog}
-            onContinue={handleContinue}
-            onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeColumn.category)}
-            onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeColumn.category)}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragEnd={(event) => {
+              const { active, over } = event
+              if (!over || active.id === over.id) return
+              const tasks = tasksByCategory[activeTab]
+              const oldIndex = tasks.findIndex(t => t.id === active.id)
+              const newIndex = tasks.findIndex(t => t.id === over.id)
+              if (oldIndex === -1 || newIndex === -1) return
+              const reordered = arrayMove(tasks, oldIndex, newIndex)
+              reorderTasks.mutate(reordered.map(t => t.id))
+            }}
+          >
+            <TaskColumn
+              title={activeColumn.title}
+              category={activeColumn.category}
+              categoryTasks={tasksByCategory[activeColumn.category]}
+              colorClass={activeColumn.color}
+              onAddTask={(title, desc, tags) => handleAddTask(activeColumn.category, title, desc, tags)}
+              onComplete={handleComplete}
+              onDelete={handleDelete}
+              onMoveToBacklog={handleMoveToBacklog}
+              onContinue={handleContinue}
+              onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeColumn.category)}
+              onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeColumn.category)}
+            />
+          </DndContext>
 
-          {/* Notes + Rating always below tabs */}
           <div className="mt-8 space-y-6">
             <DayNotes
               label="Notes"
@@ -373,14 +461,12 @@ export function Today() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="bg-white border-b border-stone-100 px-8 py-[18px] flex items-center justify-between flex-shrink-0 dark:bg-stone-850 dark:border-stone-700/50">
           <div>
             <h1 className="text-xl font-bold tracking-[-0.02em] text-stone-800 dark:text-stone-100">Today</h1>
             <p className="text-sm text-stone-400 mt-0.5">{formatDate(new Date())}</p>
           </div>
 
-          {/* Numeric progress + bar */}
           <div className="flex flex-col items-end gap-1.5">
             <span className="text-sm font-mono text-stone-500 dark:text-stone-400 tabular-nums">
               {completedTasks} / {totalTasks} tasks
@@ -397,34 +483,48 @@ export function Today() {
           </div>
         </header>
 
-        {/* Focus Goal Banner */}
         <FocusGoalBanner />
 
-        {/* Three-column board */}
         <main className="flex-1 p-8 overflow-auto">
-          <div className="flex gap-6 mb-8">
-            {columns.map(col => (
-              <TaskColumn
-                key={col.category}
-                title={col.title}
-                category={col.category}
-                tasks={day.tasks}
-                colorClass={col.color}
-                onAddTask={(title, desc, tags) => handleAddTask(col.category, title, desc, tags)}
-                onComplete={handleComplete}
-                onDelete={handleDelete}
-                onReorder={handleReorder}
-                onMoveToBacklog={handleMoveToBacklog}
-                onContinue={handleContinue}
-                onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
-                onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, col.category)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-6 mb-8">
+              {columns.map(col => (
+                <TaskColumn
+                  key={col.category}
+                  title={col.title}
+                  category={col.category}
+                  categoryTasks={tasksByCategory[col.category]}
+                  colorClass={col.color}
+                  onAddTask={(title, desc, tags) => handleAddTask(col.category, title, desc, tags)}
+                  onComplete={handleComplete}
+                  onDelete={handleDelete}
+                  onMoveToBacklog={handleMoveToBacklog}
+                  onContinue={handleContinue}
+                  onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, col.category)}
+                  onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, col.category)}
+                />
+              ))}
+            </div>
 
-          {/* Notes, Roadblocks, Rating + Work Log */}
+            <DragOverlay>
+              {activeId ? (() => {
+                const task = day.tasks.find(t => t.id === activeId)
+                if (!task) return null
+                return (
+                  <div className="opacity-80 rotate-2 shadow-lg rounded-xl">
+                    <TaskCard task={task} onComplete={() => {}} onDelete={() => {}} />
+                  </div>
+                )
+              })() : null}
+            </DragOverlay>
+          </DndContext>
+
           <div className="w-full space-y-4">
-            {/* Three cards in a row */}
             <div className="flex gap-4">
               <div className="flex-1 min-w-0 flex flex-col">
                 <DayNotes
@@ -459,13 +559,11 @@ export function Today() {
               </div>
             </div>
 
-            {/* Work Log panel — full width */}
             <TodayWorkLogPanel />
           </div>
         </main>
       </div>
 
-      {/* Notification banner */}
       <NotificationBanner />
 
       <ContinueModal
