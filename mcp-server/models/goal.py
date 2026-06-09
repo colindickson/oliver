@@ -1,7 +1,7 @@
 """Goal model and junction tables for the Goals feature (MCP server mirror)."""
 
 from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 
 from models.base import Base
 
@@ -33,6 +33,14 @@ class Goal(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False)
+    parent_goal_id = Column(
+        Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=True
+    )
 
     tags = relationship("Tag", secondary=goal_tags_table, lazy="selectin")
     direct_tasks = relationship("Task", secondary=goal_tasks_table, lazy="selectin")
+    sub_goals = relationship(
+        "Goal",
+        backref=backref("parent", remote_side="Goal.id"),
+        lazy="selectin",
+    )

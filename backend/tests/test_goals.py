@@ -469,3 +469,38 @@ async def test_get_archived_goals_empty(client: AsyncClient) -> None:
     resp = await client.get("/api/goals/archived")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# Sub-goals: model
+# ---------------------------------------------------------------------------
+
+
+async def test_subgoal_relationship_and_cascade(db_session: AsyncSession) -> None:
+    """A goal can have sub-goals; deleting the parent cascades to children."""
+    from sqlalchemy import select
+
+    parent = Goal(title="Parent", status="active", created_at=datetime.now(timezone.utc))
+    db_session.add(parent)
+    await db_session.commit()
+    await db_session.refresh(parent)
+
+    child = Goal(
+        title="Child",
+        status="active",
+        created_at=datetime.now(timezone.utc),
+        parent_goal_id=parent.id,
+    )
+    db_session.add(child)
+    await db_session.commit()
+    await db_session.refresh(child)
+    child_id = child.id
+
+    assert child.parent_goal_id == parent.id
+
+    # Deleting the parent cascades to the child (ON DELETE CASCADE + PRAGMA on)
+    await db_session.delete(parent)
+    await db_session.commit()
+
+    gone = await db_session.execute(select(Goal).where(Goal.id == child_id))
+    assert gone.scalar_one_or_none() is None

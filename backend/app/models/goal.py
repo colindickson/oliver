@@ -51,6 +51,12 @@ class Goal(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    parent_goal_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("goals.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag",
@@ -60,5 +66,17 @@ class Goal(Base):
     direct_tasks: Mapped[list[Task]] = relationship(
         "Task",
         secondary=goal_tasks_table,
+        lazy="selectin",
+    )
+    sub_goals: Mapped[list[Goal]] = relationship(
+        "Goal",
+        back_populates="parent",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+    parent: Mapped[Goal | None] = relationship(
+        "Goal",
+        back_populates="sub_goals",
+        remote_side="Goal.id",
         lazy="selectin",
     )
