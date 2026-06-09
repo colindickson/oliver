@@ -87,4 +87,19 @@ describe('GoalDetail sub-goals', () => {
       expect(goalApi.update).toHaveBeenCalledWith(2, { clear_parent: true }),
     )
   })
+
+  it('clears the target date via clear_target_date (not a CLEAR sentinel)', async () => {
+    vi.mocked(goalApi.getOne).mockResolvedValue(detail({
+      id: 1, title: 'Parent', target_date: '2026-07-01',
+    }))
+    vi.mocked(goalApi.update).mockResolvedValue(detail({ id: 1, title: 'Parent' }))
+    renderWithProviders(<GoalDetail goalId={1} />)
+    await screen.findByText('Parent')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await waitFor(() =>
+      expect(goalApi.update).toHaveBeenCalledWith(1, { clear_target_date: true }),
+    )
+  })
 })

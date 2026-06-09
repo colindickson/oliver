@@ -438,7 +438,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
               <input
                 type="date"
                 value={goal.target_date ?? ''}
-                onChange={e => updateGoal.mutate({ target_date: e.target.value || 'CLEAR' })}
+                onChange={e => updateGoal.mutate(e.target.value ? { target_date: e.target.value } : { clear_target_date: true })}
                 className="text-sm px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-700 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-terracotta-300 dark:focus:ring-terracotta-600"
               />
             )}
@@ -447,7 +447,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             )}
             {!readOnly && goal.target_date && (
               <button
-                onClick={() => updateGoal.mutate({ target_date: 'CLEAR' })}
+                onClick={() => updateGoal.mutate({ clear_target_date: true })}
                 className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-colors"
               >
                 Clear

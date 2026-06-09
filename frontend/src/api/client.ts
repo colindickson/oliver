@@ -310,7 +310,8 @@ export interface GoalCreate {
 export interface GoalUpdate {
   title?: string | null
   description?: string | null
-  target_date?: string | null  // ISO date or "CLEAR"
+  target_date?: string | null  // ISO date; use clear_target_date to unset
+  clear_target_date?: boolean
   tag_names?: string[] | null
   task_ids?: number[] | null
   parent_goal_id?: number | null
