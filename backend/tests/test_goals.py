@@ -662,3 +662,30 @@ async def test_list_rolls_up_parent_progress(
     assert by_title["Parent"]["total_tasks"] == 2
     assert by_title["Parent"]["sub_goal_count"] == 1
     assert by_title["Parent"]["direct_total_tasks"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Sub-goals: cascade delete
+# ---------------------------------------------------------------------------
+
+
+async def test_delete_parent_cascades_subgoals(
+    client: AsyncClient, two_tasks: list[Task], db_session: AsyncSession
+) -> None:
+    """Deleting a parent deletes its sub-goals but not the underlying tasks."""
+    from sqlalchemy import select
+
+    pending, completed = two_tasks
+    parent = await _make_goal(client, "Parent", task_ids=[pending.id])
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"], task_ids=[completed.id])
+
+    resp = await client.delete(f"/api/goals/{parent['id']}")
+    assert resp.status_code == 200
+
+    assert (await client.get(f"/api/goals/{parent['id']}")).status_code == 404
+    assert (await client.get(f"/api/goals/{child['id']}")).status_code == 404
+
+    # Tasks survive
+    for t in (pending.id, completed.id):
+        row = await db_session.execute(select(Task).where(Task.id == t))
+        assert row.scalar_one_or_none() is not None
