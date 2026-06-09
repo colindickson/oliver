@@ -689,3 +689,68 @@ async def test_delete_parent_cascades_subgoals(
     for t in (pending.id, completed.id):
         row = await db_session.execute(select(Task).where(Task.id == t))
         assert row.scalar_one_or_none() is not None
+
+
+# ---------------------------------------------------------------------------
+# Sub-goals: archive subtree
+# ---------------------------------------------------------------------------
+
+
+async def test_archive_parent_archives_subtree(client: AsyncClient) -> None:
+    parent = await _make_goal(client, "Parent")
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"])
+
+    resp = await client.patch(f"/api/goals/{parent['id']}/archive")
+    assert resp.status_code == 200
+
+    # Both leave the active list...
+    active_titles = [g["title"] for g in (await client.get("/api/goals")).json()]
+    assert "Parent" not in active_titles and "Child" not in active_titles
+    # ...and both appear in the archived list
+    archived_titles = [g["title"] for g in (await client.get("/api/goals/archived")).json()]
+    assert "Parent" in archived_titles and "Child" in archived_titles
+
+
+async def test_unarchive_parent_restores_subtree(client: AsyncClient) -> None:
+    parent = await _make_goal(client, "Parent")
+    await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    await client.patch(f"/api/goals/{parent['id']}/archive")
+
+    resp = await client.patch(f"/api/goals/{parent['id']}/unarchive")
+    assert resp.status_code == 200
+    active_titles = [g["title"] for g in (await client.get("/api/goals")).json()]
+    assert "Parent" in active_titles and "Child" in active_titles
+
+
+async def test_archiving_subtree_clears_focus_on_child(client: AsyncClient) -> None:
+    parent = await _make_goal(client, "Parent")
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"])
+
+    # set the child as the focus goal
+    set_resp = await client.put("/api/settings/focus-goal", json={"goal_id": child["id"]})
+    assert set_resp.status_code == 200
+
+    await client.patch(f"/api/goals/{parent['id']}/archive")
+
+    focus = (await client.get("/api/settings/focus-goal")).json()
+    assert focus["goal_id"] is None
+
+
+async def test_unarchive_preserves_independently_archived_child(
+    client: AsyncClient,
+) -> None:
+    """A sub-goal archived on its own stays archived when the parent is un/re-archived."""
+    parent = await _make_goal(client, "Parent")
+    await _make_goal(client, "Child A", parent_goal_id=parent["id"])
+    child_b = await _make_goal(client, "Child B", parent_goal_id=parent["id"])
+
+    # Independently archive Child B first.
+    await client.patch(f"/api/goals/{child_b['id']}/archive")
+    # Archive the parent subtree, then unarchive it.
+    await client.patch(f"/api/goals/{parent['id']}/archive")
+    await client.patch(f"/api/goals/{parent['id']}/unarchive")
+
+    active = {g["title"] for g in (await client.get("/api/goals")).json()}
+    archived = {g["title"] for g in (await client.get("/api/goals/archived")).json()}
+    assert "Parent" in active and "Child A" in active
+    assert "Child B" in archived and "Child B" not in active

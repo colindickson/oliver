@@ -17,6 +17,7 @@ from oliver_shared import STATUS_GOAL_ACTIVE, STATUS_GOAL_COMPLETED
 from app.models.tag import Tag, task_tags_table
 from app.models.task import Task
 from app.schemas.goal import GoalCreate, GoalDetailResponse, GoalResponse, GoalUpdate
+from app.services.settings_service import SettingsService
 from app.services.tag_service import TagService
 from oliver_shared import STATUS_COMPLETED, STATUS_ROLLED_FORWARD
 
@@ -156,17 +157,38 @@ class GoalService:
         return await self._build_response(goal)
 
     async def archive_goal(self, goal_id: int) -> GoalResponse:
-        """Archive a goal by setting archived_at."""
+        """Archive a goal and (if it is a parent) its active sub-goals as a cohort."""
         goal = await self._get_goal_or_raise(goal_id)
-        goal.archived_at = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        children = await self._get_children(goal)
+
+        goal.archived_at = now
+        newly_archived_child_ids: set[int] = set()
+        for child in children:
+            if child.archived_at is None:
+                child.archived_at = now
+                newly_archived_child_ids.add(child.id)
+
+        # Clear focus if the focus goal is in the cohort we just archived.
+        archived_ids = {goal.id} | newly_archived_child_ids
+        settings = SettingsService(self._db)
+        focus_id = await settings.get_focus_goal_id()
+        if focus_id in archived_ids:
+            await settings.set_focus_goal_id(None)
+
         await self._db.flush()
         await self._db.refresh(goal)
         return await self._build_response(goal)
 
     async def unarchive_goal(self, goal_id: int) -> GoalResponse:
-        """Unarchive a goal by clearing archived_at."""
+        """Unarchive a goal and only the sub-goals archived together with it."""
         goal = await self._get_goal_or_raise(goal_id)
+        cohort_ts = goal.archived_at
         goal.archived_at = None
+        if cohort_ts is not None:
+            for child in await self._get_children(goal):
+                if child.archived_at == cohort_ts:
+                    child.archived_at = None
         await self._db.flush()
         await self._db.refresh(goal)
         return await self._build_response(goal)
