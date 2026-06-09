@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { GoalDetail as GoalDetailType, Task } from '../api/client'
+import { useNavigate } from 'react-router-dom'
+import type { Goal, Task } from '../api/client'
 import { taskApi } from '../api/client'
 import { TagInput } from './TagInput'
 import { GoalTaskPicker } from './GoalTaskPicker'
@@ -16,6 +17,7 @@ interface Props {
   readOnly?: boolean
   onArchive?: () => void
   onUnarchive?: () => void
+  onSelectGoal?: (id: number) => void
 }
 
 interface TaskRowProps {
@@ -85,9 +87,80 @@ function TaskRow({ task, onComplete }: TaskRowProps) {
   )
 }
 
-export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus, readOnly, onArchive, onUnarchive }: Props) {
-  const { goal, updateGoal, setStatus, archiveGoal, unarchiveGoal } = useGoalDetail(goalId)
+// Thin unlink icon for detach affordance
+function UnlinkIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 10l-1.5 1.5a2.5 2.5 0 01-3.5-3.5L3.5 6" />
+      <path d="M10 6l1.5-1.5a2.5 2.5 0 013.5 3.5L13.5 10" />
+      <path d="M2 2l12 12" />
+    </svg>
+  )
+}
+
+interface SubGoalRowProps {
+  child: Goal
+  onSelect: (id: number) => void
+  onDetach: (id: number) => void
+  isDetaching: boolean
+}
+
+function SubGoalRow({ child, onSelect, onDetach, isDetaching }: SubGoalRowProps) {
+  return (
+    <div className="flex items-center gap-2.5 py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700/50 group">
+      {/* Progress dot / mini indicator */}
+      <div className="flex-shrink-0 w-3.5 h-3.5 relative">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" className="text-stone-200 dark:text-stone-600" />
+          {child.progress_pct > 0 && (
+            <circle
+              cx="7" cy="7" r="6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray={`${(child.progress_pct / 100) * 37.7} 37.7`}
+              strokeDashoffset="9.4"
+              strokeLinecap="round"
+              className="text-terracotta-400 dark:text-terracotta-500"
+              transform="rotate(-90 7 7)"
+            />
+          )}
+        </svg>
+      </div>
+
+      {/* Title — clickable */}
+      <button
+        type="button"
+        onClick={() => onSelect(child.id)}
+        className="flex-1 text-sm text-left text-stone-700 dark:text-stone-200 truncate hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors min-w-0"
+      >
+        {child.title}
+      </button>
+
+      {/* Progress % */}
+      <span className="text-xs text-stone-400 dark:text-stone-500 flex-shrink-0 tabular-nums">
+        {child.progress_pct}%
+      </span>
+
+      {/* Detach button — appears on hover */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onDetach(child.id) }}
+        disabled={isDetaching}
+        title="Detach to top-level"
+        className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:hover:text-stone-400 transition-all disabled:opacity-30"
+        aria-label="Detach to top-level"
+      >
+        <UnlinkIcon />
+      </button>
+    </div>
+  )
+}
+
+export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClearFocus, readOnly, onArchive, onUnarchive, onSelectGoal }: Props) {
+  const { goal, updateGoal, setStatus, archiveGoal, unarchiveGoal, createSubGoal, detachSubGoal } = useGoalDetail(goalId)
   const qc = useQueryClient()
+  const navigate = useNavigate()
+
   const toggleTaskComplete = useMutation({
     mutationFn: (task: Task) =>
       taskApi.setStatus(task.id, task.status === 'completed' ? 'pending' : 'completed'),
@@ -96,11 +169,14 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
       qc.invalidateQueries({ queryKey: ['goals'] })
     },
   })
+
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [editingDesc, setEditingDesc] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [showTaskPicker, setShowTaskPicker] = useState(false)
+  const [addingSubGoal, setAddingSubGoal] = useState(false)
+  const [subGoalDraft, setSubGoalDraft] = useState('')
 
   if (!goal) {
     return (
@@ -116,6 +192,22 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
     goal.status === 'active' &&
     goal.target_date != null &&
     new Date(goal.target_date) < new Date(new Date().toISOString().slice(0, 10))
+
+  const isSubGoal = goal.parent_goal_id != null
+
+  // Resolve parent title from cache
+  const allGoals = qc.getQueryData<Goal[]>(['goals'])
+  const parentGoal = isSubGoal
+    ? allGoals?.find(g => g.id === goal.parent_goal_id)
+    : undefined
+
+  function navigateToGoal(id: number) {
+    if (onSelectGoal) {
+      onSelectGoal(id)
+    } else {
+      navigate(`/goals?id=${id}`)
+    }
+  }
 
   function commitTitle() {
     const trimmed = titleDraft.trim()
@@ -141,12 +233,32 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
     unarchiveGoal.mutate(undefined, { onSuccess: onUnarchive })
   }
 
+  function handleSubGoalKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      const trimmed = subGoalDraft.trim()
+      if (!trimmed) return
+      createSubGoal.mutate(
+        { title: trimmed, parent_goal_id: goalId },
+        {
+          onSuccess: (newGoal) => {
+            setSubGoalDraft('')
+            setAddingSubGoal(false)
+            navigateToGoal(newGoal.id)
+          },
+        },
+      )
+    } else if (e.key === 'Escape') {
+      setSubGoalDraft('')
+      setAddingSubGoal(false)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-700 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
             goal.status === 'completed'
               ? 'bg-moss-100 text-moss-700 dark:bg-moss-900/30 dark:text-moss-400'
               : 'bg-terracotta-50 text-terracotta-700 dark:bg-terracotta-900/30 dark:text-terracotta-400'
@@ -234,6 +346,21 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+        {/* Parent breadcrumb — shown when this goal is itself a sub-goal */}
+        {isSubGoal && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-stone-400 dark:text-stone-500">↳ part of</span>
+            <button
+              type="button"
+              onClick={() => navigateToGoal(goal.parent_goal_id!)}
+              className="text-xs text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 font-medium transition-colors truncate max-w-[200px]"
+              title={parentGoal?.title ?? 'parent goal'}
+            >
+              {parentGoal?.title ?? 'parent goal'}
+            </button>
+          </div>
+        )}
 
         {/* Title */}
         <div>
@@ -358,6 +485,76 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
           </div>
         </div>
 
+        {/* Sub-goals section — only shown when this goal is NOT itself a sub-goal */}
+        {!isSubGoal && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">
+                Sub-goals
+              </label>
+              {!readOnly && !addingSubGoal && (
+                <button
+                  type="button"
+                  onClick={() => setAddingSubGoal(true)}
+                  className="text-xs text-terracotta-500 hover:text-terracotta-600 dark:text-terracotta-400 dark:hover:text-terracotta-300 font-medium transition-colors"
+                >
+                  + Add sub-goal
+                </button>
+              )}
+            </div>
+
+            {/* Sub-goal list */}
+            {goal.sub_goals.length > 0 && (
+              <div className="-mx-1 mb-1">
+                {goal.sub_goals.map(child => (
+                  <SubGoalRow
+                    key={child.id}
+                    child={child}
+                    onSelect={navigateToGoal}
+                    onDetach={(id) => detachSubGoal.mutate(id)}
+                    isDetaching={detachSubGoal.isPending}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {goal.sub_goals.length === 0 && !addingSubGoal && (
+              <p className="text-xs text-stone-300 dark:text-stone-600 italic px-3 py-1">
+                No sub-goals yet.
+              </p>
+            )}
+
+            {/* Inline add input */}
+            {addingSubGoal && (
+              <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-50 dark:bg-stone-700/50 border border-stone-200 dark:border-stone-600 focus-within:ring-2 focus-within:ring-terracotta-300 dark:focus-within:ring-terracotta-600">
+                <input
+                  autoFocus
+                  type="text"
+                  value={subGoalDraft}
+                  onChange={e => setSubGoalDraft(e.target.value)}
+                  onKeyDown={handleSubGoalKeyDown}
+                  onBlur={() => {
+                    // small delay so Enter can fire first
+                    setTimeout(() => {
+                      if (!createSubGoal.isPending) {
+                        setSubGoalDraft('')
+                        setAddingSubGoal(false)
+                      }
+                    }, 150)
+                  }}
+                  placeholder="Sub-goal title…"
+                  disabled={createSubGoal.isPending}
+                  className="flex-1 text-sm bg-transparent outline-none text-stone-700 dark:text-stone-200 placeholder:text-stone-300 dark:placeholder:text-stone-600 disabled:opacity-50"
+                />
+                <span className="text-[10px] text-stone-300 dark:text-stone-600 flex-shrink-0">
+                  Enter to save · Esc to cancel
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Directly linked tasks */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -391,6 +588,20 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
                 style={{ width: `${goal.progress_pct}%` }}
               />
             </div>
+            {/* Optional direct-task sub-indicator when there are sub-goals */}
+            {goal.sub_goal_count > 0 && goal.direct_total_tasks > 0 && goal.direct_progress_pct !== goal.progress_pct && (
+              <div className="mt-1 flex items-center gap-1.5">
+                <div className="flex-1 h-1 bg-stone-100 dark:bg-stone-700/60 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-stone-300 dark:bg-stone-600 transition-all"
+                    style={{ width: `${goal.direct_progress_pct}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-stone-300 dark:text-stone-600 flex-shrink-0">
+                  own tasks {goal.direct_progress_pct}%
+                </span>
+              </div>
+            )}
           </div>
         )}
 

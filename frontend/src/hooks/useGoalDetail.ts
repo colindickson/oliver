@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { goalApi, type GoalUpdate } from '../api/client'
+import { goalApi, type GoalCreate, type GoalUpdate } from '../api/client'
 
 export function useGoalDetail(goalId: number | null) {
   const qc = useQueryClient()
@@ -44,5 +44,21 @@ export function useGoalDetail(goalId: number | null) {
     },
   })
 
-  return { goal, isLoading, updateGoal, setStatus, archiveGoal, unarchiveGoal }
+  const createSubGoal = useMutation({
+    mutationFn: (payload: GoalCreate) => goalApi.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
+
+  const detachSubGoal = useMutation({
+    mutationFn: (childId: number) => goalApi.update(childId, { clear_parent: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
+
+  return { goal, isLoading, updateGoal, setStatus, archiveGoal, unarchiveGoal, createSubGoal, detachSubGoal }
 }
