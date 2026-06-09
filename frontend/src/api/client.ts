@@ -283,13 +283,19 @@ export interface Goal {
   archived_at: string | null
   created_at: string
   tags: string[]
+  parent_goal_id: number | null
+  sub_goal_count: number
   total_tasks: number
   completed_tasks: number
   progress_pct: number
+  direct_total_tasks: number
+  direct_completed_tasks: number
+  direct_progress_pct: number
 }
 
 export interface GoalDetail extends Goal {
   tasks: Task[]
+  sub_goals: Goal[]
 }
 
 export interface GoalCreate {
@@ -298,6 +304,7 @@ export interface GoalCreate {
   target_date?: string | null
   tag_names?: string[]
   task_ids?: number[]
+  parent_goal_id?: number | null
 }
 
 export interface GoalUpdate {
@@ -306,6 +313,8 @@ export interface GoalUpdate {
   target_date?: string | null  // ISO date or "CLEAR"
   tag_names?: string[] | null
   task_ids?: number[] | null
+  parent_goal_id?: number | null
+  clear_parent?: boolean
 }
 
 export const goalApi = {
