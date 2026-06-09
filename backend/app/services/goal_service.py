@@ -38,15 +38,17 @@ class GoalService:
         )
         goals = list(result.scalars().all())
 
-        progress_map = await self._batch_compute_progress(goals)
+        progress = await self._batch_compute_progress(goals)
         counts = await self._child_count_map([g.id for g in goals])
-
-        return [
-            self._to_response(
-                g, *progress_map[g.id], sub_goal_count=counts.get(g.id, 0)
+        responses: list[GoalResponse] = []
+        for g in goals:
+            rolled, direct = progress[g.id]
+            responses.append(
+                self._to_response(
+                    g, *rolled, direct=direct, sub_goal_count=counts.get(g.id, 0)
+                )
             )
-            for g in goals
-        ]
+        return responses
 
     async def get_goal(self, goal_id: int) -> GoalDetailResponse:
         """Return a goal with full task list, sub-goals, and progress."""
@@ -54,10 +56,10 @@ class GoalService:
         tasks = await self._get_effective_tasks(goal)
         children = await self._get_children(goal)
         child_progress = await self._batch_compute_progress(children)
-        sub_goals = [
-            self._to_response(c, *child_progress[c.id])
-            for c in children
-        ]
+        sub_goals = []
+        for c in children:
+            rolled, direct = child_progress[c.id]
+            sub_goals.append(self._to_response(c, *rolled, direct=direct))
         return await self._build_response(goal, tasks=tasks, sub_goals=sub_goals)  # type: ignore[return-value]
 
     async def get_archived_goals(self) -> list[GoalResponse]:
@@ -69,15 +71,17 @@ class GoalService:
         )
         goals = list(result.scalars().all())
 
-        progress_map = await self._batch_compute_progress(goals)
+        progress = await self._batch_compute_progress(goals)
         counts = await self._child_count_map([g.id for g in goals])
-
-        return [
-            self._to_response(
-                g, *progress_map[g.id], sub_goal_count=counts.get(g.id, 0)
+        responses: list[GoalResponse] = []
+        for g in goals:
+            rolled, direct = progress[g.id]
+            responses.append(
+                self._to_response(
+                    g, *rolled, direct=direct, sub_goal_count=counts.get(g.id, 0)
+                )
             )
-            for g in goals
-        ]
+        return responses
 
     # ------------------------------------------------------------------
     # Mutations
@@ -215,15 +219,13 @@ class GoalService:
         )
 
     async def _build_response(self, goal: Goal, **extra: object) -> GoalResponse:
-        """Compute progress + child count and serialise a single goal.
-
-        NOTE: until the subtree-progress task, ``_compute_progress`` is own-only,
-        so ``direct`` == rolled-up.
-        """
+        """Compute rolled-up subtree progress + own-only direct progress."""
         total, completed, pct = await self._compute_progress(goal)
+        direct = await self._compute_direct_progress(goal)
         sub_goal_count = await self._count_children(goal)
         return self._to_response(
-            goal, total, completed, pct, sub_goal_count=sub_goal_count, **extra
+            goal, total, completed, pct, direct=direct,
+            sub_goal_count=sub_goal_count, **extra,
         )
 
     async def _get_goal_or_raise(self, goal_id: int) -> Goal:
@@ -306,88 +308,102 @@ class GoalService:
             raise InvalidOperationError(f"Task IDs not found: {missing}")
         return tasks
 
+    async def _batch_own_ids(self, goals: list[Goal]) -> dict[int, set[int]]:
+        """Own effective task IDs for each goal, in a few queries."""
+        ids_map: dict[int, set[int]] = {g.id: set() for g in goals}
+        goal_ids = [g.id for g in goals]
+
+        if goal_ids:
+            direct_rows = await self._db.execute(
+                select(goal_tasks_table.c.goal_id, goal_tasks_table.c.task_id)
+                .where(goal_tasks_table.c.goal_id.in_(goal_ids))
+            )
+            for gid, tid in direct_rows:
+                ids_map[gid].add(tid)
+
+        all_tag_ids = {tag.id for g in goals for tag in g.tags}
+        if all_tag_ids:
+            tag_rows = await self._db.execute(
+                select(task_tags_table.c.task_id, task_tags_table.c.tag_id)
+                .where(task_tags_table.c.tag_id.in_(all_tag_ids))
+            )
+            task_tag_map: dict[int, set[int]] = {}
+            for tid, tag_id in tag_rows:
+                task_tag_map.setdefault(tid, set()).add(tag_id)
+            for g in goals:
+                required = {tag.id for tag in g.tags}
+                if not required:
+                    continue
+                for tid, ttags in task_tag_map.items():
+                    if required.issubset(ttags):
+                        ids_map[g.id].add(tid)
+        return ids_map
+
     async def _batch_compute_progress(
         self, goals: list[Goal]
-    ) -> dict[int, tuple[int, int, int]]:
-        """Compute progress for all goals in a few queries instead of 2N.
+    ) -> dict[int, tuple[tuple[int, int, int], tuple[int, int, int]]]:
+        """For each goal: (rolled_up, direct) progress triples.
 
-        Returns:
-            Dict mapping goal_id to (total_tasks, completed_tasks, progress_pct).
+        rolled_up = subtree (own + direct children); direct = own only.
+        Computed in a bounded number of queries (no per-goal DB calls).
         """
         if not goals:
             return {}
+        own = await self._batch_own_ids(goals)
 
-        goal_ids = [g.id for g in goals]
-
-        # Gather tag-linked task IDs per goal
-        goal_tag_task_ids: dict[int, set[int]] = {gid: set() for gid in goal_ids}
-        all_tag_ids: set[int] = set()
+        children_by_parent: dict[int, list[int]] = {}
         for g in goals:
-            for tag in g.tags:
-                all_tag_ids.add(tag.id)
+            if g.parent_goal_id is not None:
+                children_by_parent.setdefault(g.parent_goal_id, []).append(g.id)
 
-        if all_tag_ids:
-            tag_rows = await self._db.execute(
-                select(
-                    task_tags_table.c.task_id,
-                    task_tags_table.c.tag_id,
-                ).where(task_tags_table.c.tag_id.in_(all_tag_ids))
+        present = {g.id for g in goals}
+        extra_children_result = await self._db.execute(
+            select(Goal).where(Goal.parent_goal_id.in_([g.id for g in goals]))
+        )
+        extra_children = [
+            c for c in extra_children_result.scalars().all() if c.id not in present
+        ]
+        if extra_children:
+            extra_own = await self._batch_own_ids(extra_children)
+            own.update(extra_own)
+            for c in extra_children:
+                children_by_parent.setdefault(c.parent_goal_id, []).append(c.id)
+
+        rolled_ids: dict[int, set[int]] = {}
+        for g in goals:
+            ids = set(own.get(g.id, set()))
+            for cid in children_by_parent.get(g.id, []):
+                ids |= own.get(cid, set())
+            rolled_ids[g.id] = ids
+
+        all_ids: set[int] = set()
+        for s in rolled_ids.values():
+            all_ids |= s
+        statuses: dict[int, str] = {}
+        if all_ids:
+            rows = await self._db.execute(
+                select(Task.id, Task.status).where(Task.id.in_(all_ids))
             )
-            task_tag_map: dict[int, set[int]] = {}
-            for row in tag_rows:
-                task_tag_map.setdefault(row.task_id, set()).add(row.tag_id)
+            statuses = {tid: st for tid, st in rows}
 
-            for goal in goals:
-                required = {tag.id for tag in goal.tags}
-                goal_tag_task_ids[goal.id] = {
-                    tid for tid, ttags in task_tag_map.items()
-                    if required.issubset(ttags)
-                }
-
-        # Gather direct task IDs per goal
-        direct_rows = await self._db.execute(
-            select(
-                goal_tasks_table.c.goal_id,
-                goal_tasks_table.c.task_id,
-            ).where(goal_tasks_table.c.goal_id.in_(goal_ids))
-        )
-        goal_direct_task_ids: dict[int, set[int]] = {gid: set() for gid in goal_ids}
-        for row in direct_rows:
-            goal_direct_task_ids[row.goal_id].add(row.task_id)
-
-        # Merge into effective task IDs
-        all_task_ids: set[int] = set()
-        goal_effective_ids: dict[int, set[int]] = {}
-        for goal in goals:
-            effective = goal_tag_task_ids[goal.id] | goal_direct_task_ids[goal.id]
-            goal_effective_ids[goal.id] = effective
-            all_task_ids.update(effective)
-
-        if not all_task_ids:
-            return {g.id: (0, 0, 0) for g in goals}
-
-        # Single query for all task statuses
-        task_rows = await self._db.execute(
-            select(Task.id, Task.status).where(Task.id.in_(all_task_ids))
-        )
-        task_statuses: dict[int, str] = {row.id: row.status for row in task_rows}
-
-        result: dict[int, tuple[int, int, int]] = {}
-        for goal in goals:
-            effective = goal_effective_ids[goal.id]
-            statuses = [task_statuses[tid] for tid in effective if tid in task_statuses]
-            statuses = [s for s in statuses if s != STATUS_ROLLED_FORWARD]
-            total = len(statuses)
+        def _tally(ids: set[int]) -> tuple[int, int, int]:
+            st = [
+                statuses[t] for t in ids
+                if t in statuses and statuses[t] != STATUS_ROLLED_FORWARD
+            ]
+            total = len(st)
             if total == 0:
-                result[goal.id] = (0, 0, 0)
-            else:
-                completed = sum(1 for s in statuses if s == STATUS_COMPLETED)
-                pct = round(completed / total * 100)
-                result[goal.id] = (total, completed, pct)
-        return result
+                return 0, 0, 0
+            completed = sum(1 for s in st if s == STATUS_COMPLETED)
+            return total, completed, round(completed / total * 100)
 
-    async def _get_effective_tasks(self, goal: Goal) -> list[Task]:
-        """Return the deduped union of tag-linked and directly-linked tasks."""
+        return {
+            g.id: (_tally(rolled_ids[g.id]), _tally(own.get(g.id, set())))
+            for g in goals
+        }
+
+    async def _get_own_effective_task_ids(self, goal: Goal) -> set[int]:
+        """Task IDs linked to THIS goal only (tag-AND union direct), no children."""
         tag_ids = [tag.id for tag in goal.tags]
         direct_task_ids = {t.id for t in goal.direct_tasks}
 
@@ -402,23 +418,45 @@ class GoalService:
             rows = await self._db.execute(stmt)
             tag_task_ids = {row[0] for row in rows}
 
-        all_ids = tag_task_ids | direct_task_ids
+        return tag_task_ids | direct_task_ids
+
+    async def _get_effective_tasks(self, goal: Goal) -> list[Task]:
+        """Return the deduped union of tag-linked and directly-linked tasks."""
+        all_ids = await self._get_own_effective_task_ids(goal)
         if not all_ids:
             return []
-
         result = await self._db.execute(select(Task).where(Task.id.in_(all_ids)))
         return list(result.scalars().all())
 
-    async def _compute_progress(self, goal: Goal) -> tuple[int, int, int]:
-        """Return (total_tasks, completed_tasks, progress_pct) for the goal."""
-        tasks = await self._get_effective_tasks(goal)
-        tasks = [t for t in tasks if t.status != STATUS_ROLLED_FORWARD]
-        total = len(tasks)
+    async def _get_subtree_task_ids(self, goal: Goal) -> set[int]:
+        """Own effective task IDs unioned with every child's own effective task IDs."""
+        ids = await self._get_own_effective_task_ids(goal)
+        for child in await self._get_children(goal):
+            ids |= await self._get_own_effective_task_ids(child)
+        return ids
+
+    async def _progress_for_ids(self, task_ids: set[int]) -> tuple[int, int, int]:
+        """(total, completed, pct) for a set of task IDs, excluding rolled_forward."""
+        if not task_ids:
+            return 0, 0, 0
+        rows = await self._db.execute(
+            select(Task.status).where(Task.id.in_(task_ids))
+        )
+        statuses = [s for (s,) in rows if s != STATUS_ROLLED_FORWARD]
+        total = len(statuses)
         if total == 0:
             return 0, 0, 0
-        completed = sum(1 for t in tasks if t.status == STATUS_COMPLETED)
-        pct = round(completed / total * 100)
-        return total, completed, pct
+        completed = sum(1 for s in statuses if s == STATUS_COMPLETED)
+        return total, completed, round(completed / total * 100)
+
+    async def _compute_progress(self, goal: Goal) -> tuple[int, int, int]:
+        """Rolled-up subtree progress (parent + its sub-goals)."""
+        return await self._progress_for_ids(await self._get_subtree_task_ids(goal))
+
+    async def _compute_direct_progress(self, goal: Goal) -> tuple[int, int, int]:
+        """Progress over the goal's OWN effective tasks only."""
+        own_ids = await self._get_own_effective_task_ids(goal)
+        return await self._progress_for_ids(own_ids)
 
     async def _maybe_auto_complete(self, goal: Goal) -> None:
         """Auto-complete the goal if all tasks are done and goal is still active."""

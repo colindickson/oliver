@@ -598,3 +598,67 @@ async def test_detach_subgoal_via_clear_parent(client: AsyncClient) -> None:
     resp = await client.put(f"/api/goals/{child['id']}", json={"clear_parent": True})
     assert resp.status_code == 200
     assert resp.json()["parent_goal_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# Sub-goals: subtree progress
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def two_tasks(db_session: AsyncSession, day: Day) -> list[Task]:
+    a = Task(day_id=day.id, category="short_task", title="A", status="pending", order_index=0)
+    b = Task(day_id=day.id, category="short_task", title="B", status="completed", order_index=1)
+    db_session.add_all([a, b])
+    await db_session.commit()
+    await db_session.refresh(a)
+    await db_session.refresh(b)
+    return [a, b]
+
+
+async def test_parent_progress_unions_subtree_tasks(
+    client: AsyncClient, two_tasks: list[Task]
+) -> None:
+    """Parent progress includes its own tasks PLUS its sub-goals' tasks."""
+    pending, completed = two_tasks
+    parent = await _make_goal(client, "Parent", task_ids=[pending.id])
+    await _make_goal(client, "Child", parent_goal_id=parent["id"], task_ids=[completed.id])
+
+    resp = await client.get(f"/api/goals/{parent['id']}")
+    data = resp.json()
+    # Subtree union = 2 tasks, 1 completed
+    assert data["total_tasks"] == 2
+    assert data["completed_tasks"] == 1
+    assert data["progress_pct"] == 50
+    # Direct (own) = only the pending task
+    assert data["direct_total_tasks"] == 1
+    assert data["direct_completed_tasks"] == 0
+    assert data["direct_progress_pct"] == 0
+
+
+async def test_leaf_goal_progress_unchanged(
+    client: AsyncClient, two_tasks: list[Task]
+) -> None:
+    """A goal with no sub-goals: rolled-up == direct."""
+    pending, completed = two_tasks
+    goal = await _make_goal(client, "Leaf", task_ids=[pending.id, completed.id])
+    resp = await client.get(f"/api/goals/{goal['id']}")
+    data = resp.json()
+    assert data["total_tasks"] == 2 == data["direct_total_tasks"]
+    assert data["completed_tasks"] == 1 == data["direct_completed_tasks"]
+    assert data["progress_pct"] == 50 == data["direct_progress_pct"]
+
+
+async def test_list_rolls_up_parent_progress(
+    client: AsyncClient, two_tasks: list[Task]
+) -> None:
+    """The flat list endpoint also returns rolled-up parent progress."""
+    pending, completed = two_tasks
+    parent = await _make_goal(client, "Parent", task_ids=[pending.id])
+    await _make_goal(client, "Child", parent_goal_id=parent["id"], task_ids=[completed.id])
+
+    resp = await client.get("/api/goals")
+    by_title = {g["title"]: g for g in resp.json()}
+    assert by_title["Parent"]["total_tasks"] == 2
+    assert by_title["Parent"]["sub_goal_count"] == 1
+    assert by_title["Parent"]["direct_total_tasks"] == 1
