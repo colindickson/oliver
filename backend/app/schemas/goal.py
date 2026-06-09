@@ -19,6 +19,7 @@ class GoalCreate(BaseModel):
     target_date: date | None = None
     tag_names: list[str] = []
     task_ids: list[int] = []
+    parent_goal_id: int | None = None
 
 
 class GoalUpdate(BaseModel):
@@ -34,6 +35,8 @@ class GoalUpdate(BaseModel):
     clear_target_date: bool = False
     tag_names: list[str] | None = None
     task_ids: list[int] | None = None
+    parent_goal_id: int | None = None
+    clear_parent: bool = False
 
 
 class GoalStatusUpdate(BaseModel):
@@ -56,12 +59,18 @@ class GoalResponse(TagCoercionMixin):
     archived_at: datetime | None
     created_at: datetime
     tags: list[str]
+    parent_goal_id: int | None
+    sub_goal_count: int
     total_tasks: int
     completed_tasks: int
     progress_pct: int  # 0-100
+    direct_total_tasks: int
+    direct_completed_tasks: int
+    direct_progress_pct: int  # 0-100, parent's own tasks only
 
 
 class GoalDetailResponse(GoalResponse):
-    """Goal response with full task list (deduped union of tag-tasks + direct tasks)."""
+    """Goal response with full task list and direct sub-goals."""
 
     tasks: list[TaskResponse]
+    sub_goals: list[GoalResponse] = []

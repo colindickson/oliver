@@ -39,16 +39,26 @@ class GoalService:
         goals = list(result.scalars().all())
 
         progress_map = await self._batch_compute_progress(goals)
+        counts = await self._child_count_map([g.id for g in goals])
 
-        return [self._to_response(g, *progress_map[g.id]) for g in goals]
+        return [
+            self._to_response(
+                g, *progress_map[g.id], sub_goal_count=counts.get(g.id, 0)
+            )
+            for g in goals
+        ]
 
     async def get_goal(self, goal_id: int) -> GoalDetailResponse:
-        """Return a goal with full task list and progress."""
+        """Return a goal with full task list, sub-goals, and progress."""
         goal = await self._get_goal_or_raise(goal_id)
-        total, completed, pct = await self._compute_progress(goal)
         tasks = await self._get_effective_tasks(goal)
-
-        return self._to_response(goal, total, completed, pct, tasks=tasks)  # type: ignore[return-value]
+        children = await self._get_children(goal)
+        child_progress = await self._batch_compute_progress(children)
+        sub_goals = [
+            self._to_response(c, *child_progress[c.id])
+            for c in children
+        ]
+        return await self._build_response(goal, tasks=tasks, sub_goals=sub_goals)  # type: ignore[return-value]
 
     async def get_archived_goals(self) -> list[GoalResponse]:
         """Return all archived goals with progress, ordered by archived_at desc."""
@@ -60,8 +70,14 @@ class GoalService:
         goals = list(result.scalars().all())
 
         progress_map = await self._batch_compute_progress(goals)
+        counts = await self._child_count_map([g.id for g in goals])
 
-        return [self._to_response(g, *progress_map[g.id]) for g in goals]
+        return [
+            self._to_response(
+                g, *progress_map[g.id], sub_goal_count=counts.get(g.id, 0)
+            )
+            for g in goals
+        ]
 
     # ------------------------------------------------------------------
     # Mutations
@@ -72,11 +88,15 @@ class GoalService:
         tag_objects = await self._resolve_tags(payload.tag_names)
         task_objects = await self._resolve_tasks(payload.task_ids)
 
+        if payload.parent_goal_id is not None:
+            await self._validate_parent(None, payload.parent_goal_id)
+
         goal = Goal(
             title=payload.title,
             description=payload.description,
             target_date=payload.target_date,
             status=STATUS_GOAL_ACTIVE,
+            parent_goal_id=payload.parent_goal_id,
             created_at=datetime.now(timezone.utc),
         )
         goal.tags = tag_objects
@@ -85,11 +105,7 @@ class GoalService:
         await self._db.flush()
         await self._db.refresh(goal)
 
-        total, completed, pct = await self._compute_progress(goal)
-        await self._db.flush()
-        await self._db.refresh(goal)
-
-        return self._to_response(goal, total, completed, pct)
+        return await self._build_response(goal)
 
     async def update_goal(self, goal_id: int, payload: GoalUpdate) -> GoalResponse:
         """Apply partial updates to a goal."""
@@ -103,6 +119,11 @@ class GoalService:
             goal.target_date = None
         elif payload.target_date is not None:
             goal.target_date = payload.target_date
+        if payload.clear_parent:
+            goal.parent_goal_id = None
+        elif payload.parent_goal_id is not None:
+            await self._validate_parent(goal.id, payload.parent_goal_id)
+            goal.parent_goal_id = payload.parent_goal_id
         if payload.tag_names is not None:
             goal.tags = await self._resolve_tags(payload.tag_names)
         if payload.task_ids is not None:
@@ -114,8 +135,7 @@ class GoalService:
         await self._db.flush()
         await self._db.refresh(goal)
 
-        total, completed, pct = await self._compute_progress(goal)
-        return self._to_response(goal, total, completed, pct)
+        return await self._build_response(goal)
 
     async def set_goal_status(self, goal_id: int, status: str) -> GoalResponse:
         """Manually set the status of a goal."""
@@ -129,8 +149,7 @@ class GoalService:
         await self._db.flush()
         await self._db.refresh(goal)
 
-        total, completed, pct = await self._compute_progress(goal)
-        return self._to_response(goal, total, completed, pct)
+        return await self._build_response(goal)
 
     async def archive_goal(self, goal_id: int) -> GoalResponse:
         """Archive a goal by setting archived_at."""
@@ -138,8 +157,7 @@ class GoalService:
         goal.archived_at = datetime.now(timezone.utc)
         await self._db.flush()
         await self._db.refresh(goal)
-        total, completed, pct = await self._compute_progress(goal)
-        return self._to_response(goal, total, completed, pct)
+        return await self._build_response(goal)
 
     async def unarchive_goal(self, goal_id: int) -> GoalResponse:
         """Unarchive a goal by clearing archived_at."""
@@ -147,8 +165,7 @@ class GoalService:
         goal.archived_at = None
         await self._db.flush()
         await self._db.refresh(goal)
-        total, completed, pct = await self._compute_progress(goal)
-        return self._to_response(goal, total, completed, pct)
+        return await self._build_response(goal)
 
     async def delete_goal(self, goal_id: int) -> None:
         """Delete a goal (cascade removes junction rows; tasks/tags are unaffected)."""
@@ -161,9 +178,20 @@ class GoalService:
     # ------------------------------------------------------------------
 
     def _to_response(
-        self, goal: Goal, total: int, completed: int, pct: int, **extra: object
+        self,
+        goal: Goal,
+        total: int,
+        completed: int,
+        pct: int,
+        *,
+        direct: tuple[int, int, int] | None = None,
+        sub_goal_count: int = 0,
+        **extra: object,
     ) -> GoalResponse:
-        """Build a GoalResponse (or GoalDetailResponse via tasks kwarg)."""
+        """Build a GoalResponse (or GoalDetailResponse when ``tasks`` is given)."""
+        d_total, d_completed, d_pct = (
+            direct if direct is not None else (total, completed, pct)
+        )
         response_cls = GoalDetailResponse if "tasks" in extra else GoalResponse
         return response_cls(
             id=goal.id,
@@ -175,10 +203,27 @@ class GoalService:
             archived_at=goal.archived_at,
             created_at=goal.created_at,
             tags=goal.tags,
+            parent_goal_id=goal.parent_goal_id,
+            sub_goal_count=sub_goal_count,
             total_tasks=total,
             completed_tasks=completed,
             progress_pct=pct,
+            direct_total_tasks=d_total,
+            direct_completed_tasks=d_completed,
+            direct_progress_pct=d_pct,
             **extra,
+        )
+
+    async def _build_response(self, goal: Goal, **extra: object) -> GoalResponse:
+        """Compute progress + child count and serialise a single goal.
+
+        NOTE: until the subtree-progress task, ``_compute_progress`` is own-only,
+        so ``direct`` == rolled-up.
+        """
+        total, completed, pct = await self._compute_progress(goal)
+        sub_goal_count = await self._count_children(goal)
+        return self._to_response(
+            goal, total, completed, pct, sub_goal_count=sub_goal_count, **extra
         )
 
     async def _get_goal_or_raise(self, goal_id: int) -> Goal:
@@ -187,6 +232,62 @@ class GoalService:
         if goal is None:
             raise GoalNotFoundError(goal_id)
         return goal
+
+    async def _validate_parent(self, goal_id: int | None, parent_goal_id: int) -> None:
+        """Enforce the one-level + no-cycle rules for assigning a parent.
+
+        Args:
+            goal_id: The goal being parented (None when creating a brand-new goal).
+            parent_goal_id: The proposed parent.
+        """
+        if goal_id is not None and parent_goal_id == goal_id:
+            raise InvalidOperationError("A goal cannot be its own parent.", 400)
+
+        parent = await self._db.scalar(
+            select(Goal).where(Goal.id == parent_goal_id)
+        )
+        if parent is None:
+            raise InvalidOperationError(
+                f"Parent goal {parent_goal_id} not found.", 400
+            )
+        if parent.parent_goal_id is not None:
+            raise InvalidOperationError(
+                "Sub-goals can only be nested one level deep.", 400
+            )
+        if goal_id is not None:
+            child_count = await self._db.scalar(
+                select(func.count())
+                .select_from(Goal)
+                .where(Goal.parent_goal_id == goal_id)
+            )
+            if child_count:
+                raise InvalidOperationError(
+                    "A goal with sub-goals cannot become a sub-goal.", 400
+                )
+
+    async def _get_children(self, goal: Goal) -> list[Goal]:
+        result = await self._db.execute(
+            select(Goal).where(Goal.parent_goal_id == goal.id)
+        )
+        return list(result.scalars().all())
+
+    async def _count_children(self, goal: Goal) -> int:
+        count = await self._db.scalar(
+            select(func.count())
+            .select_from(Goal)
+            .where(Goal.parent_goal_id == goal.id)
+        )
+        return int(count or 0)
+
+    async def _child_count_map(self, goal_ids: list[int]) -> dict[int, int]:
+        if not goal_ids:
+            return {}
+        rows = await self._db.execute(
+            select(Goal.parent_goal_id, func.count())
+            .where(Goal.parent_goal_id.in_(goal_ids))
+            .group_by(Goal.parent_goal_id)
+        )
+        return {pid: cnt for pid, cnt in rows if pid is not None}
 
     async def _resolve_tags(self, tag_names: list[str]) -> list[Tag]:
         """Return Tag ORM objects for the given names, creating any that are missing."""

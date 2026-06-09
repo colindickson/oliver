@@ -504,3 +504,97 @@ async def test_subgoal_relationship_and_cascade(db_session: AsyncSession) -> Non
 
     gone = await db_session.execute(select(Goal).where(Goal.id == child_id))
     assert gone.scalar_one_or_none() is None
+
+
+# ---------------------------------------------------------------------------
+# Sub-goals: CRUD + invariants
+# ---------------------------------------------------------------------------
+
+
+async def _make_goal(client: AsyncClient, title: str, **extra) -> dict:
+    resp = await client.post("/api/goals", json={"title": title, **extra})
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+async def test_create_subgoal(client: AsyncClient) -> None:
+    """A goal can be created under a parent."""
+    parent = await _make_goal(client, "Parent")
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    assert child["parent_goal_id"] == parent["id"]
+    assert child["sub_goal_count"] == 0
+
+
+async def test_parent_reports_sub_goal_count_and_list(client: AsyncClient) -> None:
+    """Parent detail exposes sub_goal_count and the sub_goals list."""
+    parent = await _make_goal(client, "Parent")
+    await _make_goal(client, "Child A", parent_goal_id=parent["id"])
+    await _make_goal(client, "Child B", parent_goal_id=parent["id"])
+
+    resp = await client.get(f"/api/goals/{parent['id']}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["sub_goal_count"] == 2
+    assert {g["title"] for g in data["sub_goals"]} == {"Child A", "Child B"}
+
+
+async def test_subgoals_included_in_flat_list(client: AsyncClient) -> None:
+    """The flat list still returns every goal (frontend nests them)."""
+    parent = await _make_goal(client, "Parent")
+    await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    resp = await client.get("/api/goals")
+    titles = [g["title"] for g in resp.json()]
+    assert "Parent" in titles and "Child" in titles
+
+
+async def test_reject_nonexistent_parent(client: AsyncClient) -> None:
+    resp = await client.post("/api/goals", json={"title": "X", "parent_goal_id": 99999})
+    assert resp.status_code == 400
+
+
+async def test_reject_grandchild(client: AsyncClient) -> None:
+    """One level only: a sub-goal cannot itself be a parent."""
+    parent = await _make_goal(client, "Parent")
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    resp = await client.post(
+        "/api/goals", json={"title": "Grandchild", "parent_goal_id": child["id"]}
+    )
+    assert resp.status_code == 400
+
+
+async def test_reject_self_parent(client: AsyncClient) -> None:
+    goal = await _make_goal(client, "Goal")
+    resp = await client.put(
+        f"/api/goals/{goal['id']}", json={"parent_goal_id": goal["id"]}
+    )
+    assert resp.status_code == 400
+
+
+async def test_reject_parent_with_children_as_child(client: AsyncClient) -> None:
+    """A goal that already has sub-goals cannot become a sub-goal."""
+    parent = await _make_goal(client, "Parent")
+    await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    other = await _make_goal(client, "Other")
+    resp = await client.put(
+        f"/api/goals/{parent['id']}", json={"parent_goal_id": other["id"]}
+    )
+    assert resp.status_code == 400
+
+
+async def test_reparent_via_update(client: AsyncClient) -> None:
+    parent_a = await _make_goal(client, "A")
+    parent_b = await _make_goal(client, "B")
+    child = await _make_goal(client, "Child", parent_goal_id=parent_a["id"])
+    resp = await client.put(
+        f"/api/goals/{child['id']}", json={"parent_goal_id": parent_b["id"]}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["parent_goal_id"] == parent_b["id"]
+
+
+async def test_detach_subgoal_via_clear_parent(client: AsyncClient) -> None:
+    parent = await _make_goal(client, "Parent")
+    child = await _make_goal(client, "Child", parent_goal_id=parent["id"])
+    resp = await client.put(f"/api/goals/{child['id']}", json={"clear_parent": True})
+    assert resp.status_code == 200
+    assert resp.json()["parent_goal_id"] is None
