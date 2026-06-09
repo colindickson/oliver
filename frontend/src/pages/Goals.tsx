@@ -8,6 +8,8 @@ import { useFocusGoal } from '../hooks/useFocusGoal'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
+import { buildGoalTree } from '../utils/goalTree'
+import type { Goal } from '../api/client'
 
 function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void; onCancel: () => void }) {
   const [title, setTitle] = useState('')
@@ -49,6 +51,87 @@ function NewGoalForm({ onCreate, onCancel }: { onCreate: (title: string) => void
   )
 }
 
+/** Chevron SVG that rotates when expanded */
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`flex-shrink-0 text-stone-400 transition-transform duration-200 ${expanded ? 'rotate-90' : 'rotate-0'}`}
+    >
+      <path d="M4 2l4 4-4 4" />
+    </svg>
+  )
+}
+
+interface GoalGroupProps {
+  goal: Goal
+  children: Goal[]
+  selectedGoalId: number | null
+  focusGoalId: number | null
+  onSelect: (id: number) => void
+  onSetFocus: (id: number) => void
+  onArchive: (goal: Goal) => void
+}
+
+/** Renders a parent GoalCard with its children nested beneath it */
+function GoalGroup({ goal, children, selectedGoalId, focusGoalId, onSelect, onSetFocus, onArchive }: GoalGroupProps) {
+  const [expanded, setExpanded] = useState(true)
+  const hasChildren = children.length > 0
+
+  return (
+    <div>
+      {/* Parent row */}
+      <div className="flex items-center gap-1">
+        {hasChildren && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="p-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors flex-shrink-0"
+            aria-label={expanded ? 'Collapse sub-goals' : 'Expand sub-goals'}
+          >
+            <ChevronIcon expanded={expanded} />
+          </button>
+        )}
+        {!hasChildren && <div className="w-[20px] flex-shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <GoalCard
+            goal={goal}
+            isSelected={selectedGoalId === goal.id}
+            isFocusGoal={focusGoalId === goal.id}
+            onClick={() => onSelect(goal.id)}
+            onSetFocus={goal.status === 'active' ? () => onSetFocus(goal.id) : undefined}
+            onArchive={() => onArchive(goal)}
+          />
+        </div>
+      </div>
+
+      {/* Children — nested with a connecting indent line */}
+      {hasChildren && expanded && (
+        <div className="ml-[22px] pl-3 border-l-2 border-terracotta-100 dark:border-terracotta-900/50 space-y-1 mt-1 mb-1">
+          {children.map(child => (
+            <GoalCard
+              key={child.id}
+              goal={child}
+              isSelected={selectedGoalId === child.id}
+              isFocusGoal={focusGoalId === child.id}
+              isSubGoal
+              onClick={() => onSelect(child.id)}
+              onSetFocus={child.status === 'active' ? () => onSetFocus(child.id) : undefined}
+              onArchive={() => onArchive(child)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Goals() {
   const { goals, isError, createGoal, deleteGoal, archiveGoal } = useGoals()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -68,8 +151,10 @@ export function Goals() {
     }
   }, [selectedGoalId, setSearchParams])
 
-  const activeGoals = goals.filter(g => g.status === 'active')
-  const completedGoals = goals.filter(g => g.status === 'completed')
+  // Build tree — top-level nodes only; sub-goals appear nested under parents
+  const tree = buildGoalTree(goals)
+  const activeTree = tree.filter(node => node.goal.status === 'active')
+  const completedTree = tree.filter(node => node.goal.status === 'completed')
 
   function handleCreate(title: string) {
     createGoal.mutate({ title }, {
@@ -97,6 +182,15 @@ export function Goals() {
         onSuccess: () => setSelectedGoalId(null),
       })
     }
+  }
+
+  function handleArchiveGoal(goal: Goal) {
+    if (focusGoalId === goal.id) setFocusGoal.mutate(null)
+    archiveGoal.mutate(goal.id)
+  }
+
+  function handleSetFocusGoal(id: number) {
+    setFocusGoal.mutate(id)
   }
 
   if (isError) {
@@ -165,42 +259,42 @@ export function Goals() {
             )}
 
             {/* Active */}
-            {activeGoals.length > 0 && (
+            {activeTree.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                   Active
                 </p>
-                {activeGoals.map(goal => (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    isSelected={selectedGoalId === goal.id}
-                    isFocusGoal={focusGoalId === goal.id}
-                    onClick={() => setSelectedGoalId(goal.id)}
-                    onSetFocus={() => setFocusGoal.mutate(goal.id)}
-                    onArchive={() => {
-                      if (focusGoalId === goal.id) setFocusGoal.mutate(null)
-                      archiveGoal.mutate(goal.id)
-                    }}
+                {activeTree.map(node => (
+                  <GoalGroup
+                    key={node.goal.id}
+                    goal={node.goal}
+                    children={node.children}
+                    selectedGoalId={selectedGoalId}
+                    focusGoalId={focusGoalId}
+                    onSelect={setSelectedGoalId}
+                    onSetFocus={handleSetFocusGoal}
+                    onArchive={handleArchiveGoal}
                   />
                 ))}
               </div>
             )}
 
             {/* Completed */}
-            {completedGoals.length > 0 && (
+            {completedTree.length > 0 && (
               <div className="space-y-1.5 mt-3">
                 <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                   Completed
                 </p>
-                {completedGoals.map(goal => (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    isSelected={selectedGoalId === goal.id}
-                    isFocusGoal={focusGoalId === goal.id}
-                    onClick={() => setSelectedGoalId(goal.id)}
-                    onArchive={() => archiveGoal.mutate(goal.id)}
+                {completedTree.map(node => (
+                  <GoalGroup
+                    key={node.goal.id}
+                    goal={node.goal}
+                    children={node.children}
+                    selectedGoalId={selectedGoalId}
+                    focusGoalId={focusGoalId}
+                    onSelect={setSelectedGoalId}
+                    onSetFocus={handleSetFocusGoal}
+                    onArchive={handleArchiveGoal}
                   />
                 ))}
               </div>
@@ -216,6 +310,7 @@ export function Goals() {
                   onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
                   onClearFocus={() => setFocusGoal.mutate(null)}
                   onArchive={handleArchive}
+                  onSelectGoal={setSelectedGoalId}
                 />
               </div>
             )}
@@ -273,42 +368,42 @@ export function Goals() {
           )}
 
           {/* Active */}
-          {activeGoals.length > 0 && (
+          {activeTree.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                 Active
               </p>
-              {activeGoals.map(goal => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  isSelected={selectedGoalId === goal.id}
-                  isFocusGoal={focusGoalId === goal.id}
-                  onClick={() => setSelectedGoalId(goal.id)}
-                  onSetFocus={() => setFocusGoal.mutate(goal.id)}
-                  onArchive={() => {
-                    if (focusGoalId === goal.id) setFocusGoal.mutate(null)
-                    archiveGoal.mutate(goal.id)
-                  }}
+              {activeTree.map(node => (
+                <GoalGroup
+                  key={node.goal.id}
+                  goal={node.goal}
+                  children={node.children}
+                  selectedGoalId={selectedGoalId}
+                  focusGoalId={focusGoalId}
+                  onSelect={setSelectedGoalId}
+                  onSetFocus={handleSetFocusGoal}
+                  onArchive={handleArchiveGoal}
                 />
               ))}
             </div>
           )}
 
           {/* Completed */}
-          {completedGoals.length > 0 && (
+          {completedTree.length > 0 && (
             <div className="space-y-1.5 mt-3">
               <p className="text-[10px] font-mono font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest px-1 pt-1">
                 Completed
               </p>
-              {completedGoals.map(goal => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  isSelected={selectedGoalId === goal.id}
-                  isFocusGoal={focusGoalId === goal.id}
-                  onClick={() => setSelectedGoalId(goal.id)}
-                  onArchive={() => archiveGoal.mutate(goal.id)}
+              {completedTree.map(node => (
+                <GoalGroup
+                  key={node.goal.id}
+                  goal={node.goal}
+                  children={node.children}
+                  selectedGoalId={selectedGoalId}
+                  focusGoalId={focusGoalId}
+                  onSelect={setSelectedGoalId}
+                  onSetFocus={handleSetFocusGoal}
+                  onArchive={handleArchiveGoal}
                 />
               ))}
             </div>
@@ -327,6 +422,7 @@ export function Goals() {
             onSetFocus={() => setFocusGoal.mutate(selectedGoalId)}
             onClearFocus={() => setFocusGoal.mutate(null)}
             onArchive={handleArchive}
+            onSelectGoal={setSelectedGoalId}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

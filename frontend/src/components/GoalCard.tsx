@@ -4,6 +4,7 @@ interface Props {
   goal: Goal
   isSelected: boolean
   isFocusGoal?: boolean
+  isSubGoal?: boolean
   onClick: () => void
   onSetFocus?: () => void
   onArchive?: () => void
@@ -15,9 +16,10 @@ function isOverdue(targetDate: string | null): boolean {
   return new Date(targetDate) < new Date(new Date().toISOString().slice(0, 10))
 }
 
-export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus, onArchive, onUnarchive }: Props) {
+export function GoalCard({ goal, isSelected, isFocusGoal, isSubGoal, onClick, onSetFocus, onArchive, onUnarchive }: Props) {
   const overdue = goal.status === 'active' && isOverdue(goal.target_date)
   const isCompleted = goal.status === 'completed'
+  const hasSubGoals = goal.sub_goal_count > 0
 
   function handleSetFocus(e: React.MouseEvent) {
     e.stopPropagation()
@@ -34,28 +36,54 @@ export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus, o
     onUnarchive?.()
   }
 
-  const circumference = 100.53 // 2π×16
+  // Ring sizing: sub-goal uses a slightly smaller ring
+  const ringSize = isSubGoal ? 'w-7 h-7' : 'w-9 h-9'
+  const ringViewBox = isSubGoal ? '0 0 28 28' : '0 0 36 36'
+  const ringCx = isSubGoal ? '14' : '18'
+  const ringCy = isSubGoal ? '14' : '18'
+  const ringR = isSubGoal ? 12 : 16
+  const circumference = 2 * Math.PI * ringR
   const strokeDash = `${goal.progress_pct * circumference / 100} ${circumference}`
   const ringColor = isCompleted ? '#4a8a4a' : '#e86b3a'
+  const strokeWidth = isSubGoal ? '2.5' : '3'
+
+  // Card padding/rounding: sub-goal is more compact
+  const cardClass = isSubGoal
+    ? 'w-full text-left px-2.5 py-2 rounded-lg border transition-all'
+    : 'w-full text-left px-3 py-3 rounded-xl border transition-all'
+
+  const subGoalLabel = hasSubGoals
+    ? goal.sub_goal_count === 1
+      ? '1 sub-goal'
+      : `${goal.sub_goal_count} sub-goals`
+    : null
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className={`w-full text-left px-3 py-3 rounded-xl border transition-all ${
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className={`${cardClass} cursor-pointer ${
         isSelected
           ? 'border-terracotta-400 bg-terracotta-50/60 dark:bg-terracotta-900/20 dark:border-terracotta-600'
           : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm dark:bg-stone-800 dark:border-stone-700 dark:hover:border-stone-600'
       } ${isCompleted ? 'opacity-60' : ''}`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {/* Progress ring */}
-        <div className="relative flex-shrink-0 w-9 h-9">
-          <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-stone-100 dark:text-stone-700" />
-            <circle cx="18" cy="18" r="16" fill="none" stroke={ringColor} strokeWidth="3" strokeLinecap="round"
+        <div className={`relative flex-shrink-0 ${ringSize}`}>
+          <svg className={`${ringSize} -rotate-90`} viewBox={ringViewBox}>
+            <circle cx={ringCx} cy={ringCy} r={ringR} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-stone-100 dark:text-stone-700" />
+            <circle cx={ringCx} cy={ringCy} r={ringR} fill="none" stroke={ringColor} strokeWidth={strokeWidth} strokeLinecap="round"
               strokeDasharray={strokeDash} className="transition-all duration-500" />
           </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-medium text-stone-500 dark:text-stone-400 rotate-0">
+          <span className={`absolute inset-0 flex items-center justify-center font-mono font-medium text-stone-500 dark:text-stone-400 rotate-0 ${isSubGoal ? 'text-[8px]' : 'text-[9px]'}`}>
             {goal.progress_pct}%
           </span>
         </div>
@@ -66,13 +94,21 @@ export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus, o
             {isFocusGoal && (
               <div className="w-1.5 h-1.5 rounded-full bg-terracotta-500 flex-shrink-0" title="Focus goal" />
             )}
-            <span className={`text-sm font-medium leading-snug truncate ${
+            <span className={`font-medium leading-snug truncate ${
+              isSubGoal ? 'text-xs' : 'text-sm'
+            } ${
               isCompleted ? 'text-stone-400 line-through dark:text-stone-500' : 'text-stone-800 dark:text-stone-100'
             }`}>
               {goal.title}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1">
+            {/* Sub-goal count badge (only on parent cards) */}
+            {subGoalLabel && (
+              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full bg-terracotta-100 dark:bg-terracotta-900/30 text-terracotta-600 dark:text-terracotta-400 border border-terracotta-200 dark:border-terracotta-700 flex-shrink-0">
+                {subGoalLabel}
+              </span>
+            )}
             {goal.tags.slice(0, 3).map(tag => (
               <span key={tag} className="font-mono text-[10px] text-stone-400 dark:text-stone-500">#{tag}</span>
             ))}
@@ -119,6 +155,6 @@ export function GoalCard({ goal, isSelected, isFocusGoal, onClick, onSetFocus, o
           )}
         </div>
       </div>
-    </button>
+    </div>
   )
 }
