@@ -267,7 +267,7 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
           </span>
           {goal.total_tasks > 0 && (
             <span className="text-xs text-stone-400 dark:text-stone-500">
-              {goal.completed_tasks}/{goal.total_tasks} tasks · {goal.progress_pct}%
+              {goal.completed_tasks}/{goal.total_tasks} tasks{goal.sub_goal_count > 0 ? ' (incl. sub-goals)' : ''} · {goal.progress_pct}%
             </span>
           )}
         </div>

@@ -32,6 +32,9 @@ export function useGoalDetail(goalId: number | null) {
       qc.invalidateQueries({ queryKey: ['goals', goalId] })
       qc.invalidateQueries({ queryKey: ['goals'] })
       qc.invalidateQueries({ queryKey: ['goals', 'archived'] })
+      // Archiving a subtree can clear the focus setting server-side
+      // (when the focus goal is in the archived subtree) — refresh it.
+      qc.invalidateQueries({ queryKey: ['settings', 'focus-goal'] })
     },
   })
 
