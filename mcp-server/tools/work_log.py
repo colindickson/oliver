@@ -13,6 +13,26 @@ from tools.tasks import _get_or_create_tags
 from oliver_shared import validate_tag_count, validate_log_type, MAX_TAGS_PER_TASK
 
 
+def _normalize_project_name(project_name: str) -> str:
+    """Normalize a project name that arrived as an absolute filesystem path.
+
+    Some callers (e.g. hooks that cannot compute basenames) pass a full path
+    like ``/Users/cdickson/code/epsilon/poka`` where a bare ``poka`` is meant.
+    Only path-like values (starting with ``/`` or ``~``) are reduced to their
+    final segment; everything else — plain names, relative ``team/project``
+    names, and degenerate inputs like ``/`` or ``""`` — is returned unchanged.
+    """
+    if not project_name or not project_name.strip():
+        return project_name
+    if not project_name.startswith(("/", "~")):
+        return project_name
+    stripped = project_name.rstrip("/")
+    segment = stripped.rsplit("/", 1)[-1]
+    if not segment or segment == "~":
+        return project_name
+    return segment
+
+
 def _create_work_log_in_session(
     session,
     project_name: str,
@@ -21,6 +41,7 @@ def _create_work_log_in_session(
     target_date: date,
     log_type: str | None = None,
 ) -> dict:
+    project_name = _normalize_project_name(project_name)
     pd = session.query(ProjectDefault).filter(
         ProjectDefault.project_name == project_name
     ).first()
