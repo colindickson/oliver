@@ -105,20 +105,17 @@ reset: db-backup down clean build up ## Full reset: clean, rebuild, start fresh
 
 start:
 	$(MAKE) build
-	$(COMPOSE) down $(BACKEND) $(FRONTEND)
 	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
 
 restart: ## Restart backend and frontend services (with database backup)
 	$(MAKE) db-backup
 	$(MAKE) build
-	$(COMPOSE) down $(BACKEND) $(FRONTEND)
 	$(COMPOSE) up -d $(BACKEND) $(FRONTEND)
 
 update: ## Pull latest code, backup DB, rebuild, and run migrations
 	git pull
 	$(MAKE) db-backup
 	$(MAKE) build
-	$(COMPOSE) down $(BACKEND) $(FRONTEND)
 	$(COMPOSE) up -d $(BACKEND)
 	@echo "Waiting for backend to start..."
 	@sleep 2
