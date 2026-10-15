@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { backlogApi, dayApi, taskApi, tagApi, type Task, type TagResponse } from '../api/client'
+import { backlogApi, backlogOrigin, dayApi, taskApi, tagApi, type Task, type TagResponse } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { NotificationBanner } from '../components/NotificationBanner'
 import { TagInput } from '../components/TagInput'
@@ -93,6 +93,9 @@ function BacklogTaskCard({ task, onMoveToDay, onDelete }: BacklogTaskCardProps) 
         <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
           {task.title}
         </p>
+        {backlogOrigin(task) && (
+          <p className="text-[10px] text-stone-400 dark:text-stone-500">{backlogOrigin(task)}</p>
+        )}
         {task.description && (
           <p className="text-xs text-stone-400 mt-0.5 truncate">{task.description}</p>
         )}
@@ -364,8 +367,8 @@ export function Backlog() {
     mutationFn: ({ taskId, dayId, category }: { taskId: number; dayId: number; category: 'deep_work' | 'short_task' | 'maintenance' }) =>
       backlogApi.moveToDay(taskId, { day_id: dayId, category }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['backlog'] })
-      qc.invalidateQueries({ queryKey: ['day'] })
+
+      for (const k of ['backlog', 'day', 'days', 'goals', 'goal']) qc.invalidateQueries({ queryKey: [k] })
     },
   })
 
@@ -529,7 +532,7 @@ export function Backlog() {
           <div>
             <h1 className="text-xl font-bold tracking-[-0.02em] text-stone-800 dark:text-stone-100">Backlog</h1>
             <p className="text-sm text-stone-400 mt-0.5">
-              {tasks.length} task{tasks.length !== 1 ? 's' : ''} waiting to be scheduled
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} idle
             </p>
           </div>
         </header>

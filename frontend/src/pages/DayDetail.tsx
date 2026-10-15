@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dayApi, taskApi, backlogApi, templatesApi } from '../api/client'
+import { dayApi, taskApi, backlogApi, backlogOrigin, templatesApi } from '../api/client'
 import type { Task, DayOffReason, TaskTemplate } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { ConfirmableDelete } from '../components/ConfirmableDelete'
@@ -190,11 +190,12 @@ interface AddTaskFormProps {
   onSubmit: () => void
   onCancel: () => void
   onScheduleFromBacklog?: (task: Task, category: NonNullable<Task['category']>) => void
+  dayId?: number
   onInstantiateFromTemplate?: (template: TaskTemplate, category: NonNullable<Task['category']>) => void
   mt?: boolean
 }
 
-function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onTagsChange, onSubmit, onCancel, onScheduleFromBacklog, onInstantiateFromTemplate, mt }: AddTaskFormProps) {
+function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onTagsChange, onSubmit, onCancel, onScheduleFromBacklog, dayId, onInstantiateFromTemplate, mt }: AddTaskFormProps) {
   const [addMode, setAddMode] = useState<'new' | 'backlog' | 'template'>('new')
   const [backlogSearch, setBacklogSearch] = useState('')
   const [templateSearch, setTemplateSearch] = useState('')
@@ -309,6 +310,8 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
                 </p>
               ) : (
                 backlogTasks
+                  // Future-day tasks are idle too; don't offer this day's own tasks.
+                  .filter(t => t.day_id !== dayId)
                   .filter(t =>
                     !backlogSearch.trim() ||
                     t.title.toLowerCase().includes(backlogSearch.toLowerCase())
@@ -322,7 +325,10 @@ function AddTaskForm({ category, isOpen, title, tags, onOpen, onTitleChange, onT
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
                     >
-                      <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                      <p className="text-xs font-medium text-stone-700 dark:text-stone-200 truncate">{t.title}</p>
+                      {backlogOrigin(t) && (
+                        <p className="text-[10px] text-stone-400 dark:text-stone-500">{backlogOrigin(t)}</p>
+                      )}
                       {t.description && (
                         <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
                       )}
@@ -403,6 +409,7 @@ export function DayDetail() {
   const { theme } = useTheme()
   const todayStr = new Date().toLocaleDateString('en-CA')
   const isFuture = !!date && date > todayStr
+  const isPast = !!date && date < todayStr
 
   const { data: day, isLoading, isError } = useQuery({
     queryKey: ['day', date],
@@ -457,9 +464,7 @@ export function DayDetail() {
       return backlogApi.moveToDay(taskId, { day_id: day.id, category })
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['day', date] })
-      qc.invalidateQueries({ queryKey: ['days', 'all'] })
-      qc.invalidateQueries({ queryKey: ['backlog'] })
+      for (const k of ['backlog', 'day', 'days', 'goals', 'goal']) qc.invalidateQueries({ queryKey: [k] })
     },
   })
 
@@ -639,7 +644,8 @@ export function DayDetail() {
                     onTagsChange={setNewTaskTags}
                     onSubmit={() => handleAddTask(activeCat.key)}
                     onCancel={cancelAdd}
-                    onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeCat.key)}
+                    dayId={day?.id}
+                    onScheduleFromBacklog={isPast ? undefined : (task) => handleScheduleFromBacklog(task, activeCat.key)}
                     onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeCat.key)}
                   />
                 ) : (
@@ -664,7 +670,8 @@ export function DayDetail() {
                       onTagsChange={setNewTaskTags}
                       onSubmit={() => handleAddTask(activeCat.key)}
                       onCancel={cancelAdd}
-                      onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, activeCat.key)}
+                      dayId={day?.id}
+                      onScheduleFromBacklog={isPast ? undefined : (task) => handleScheduleFromBacklog(task, activeCat.key)}
                       onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, activeCat.key)}
                       mt
                     />
@@ -893,7 +900,8 @@ export function DayDetail() {
                           onTagsChange={setNewTaskTags}
                           onSubmit={() => handleAddTask(cat.key)}
                           onCancel={cancelAdd}
-                          onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, cat.key)}
+                          dayId={day?.id}
+                          onScheduleFromBacklog={isPast ? undefined : (task) => handleScheduleFromBacklog(task, cat.key)}
                           onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, cat.key)}
                         />
                       </div>
@@ -934,7 +942,8 @@ export function DayDetail() {
                         onTagsChange={setNewTaskTags}
                         onSubmit={() => handleAddTask(cat.key)}
                         onCancel={cancelAdd}
-                        onScheduleFromBacklog={(task) => handleScheduleFromBacklog(task, cat.key)}
+                        dayId={day?.id}
+                        onScheduleFromBacklog={isPast ? undefined : (task) => handleScheduleFromBacklog(task, cat.key)}
                         onInstantiateFromTemplate={(template) => handleInstantiateFromTemplate(template, cat.key)}
                         mt
                       />

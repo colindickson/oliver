@@ -18,12 +18,13 @@ class Task(Base):
 
     Attributes:
         id: Auto-increment primary key.
-        day_id: Foreign key to ``days.id`` with cascade delete. Nullable -- ``None`` means backlog task.
+        day_id: Foreign key to ``days.id`` with cascade delete. Nullable; backlog membership is defined by the idle query, not by this alone.
         category: One of ``deep_work``, ``short_task``, or ``maintenance``. Nullable for backlog tasks.
         title: Short human-readable title.
         description: Optional extended description.
         status: Lifecycle state -- ``pending``, ``in_progress``, or ``completed``.
         order_index: Ordering within a category; lower values appear first.
+        rolled_from_task_id: Original task this one continues; an original with a continuation is not idle.
         completed_at: UTC timestamp set when status transitions to completed.
         timer_sessions: All timer sessions logged for this task.
     """
@@ -38,6 +39,9 @@ class Task(Base):
     status = Column(String, nullable=False, default=STATUS_PENDING)
     order_index = Column(Integer, nullable=False, default=0)
     completed_at = Column(DateTime, nullable=True)
+    rolled_from_task_id = Column(
+        Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
 
     day = relationship("Day", back_populates="tasks")
     timer_sessions = relationship(

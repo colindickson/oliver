@@ -3,8 +3,9 @@
 import json
 from datetime import UTC, date, datetime
 
-from oliver_shared import normalize_tag_name, validate_tag_count
-from sqlalchemy import func, select
+from oliver_shared import STATUS_ROLLED_FORWARD, normalize_tag_name, validate_tag_count
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import aliased
 
 from models.goal import Goal
 from models.tag import Tag, task_tags_table
@@ -138,8 +139,17 @@ def get_goal(goal_id: int) -> str:
                     .group_by(task_tags_table.c.task_id)
                     .having(func.count(task_tags_table.c.tag_id) == len(goal.tags))
                 ))
+            continuation = aliased(Task)
             tasks = (
-                session.query(Task).filter(Task.id.in_(task_ids)).order_by(Task.id).all()
+                session.query(Task)
+                .filter(
+                    Task.id.in_(task_ids),
+                    Task.status != STATUS_ROLLED_FORWARD,
+                    # Matches the backend: a continued original is superseded.
+                    ~exists().where(continuation.rolled_from_task_id == Task.id),
+                )
+                .order_by(Task.id)
+                .all()
             )
             result = {
                 **_goal_dict(goal),

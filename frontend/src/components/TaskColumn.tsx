@@ -7,7 +7,7 @@ import {
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useQuery } from '@tanstack/react-query'
-import { backlogApi, templatesApi, type Task, type TaskTemplate } from '../api/client'
+import { backlogApi, backlogOrigin, templatesApi, type Task, type TaskTemplate } from '../api/client'
 import { TaskCard } from './TaskCard'
 import { TagInput } from './TagInput'
 import { CATEGORIES, type CategoryKey } from '../constants/categories'
@@ -312,7 +312,10 @@ export function TaskColumn({
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50 hover:bg-terracotta-50 hover:border-terracotta-200 transition-all dark:bg-stone-700 dark:border-stone-600 dark:hover:bg-terracotta-900/20"
                       >
-                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200">{t.title}</p>
+                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200 truncate">{t.title}</p>
+                        {backlogOrigin(t) && (
+                          <p className="text-[10px] text-stone-400 dark:text-stone-500">{backlogOrigin(t)}</p>
+                        )}
                         {t.description && (
                           <p className="text-xs text-stone-400 truncate mt-0.5">{t.description}</p>
                         )}

@@ -332,6 +332,45 @@ async def test_get_goal_detail(client: AsyncClient, task: Task) -> None:
     assert data["tasks"][0]["id"] == task.id
 
 
+async def test_goal_detail_excludes_rolled_forward_tasks(
+    client: AsyncClient, db_session: AsyncSession, day: Day, task: Task
+) -> None:
+    """Detail list must match progress, which already ignores rolled_forward tasks."""
+    old = Task(day_id=day.id, category="short_task", title="old", status="rolled_forward", order_index=1)
+    db_session.add(old)
+    await db_session.commit()
+    await db_session.refresh(old)
+    g = (await client.post("/api/goals", json={"title": "G", "task_ids": [task.id, old.id]})).json()
+
+    detail = (await client.get(f"/api/goals/{g['id']}")).json()
+
+    assert [t["id"] for t in detail["tasks"]] == [task.id]
+    assert detail["total_tasks"] == 1
+
+
+async def test_goal_detail_excludes_continued_original(
+    client: AsyncClient, db_session: AsyncSession, day: Day
+) -> None:
+    """A pending original that already has a continuation can't be picked again
+    (422), so the goal view must show only the continuation, like the backlog."""
+    orig = Task(day_id=day.id, category="short_task", title="orig", status="pending", order_index=1)
+    db_session.add(orig)
+    await db_session.flush()
+    cont = Task(day_id=day.id, category="short_task", title="cont", status="pending",
+                order_index=2, rolled_from_task_id=orig.id)
+    db_session.add(cont)
+    await db_session.commit()
+    g = (await client.post("/api/goals", json={"title": "G", "task_ids": [orig.id, cont.id]})).json()
+
+    detail = (await client.get(f"/api/goals/{g['id']}")).json()
+
+    assert [t["title"] for t in detail["tasks"]] == ["cont"]
+    # Progress must agree with the list, on the detail and the goals list.
+    assert detail["total_tasks"] == 1
+    listed = next(x for x in (await client.get("/api/goals")).json() if x["id"] == g["id"])
+    assert listed["total_tasks"] == 1
+
+
 # ---------------------------------------------------------------------------
 # 404 handling
 # ---------------------------------------------------------------------------

@@ -43,7 +43,8 @@ export function Tags() {
 
     // 2. Collect tasks from filtered days + backlog
     const dayTasks = filteredDays.flatMap(d => d.tasks)
-    const allTasks: Task[] = [...dayTasks, ...backlogTasks]
+    const seen = new Set(dayTasks.map(t => t.id))  // stale/future tasks are in both lists
+    const allTasks: Task[] = [...dayTasks, ...backlogTasks.filter(t => !seen.has(t.id))]
 
     // 3. Aggregate tags with counts
     const tagMap = new Map<string, { total: number; incomplete: number }>()

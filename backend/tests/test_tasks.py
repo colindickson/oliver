@@ -407,6 +407,23 @@ async def test_continue_copies_tags(
     assert sorted(resp.json()["tags"]) == ["focus", "project-x"]
 
 
+async def test_continue_carries_direct_goal_links(
+    client: AsyncClient, db_session: AsyncSession, day: Day
+) -> None:
+    """The continuation must stay in the goals the original was directly linked to,
+    otherwise continuing a goal task silently drops it from the goal."""
+    created = await client.post(
+        "/api/tasks", json={"day_id": day.id, "category": "deep_work", "title": "G task"}
+    )
+    task_id = created.json()["id"]
+    g = (await client.post("/api/goals", json={"title": "G", "task_ids": [task_id]})).json()
+
+    resp = await client.post(f"/api/tasks/{task_id}/continue")
+
+    detail = (await client.get(f"/api/goals/{g['id']}")).json()
+    assert resp.json()["id"] in [t["id"] for t in detail["tasks"]]
+
+
 async def test_continue_404_for_missing_task(client: AsyncClient) -> None:
     """POST /continue returns 404 when the task does not exist."""
     resp = await client.post("/api/tasks/99999/continue")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -143,3 +143,4 @@ class TaskResponse(TagCoercionMixin):
     rolled_from_date: str | None = None
     rolled_to_task_id: int | None = None
     rolled_to_date: str | None = None
+    day_date: date | None = None

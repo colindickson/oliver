@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import type { Goal, Task } from '../api/client'
-import { taskApi } from '../api/client'
+import { taskApi, dayApi, backlogApi } from '../api/client'
 import { TagInput } from './TagInput'
 import { GoalTaskPicker } from './GoalTaskPicker'
 import { ConfirmableDelete } from './ConfirmableDelete'
@@ -23,10 +23,11 @@ interface Props {
 interface TaskRowProps {
   task: Task & { dayDate?: string }
   onComplete?: (task: Task) => void
-  onMoveToBacklog?: (task: Task) => void
+  onDoToday?: (task: Task) => void
+  todayId?: number
 }
 
-function TaskRow({ task, onComplete, onMoveToBacklog }: TaskRowProps) {
+function TaskRow({ task, onComplete, onDoToday, todayId }: TaskRowProps) {
   const statusIcon = {
     completed: (
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" className="text-moss-500 dark:text-moss-400">
@@ -76,7 +77,7 @@ function TaskRow({ task, onComplete, onMoveToBacklog }: TaskRowProps) {
         {task.title}
       </span>
       {task.tags.length > 0 && (
-        <div className="flex gap-1 flex-shrink-0">
+        <div className="hidden sm:flex gap-1 flex-shrink-0">
           {task.tags.slice(0, 2).map(tag => (
             <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400">
               #{tag}
@@ -84,16 +85,19 @@ function TaskRow({ task, onComplete, onMoveToBacklog }: TaskRowProps) {
           ))}
         </div>
       )}
-      {onMoveToBacklog && task.day_id !== null && (task.status === 'pending' || task.status === 'in_progress') && (
-        <button
-          type="button"
-          onClick={() => onMoveToBacklog(task)}
-          className="flex-shrink-0 text-[11px] text-stone-400 dark:text-stone-500 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors"
-          aria-label="Move to backlog"
-          title="Unschedule so it can be picked from the backlog"
-        >
-          → Backlog
-        </button>
+      {onDoToday && (task.status === 'pending' || task.status === 'in_progress') && (
+        task.day_id === todayId ? (
+          <span className="flex-shrink-0 text-[11px] text-moss-500 dark:text-moss-400">Today</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onDoToday(task)}
+            className="flex-shrink-0 px-2 min-h-[32px] text-[11px] text-stone-400 dark:text-stone-500 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors"
+            aria-label="Move to today"
+          >
+            Today
+          </button>
+        )
       )}
     </div>
   )
@@ -182,12 +186,15 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
     },
   })
 
-  const moveToBacklog = useMutation({
-    mutationFn: (task: Task) => taskApi.moveToBacklog(task.id),
+  const { data: today } = useQuery({ queryKey: ['day', 'today'], queryFn: dayApi.getToday })
+
+  const doToday = useMutation({
+    mutationFn: async (task: Task) => {
+      const day = await qc.fetchQuery({ queryKey: ['day', 'today'], queryFn: dayApi.getToday })
+      return backlogApi.moveToDay(task.id, { day_id: day.id, category: task.category ?? 'deep_work' })
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['goals', goalId] })
-      qc.invalidateQueries({ queryKey: ['backlog'] })
-      qc.invalidateQueries({ queryKey: ['day'] })
+      for (const k of ['backlog', 'day', 'days', 'goals', 'goal']) qc.invalidateQueries({ queryKey: [k] })
     },
   })
 
@@ -643,7 +650,8 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
                 key={t.id}
                 task={t}
                 onComplete={(t) => toggleTaskComplete.mutate(t)}
-                onMoveToBacklog={readOnly ? undefined : (t) => moveToBacklog.mutate(t)}
+                onDoToday={readOnly ? undefined : (t) => doToday.mutate(t)}
+                todayId={today?.id}
               />
             ))}
           </div>

@@ -3,6 +3,10 @@
 import json
 from datetime import date, datetime, timezone
 
+from sqlalchemy import and_, case, exists, or_
+from sqlalchemy.orm import aliased
+
+from models.day import Day
 from models.tag import Tag
 from models.task import Task
 from tools.daily import get_session, _get_or_create_day
@@ -10,6 +14,8 @@ from tools.log_utils import log_call
 from oliver_shared import (
     MAX_TAGS_PER_TASK,
     STATUS_COMPLETED,
+    STATUS_IN_PROGRESS,
+    STATUS_PENDING,
     VALID_STATUSES,
     normalize_tag_name,
     validate_tag_count,
@@ -288,21 +294,44 @@ def add_backlog_task(
         return error_json
 
 
-def list_backlog(tag: str = "", search: str = "") -> str:
-    """List backlog tasks (those not assigned to a day), ordered by ``order_index``.
+def list_backlog(tag: str = "", search: str = "", include_completed: bool = False) -> str:
+    """List idle tasks: pending/in-progress work with no day, or on any day but today.
+
+    Mirrors GET /api/backlog (same predicate, hand-copied) minus tasks that
+    already have a continuation. Ordered: no day (by ``order_index``), past
+    days most-recent-first, then future days soonest-first.
 
     Args:
         tag: Only tasks carrying this tag (normalized like stored tags).
         search: Case-insensitive substring match on title (wildcards are literal).
+        include_completed: Also list completed tasks with no day (anything but
+            rolled_forward), so callers that dedupe by tag still see them.
 
     Returns:
-        JSON list of dicts with ``id``, ``title``, ``description``, ``status``
-        and ``tags``, or an ``error`` dict on failure.
+        JSON list of dicts with ``id``, ``title``, ``description``, ``status``,
+        ``tags`` and ``day`` (ISO date or None), or an ``error`` dict on failure.
     """
-    params = {"tag": tag, "search": search}
+    params = {"tag": tag, "search": search, "include_completed": include_completed}
     try:
         with get_session() as session:
-            query = session.query(Task).filter(Task.day_id.is_(None))
+            today = date.today()
+            continuation = aliased(Task)
+            idle = and_(
+                Task.status.in_((STATUS_PENDING, STATUS_IN_PROGRESS)),
+                or_(Task.day_id.is_(None), Day.date != today),
+                ~exists().where(continuation.rolled_from_task_id == Task.id),
+            )
+            if include_completed:
+                # Idle tasks plus completed day-less ones, never all of history.
+                idle = or_(
+                    idle,
+                    and_(Task.day_id.is_(None), Task.status == STATUS_COMPLETED),
+                )
+            query = (
+                session.query(Task, Day.date)
+                .outerjoin(Day, Task.day_id == Day.id)
+                .filter(idle)
+            )
             normalized = normalize_tag_name(tag) if tag else ""
             if normalized:
                 query = query.filter(Task.tags.any(Tag.name == normalized))
@@ -320,8 +349,16 @@ def list_backlog(tag: str = "", search: str = "") -> str:
                     "description": t.description,
                     "status": t.status,
                     "tags": [tg.name for tg in t.tags],
+                    "day": d.isoformat() if d else None,
                 }
-                for t in query.order_by(Task.order_index).all()
+                for t, d in query.order_by(
+                    Task.day_id.isnot(None),
+                    (Day.date > today).asc(),
+                    case((Day.date > today, Day.date)).asc(),
+                    case((Day.date < today, Day.date)).desc(),
+                    Task.order_index,
+                    Task.id,
+                ).all()
             ]
         result_json = json.dumps(result)
         log_call("list_backlog", params, result_json, "success")

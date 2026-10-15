@@ -145,8 +145,7 @@ export function Today() {
       return backlogApi.moveToDay(taskId, { day_id: day.id, category })
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['day', 'today'] })
-      qc.invalidateQueries({ queryKey: ['backlog'] })
+      for (const k of ['backlog', 'day', 'days', 'goals', 'goal']) qc.invalidateQueries({ queryKey: [k] })
     },
   })
 

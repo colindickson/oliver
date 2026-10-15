@@ -30,7 +30,8 @@ class Task(Base):
 
     Attributes:
         id: Auto-increment primary key.
-        day_id: Foreign key to ``days.id`` with cascade delete. Nullable — ``None`` means backlog task.
+        day_id: Foreign key to ``days.id`` with cascade delete. Nullable. A task is backlog (idle) when unfinished and
+            day-less or on a day other than today; see ``backlog_condition``.
         category: One of ``deep_work``, ``short_task``, or ``maintenance``. Nullable for backlog tasks.
         title: Short human-readable title.
         description: Optional extended description.

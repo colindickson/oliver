@@ -133,6 +133,31 @@ def test_get_goal_rolls_up_scheduled_backlog_and_direct_tasks(patched_get_sessio
     assert result["title"] == "Epic"
 
 
+def test_get_goal_omits_rolled_forward_tasks(patched_get_session):
+    """A rolled-forward original is superseded by its copy; listing both would
+    disagree with the backend's goal detail and progress."""
+    gid = json.loads(create_goal("Epic", tag_names=["poka-1"]))["id"]
+    add_backlog_task("Live", tags=["poka-1"])
+    add_backlog_task("Superseded", tags=["poka-1"])
+    with patched_get_session() as session:
+        session.query(Task).filter_by(title="Superseded").one().status = "rolled_forward"
+
+    result = json.loads(get_goal(gid))
+    assert [t["title"] for t in result["tasks"]] == ["Live"]
+
+
+def test_get_goal_omits_continued_original(patched_get_session):
+    """Matches the backend: a pending original with a continuation is superseded."""
+    gid = json.loads(create_goal("Epic", tag_names=["poka-1"]))["id"]
+    orig_id = json.loads(add_backlog_task("Orig", tags=["poka-1"]))["id"]
+    cont_id = json.loads(add_backlog_task("Cont", tags=["poka-1"]))["id"]
+    with patched_get_session() as session:
+        session.get(Task, cont_id).rolled_from_task_id = orig_id
+
+    result = json.loads(get_goal(gid))
+    assert [t["title"] for t in result["tasks"]] == ["Cont"]
+
+
 def test_get_goal_lists_sub_goals_without_their_tasks(patched_get_session):
     """Like the endpoint, child goals are listed; their tasks are fetched per child."""
     parent = json.loads(create_goal("Parent"))["id"]

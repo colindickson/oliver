@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.exceptions import GoalNotFoundError, InvalidOperationError
 from app.models.goal import (
@@ -404,7 +405,9 @@ class GoalService:
         statuses: dict[int, str] = {}
         if all_ids:
             rows = await self._db.execute(
-                select(Task.id, Task.status).where(Task.id.in_(all_ids))
+                select(Task.id, Task.status).where(
+                    Task.id.in_(all_ids), self._not_continued()
+                )
             )
             statuses = {tid: st for tid, st in rows}
 
@@ -447,8 +450,20 @@ class GoalService:
         all_ids = await self._get_own_effective_task_ids(goal)
         if not all_ids:
             return []
-        result = await self._db.execute(select(Task).where(Task.id.in_(all_ids)))
+        result = await self._db.execute(
+            select(Task).where(
+                Task.id.in_(all_ids),
+                Task.status != STATUS_ROLLED_FORWARD,
+                self._not_continued(),
+            )
+        )
         return list(result.scalars().all())
+
+    @staticmethod
+    def _not_continued():
+        """A continued original is superseded by its continuation."""
+        continuation = aliased(Task)
+        return ~exists().where(continuation.rolled_from_task_id == Task.id)
 
     async def _get_subtree_task_ids(self, goal: Goal) -> set[int]:
         """Own effective task IDs unioned with every child's own effective task IDs."""
@@ -462,7 +477,7 @@ class GoalService:
         if not task_ids:
             return 0, 0, 0
         rows = await self._db.execute(
-            select(Task.status).where(Task.id.in_(task_ids))
+            select(Task.status).where(Task.id.in_(task_ids), self._not_continued())
         )
         statuses = [s for (s,) in rows if s != STATUS_ROLLED_FORWARD]
         total = len(statuses)

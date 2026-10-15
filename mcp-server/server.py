@@ -104,13 +104,14 @@ def add_task_to_backlog(
 
 
 @mcp.tool()
-def list_backlog_tool(tag: str = "", search: str = "") -> str:
-    """List backlog tasks (no assigned day), ordered by position.
+def list_backlog_tool(tag: str = "", search: str = "", include_completed: bool = False) -> str:
+    """List idle tasks: pending/in-progress with no day or on a past/future day (not today).
 
     tag: optional tag filter (case-insensitive).
     search: optional case-insensitive substring match on title.
+    include_completed: also list completed day-less tasks (use when deduping by tag).
     """
-    return list_backlog(tag, search)
+    return list_backlog(tag, search, include_completed)
 
 
 @mcp.tool()

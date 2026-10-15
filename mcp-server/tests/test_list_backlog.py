@@ -6,8 +6,10 @@ skipped tickets.
 """
 
 import json
+from datetime import date, timedelta
 
 import tools.tasks as tasks
+from models.day import Day
 from models.task import Task
 
 
@@ -33,7 +35,7 @@ def test_tag_filter_returns_only_matching_backlog_tasks(patched_get_session):
     result = json.loads(tasks.list_backlog(tag="POKA-12345"))
 
     assert [t["title"] for t in result] == ["POKA-1001 Fix thing"]
-    assert set(result[0]) == {"id", "title", "description", "status", "tags"}
+    assert set(result[0]) == {"id", "title", "description", "status", "tags", "day"}
     assert result[0]["tags"] == ["poka-12345"]
 
 
@@ -79,3 +81,72 @@ def test_error_is_logged_and_returned(patched_get_session, log_calls, monkeypatc
     assert "db down" in result["error"]
     assert log_calls[-1][0] == "list_backlog"
     assert log_calls[-1][3] == "error"
+
+
+def _add_on_day(patched_get_session, title, offset_days, status="pending", rolled_from=None):
+    """Insert a task on the day ``today + offset_days`` (date.today(), as the backend)."""
+    with patched_get_session() as session:
+        d = date.today() + timedelta(days=offset_days)
+        day = session.query(Day).filter_by(date=d).first() or Day(date=d)
+        session.add(day)
+        session.flush()
+        task = Task(
+            title=title, day_id=day.id, status=status, category="deep_work",
+            rolled_from_task_id=rolled_from,
+        )
+        session.add(task)
+        session.flush()
+        return task.id
+
+
+def test_idle_past_and_future_tasks_listed_with_day_in_backend_order(patched_get_session):
+    """Backlog == idle work: stale (past) and planned (future) tasks appear with
+    their ``day``; order is day-less, past newest-first, future soonest-first,
+    mirroring GET /api/backlog so both surfaces agree."""
+    _add_on_day(patched_get_session, "future far", 5)
+    _add_on_day(patched_get_session, "past old", -10)
+    _add_on_day(patched_get_session, "future soon", 2)
+    _add_on_day(patched_get_session, "past recent", -1)
+    _add_backlog(patched_get_session, "no day")
+
+    result = json.loads(tasks.list_backlog())
+
+    assert [t["title"] for t in result] == [
+        "no day", "past recent", "past old", "future soon", "future far"
+    ]
+    assert result[0]["day"] is None
+    assert result[1]["day"] == (date.today() - timedelta(days=1)).isoformat()
+
+
+def test_non_idle_tasks_are_excluded(patched_get_session):
+    """Each excluded case fails if the hand-copied predicate drifts from the
+    backend: today's tasks, finished tasks, rolled-forward tasks, and an original
+    that already has a continuation (only the continuation is listed)."""
+    _add_on_day(patched_get_session, "today", 0)
+    _add_on_day(patched_get_session, "done past", -3, status="completed")
+    _add_on_day(patched_get_session, "rolled past", -3, status="rolled_forward")
+    _add_backlog(patched_get_session, "done no day")
+    with patched_get_session() as session:
+        session.query(Task).filter_by(title="done no day").one().status = "completed"
+    original = _add_on_day(patched_get_session, "original", -4)
+    _add_on_day(patched_get_session, "continuation", 0, rolled_from=original)
+    _add_on_day(patched_get_session, "continuation idle", 3, rolled_from=_add_on_day(
+        patched_get_session, "original2", -4))
+
+    assert _titles(tasks.list_backlog()) == ["continuation idle"]
+
+
+def test_include_completed_restores_completed_dayless_tasks(patched_get_session):
+    """The epic skill dedupes children via list_backlog(tag=...); completed
+    day-less children must stay visible to it or a re-run recreates them."""
+    _add_backlog(patched_get_session, "done child")
+    with patched_get_session() as session:
+        session.query(Task).filter_by(title="done child").one().status = "completed"
+    _add_on_day(patched_get_session, "rolled", -2, status="rolled_forward")
+
+    _add_on_day(patched_get_session, "idle past", -3)
+    _add_on_day(patched_get_session, "done past", -3, status="completed")
+
+    assert _titles(tasks.list_backlog()) == ["idle past"]
+    # The flag adds to the idle set; it must not hide idle work or dump history.
+    assert _titles(tasks.list_backlog(include_completed=True)) == ["done child", "idle past"]

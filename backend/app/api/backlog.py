@@ -1,15 +1,20 @@
 """API routes for the Backlog resource.
 
-Backlog tasks are tasks without a day_id (day_id is null).
-They can be created, listed, and moved to a specific day.
+The backlog is idle work: unfinished tasks with no day or on any day other than
+today (see ``backlog_condition``). Tasks can be created, listed, and scheduled
+onto a day.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date
 
+from fastapi import APIRouter, Depends
+from sqlalchemy import case, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.api.tasks import build_task_response
 from app.database import get_db
 from app.models.day import Day
 from app.models.task import Task
@@ -19,28 +24,9 @@ from app.schemas.task import (
     TaskResponse,
 )
 from app.services.tag_service import TagService
+from app.services.task_service import TaskService, backlog_condition
 
 router = APIRouter(prefix="/api/backlog", tags=["backlog"])
-
-
-async def _get_backlog_task_or_404(task_id: int, db: AsyncSession) -> Task:
-    """Fetch a backlog Task by primary key or raise 404.
-
-    Args:
-        task_id: The primary key to look up.
-        db: Open async session.
-
-    Returns:
-        The matching Task instance.
-
-    Raises:
-        HTTPException: 404 if no backlog Task with ``task_id`` exists.
-    """
-    result = await db.execute(select(Task).where(Task.id == task_id, Task.day_id.is_(None)))
-    task = result.scalar_one_or_none()
-    if task is None:
-        raise HTTPException(status_code=404, detail="Backlog task not found")
-    return task
 
 
 @router.get("", response_model=list[TaskResponse])
@@ -49,7 +35,7 @@ async def list_backlog(
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[TaskResponse]:
-    """Return all backlog tasks, optionally filtered.
+    """Return all idle tasks, optionally filtered.
 
     Args:
         tag: Filter by tag name.
@@ -57,20 +43,36 @@ async def list_backlog(
         db: Injected async database session.
 
     Returns:
-        List of backlog tasks sorted by order_index.
+        Idle tasks with ``day_date`` set: day-less first, then past days
+        most-recent-first, then future days soonest-first.
     """
-    query = select(Task).where(Task.day_id.is_(None))
+    today = date.today()
+    query = (
+        select(Task, Day.date)
+        .outerjoin(Day, Task.day_id == Day.id)
+        .where(backlog_condition(today))
+    )
 
     if tag:
-        query = query.join(Task.tags).where(Task.tags.any(name=tag.lower()))
+        query = query.where(Task.tags.any(name=tag.lower()))
 
     if search:
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         query = query.where(Task.title.ilike(f"%{escaped}%", escape="\\"))
 
-    query = query.order_by(Task.order_index)
+    query = query.order_by(
+        Task.day_id.isnot(None),
+        case((Day.date < today, 0), else_=1),
+        case((Day.date < today, Day.date)).desc(),
+        Day.date.asc(),
+        Task.order_index,
+        Task.id,
+    )
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return [
+        TaskResponse.model_validate(task).model_copy(update={"day_date": day_date})
+        for task, day_date in result.all()
+    ]
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
@@ -112,35 +114,29 @@ async def move_backlog_task_to_day(
     body: MoveToDayPayload,
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
-    """Move a backlog task to a specific day.
+    """Schedule an idle task onto a day (move it, or roll a past-day task forward).
 
     Args:
-        task_id: Primary key of the backlog task.
+        task_id: Primary key of the task.
         body: Contains day_id and optional category override.
         db: Injected async database session.
 
     Returns:
-        The updated TaskResponse.
+        The task now on the day (a new copy when rolled forward from a past day).
 
     Raises:
-        HTTPException: 404 if task or day not found.
-        HTTPException: 400 if category is required but not provided.
+        HTTPException: 404 task/day not found; 422 terminal or already continued;
+            400 no category, or past-day task targeted at a past day.
     """
-    task = await _get_backlog_task_or_404(task_id, db)
-
-    # Verify day exists
-    result = await db.execute(select(Day).where(Day.id == body.day_id))
-    day = result.scalar_one_or_none()
-    if day is None:
-        raise HTTPException(status_code=404, detail="Day not found")
-
-    # Determine category
-    category = body.category or task.category
-    if category is None:
-        raise HTTPException(status_code=400, detail="Category is required")
-
-    task.day_id = body.day_id
-    task.category = category
+    task = await TaskService(db).schedule_to_day(task_id, body.day_id, body.category)
     await db.commit()
-    await db.refresh(task)
-    return task
+
+    result = await db.execute(
+        select(Task)
+        .where(Task.id == task.id)
+        .options(
+            selectinload(Task.rolled_from).selectinload(Task.day),
+            selectinload(Task.rolled_to).selectinload(Task.day),
+        )
+    )
+    return build_task_response(result.scalar_one())

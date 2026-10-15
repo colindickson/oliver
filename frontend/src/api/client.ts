@@ -16,6 +16,14 @@ export interface Task {
   rolled_from_date: string | null
   rolled_to_task_id: number | null
   rolled_to_date: string | null
+  day_date?: string | null  // only set by GET /api/backlog: the day the idle task sits on
+}
+
+// Label for where an idle backlog task comes from: past -> "from Mar 3", future -> "on Mar 3".
+export function backlogOrigin(task: Pick<Task, 'day_date'>): string | null {
+  if (!task.day_date) return null
+  const label = new Date(`${task.day_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `${task.day_date < new Date().toLocaleDateString('en-CA') ? 'from' : 'on'} ${label}`
 }
 
 export interface CreateBacklogTaskPayload {
