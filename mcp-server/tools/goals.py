@@ -1,12 +1,14 @@
-"""Goal tools: create and list goals."""
+"""Goal tools: create, list and get goals."""
 
 import json
 from datetime import UTC, date, datetime
 
 from oliver_shared import normalize_tag_name, validate_tag_count
+from sqlalchemy import func, select
 
 from models.goal import Goal
-from models.tag import Tag
+from models.tag import Tag, task_tags_table
+from models.task import Task
 from tools.daily import get_session
 from tools.log_utils import log_call
 from tools.tasks import _get_or_create_tags
@@ -108,4 +110,63 @@ def list_goals(tag: str = "", include_archived: bool = False) -> str:
     except Exception as e:
         error_json = json.dumps({"error": str(e)})
         log_call("list_goals", params, error_json, "error")
+        return error_json
+
+
+def get_goal(goal_id: int) -> str:
+    """Return a goal with every task it rolls up, scheduled or backlog.
+
+    Mirrors GET /api/goals/{id}: tasks carrying ALL of the goal's tags plus
+    directly linked tasks, deduped. Sub-goals are listed, not expanded.
+
+    Returns:
+        JSON-encoded goal dict with ``archived_at``, ``tasks`` (id, title,
+        description, status, category, day, tags) and ``sub_goals``
+        (id, title, status), or an error.
+    """
+    params = {"goal_id": goal_id}
+    try:
+        with get_session() as session:
+            goal = session.get(Goal, goal_id)
+            if goal is None:
+                raise ValueError(f"Goal {goal_id} not found")
+            task_ids = {t.id for t in goal.direct_tasks}
+            if goal.tags:
+                task_ids |= set(session.scalars(
+                    select(task_tags_table.c.task_id)
+                    .where(task_tags_table.c.tag_id.in_([t.id for t in goal.tags]))
+                    .group_by(task_tags_table.c.task_id)
+                    .having(func.count(task_tags_table.c.tag_id) == len(goal.tags))
+                ))
+            tasks = (
+                session.query(Task).filter(Task.id.in_(task_ids)).order_by(Task.id).all()
+            )
+            result = {
+                **_goal_dict(goal),
+                "archived_at": (
+                    goal.archived_at.isoformat() if goal.archived_at else None
+                ),
+                "tasks": [
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "description": t.description,
+                        "status": t.status,
+                        "category": t.category,
+                        "day": t.day.date.isoformat() if t.day else None,
+                        "tags": [tg.name for tg in t.tags],
+                    }
+                    for t in tasks
+                ],
+                "sub_goals": [
+                    {"id": g.id, "title": g.title, "status": g.status}
+                    for g in sorted(goal.sub_goals, key=lambda g: g.id)
+                ],
+            }
+        result_json = json.dumps(result)
+        log_call("get_goal", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("get_goal", params, error_json, "error")
         return error_json

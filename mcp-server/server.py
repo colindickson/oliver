@@ -22,7 +22,7 @@ from tools.days_off import (
 )
 from tools.metadata import set_day_metadata
 from tools.notifications import notify
-from tools.goals import create_goal, list_goals
+from tools.goals import create_goal, get_goal, list_goals
 from tools.tasks import (
     add_backlog_task,
     complete_task,
@@ -135,6 +135,16 @@ def list_goals_tool(tag: str = "", include_archived: bool = False) -> str:
     Archived goals are excluded unless include_archived is true.
     """
     return list_goals(tag, include_archived)
+
+
+@mcp.tool()
+def get_goal_tool(goal_id: int) -> str:
+    """Get a goal and every task it rolls up, scheduled or in the backlog.
+
+    Tasks roll up if they carry ALL of the goal's tags or are linked directly.
+    Sub-goals are listed by id; call get_goal_tool on each for their tasks.
+    """
+    return get_goal(goal_id)
 
 
 @mcp.tool()
