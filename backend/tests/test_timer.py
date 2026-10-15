@@ -308,3 +308,72 @@ async def test_pause_then_stop_creates_session(
     sessions = list(result.scalars().all())
     assert len(sessions) == 1
     assert sessions[0].duration_seconds >= 0
+
+
+# ---------------------------------------------------------------------------
+# Stale timer self-heal (active task deleted out from under the timer)
+# ---------------------------------------------------------------------------
+
+
+async def _delete_task_row(db: AsyncSession, task: Task) -> None:
+    from sqlalchemy import delete
+
+    await db.execute(delete(Task).where(Task.id == task.id))
+    await db.commit()
+
+
+async def test_get_current_is_idle_when_active_task_was_deleted(
+    client: AsyncClient, db_session: AsyncSession, task: Task
+) -> None:
+    """Deleting a task by any path (API, MCP, day cascade) must not leave the UI
+    showing a running timer for a task that no longer exists."""
+    from app.services.timer_service import TimerService
+
+    await client.post("/api/timer/start", json={"task_id": task.id})
+    await _delete_task_row(db_session, task)
+
+    current = await TimerService(db_session).get_current()
+
+    assert current["status"] == "idle"
+    assert current["task_id"] is None
+
+
+async def test_stop_with_deleted_active_task_is_409_and_writes_no_session(
+    client: AsyncClient, db_session: AsyncSession, task: Task
+) -> None:
+    """stop() must not insert a TimerSession with a dangling task FK; it behaves
+    exactly like stop-while-idle (409)."""
+    from sqlalchemy import func, select
+
+    from app.exceptions import InvalidOperationError
+    from app.services.timer_service import TimerService
+
+    await client.post("/api/timer/start", json={"task_id": task.id})
+    await _delete_task_row(db_session, task)
+
+    with pytest.raises(InvalidOperationError) as exc:
+        await TimerService(db_session).stop()
+
+    assert exc.value.http_status_code == 409
+    count = await db_session.scalar(select(func.count()).select_from(TimerSession))
+    assert count == 0
+
+
+async def test_start_succeeds_after_active_task_was_deleted(
+    client: AsyncClient, db_session: AsyncSession, task: Task
+) -> None:
+    """A stale running state must not block starting a timer on another task
+    ("Timer is already running")."""
+    from app.services.timer_service import TimerService
+
+    await client.post("/api/timer/start", json={"task_id": task.id})
+    other = Task(day_id=task.day_id, category="deep_work", title="other", order_index=1)
+    db_session.add(other)
+    await db_session.commit()
+    await db_session.refresh(other)
+    await _delete_task_row(db_session, task)
+
+    current = await TimerService(db_session).start(other.id)
+
+    assert current["status"] == "running"
+    assert current["task_id"] == other.id

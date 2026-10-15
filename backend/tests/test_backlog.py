@@ -599,3 +599,66 @@ async def test_pick_without_resolvable_category_is_400(
     r = await client.post(f"/api/backlog/{t.id}/move-to-day", json={"day_id": today_day.id})
 
     assert r.status_code == 400
+
+
+async def test_roll_forward_repoints_running_timer_to_the_copy(
+    client: AsyncClient, db_session: AsyncSession, day: Day, today_day: Day
+) -> None:
+    """Rolling a past-day task forward replaces its id; a running timer left on
+    the old (now rolled_forward) id would stop crediting the work the user is
+    actually doing, so the timer must follow the copy without losing time."""
+    from app.services.timer_service import TimerService
+
+    orig = await _make_task(db_session, day.id, "timed")
+    timer = TimerService(db_session)
+    await timer.start(orig.id)
+    await db_session.commit()
+    before, version_before = await timer._get_state()
+
+    r = await client.post(f"/api/backlog/{orig.id}/move-to-day", json={"day_id": today_day.id})
+    new_id = r.json()["id"]
+
+    after, version_after = await timer._get_state()
+    assert after["task_id"] == new_id
+    assert after["status"] == "running"
+    assert after["started_at"] == before["started_at"]
+    assert after["accumulated_seconds"] == before["accumulated_seconds"]
+    assert version_after > version_before
+
+
+async def test_roll_forward_repoints_paused_timer_keeping_accumulated(
+    client: AsyncClient, db_session: AsyncSession, day: Day, today_day: Day
+) -> None:
+    """A paused timer's accumulated time belongs to the work, not the row id."""
+    from app.services.timer_service import TimerService
+
+    orig = await _make_task(db_session, day.id, "paused")
+    timer = TimerService(db_session)
+    await timer.start(orig.id)
+    await timer.add_time(orig.id, 120)
+    await timer.pause()
+    await db_session.commit()
+
+    r = await client.post(f"/api/backlog/{orig.id}/move-to-day", json={"day_id": today_day.id})
+
+    current = await timer.get_current()
+    assert current["task_id"] == r.json()["id"]
+    assert current["status"] == "paused"
+    assert current["accumulated_seconds"] >= 120
+
+
+async def test_roll_forward_leaves_timer_on_other_task_alone(
+    client: AsyncClient, db_session: AsyncSession, day: Day, today_day: Day
+) -> None:
+    """Only a timer on the rolled task may move; someone else's timer must not."""
+    from app.services.timer_service import TimerService
+
+    orig = await _make_task(db_session, day.id, "rolled")
+    other = await _make_task(db_session, today_day.id, "other")
+    timer = TimerService(db_session)
+    await timer.start(other.id)
+    await db_session.commit()
+
+    await client.post(f"/api/backlog/{orig.id}/move-to-day", json={"day_id": today_day.id})
+
+    assert (await timer.get_current())["task_id"] == other.id

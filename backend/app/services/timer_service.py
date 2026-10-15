@@ -50,7 +50,13 @@ class TimerService:
         setting = result.scalar_one_or_none()
         if setting is None:
             return None
-        return json.loads(setting.value), setting.version
+        state = json.loads(setting.value)
+        # Self-heal: any delete path can orphan the timer's task; treat as idle.
+        task_exists = await self._db.execute(select(Task.id).where(Task.id == state["task_id"]))
+        if task_exists.scalar_one_or_none() is None:
+            await self._clear_state()
+            return None
+        return state, setting.version
 
     async def _set_state(self, state: dict, expected_version: int | None = None) -> None:
         """Persist timer state to the settings table with optimistic locking.
@@ -245,6 +251,20 @@ class TimerService:
         await self._db.refresh(session)
         await self._clear_state()
         return session
+
+    async def reassign(self, from_task_id: int, to_task_id: int) -> None:
+        """Re-point an active (running or paused) timer from one task to another.
+
+        No-op if the active timer is not on ``from_task_id``. Status, start time
+        and accumulated seconds are preserved.
+        """
+        state_with_version = await self._get_state()
+        if state_with_version is None:
+            return
+        state, version = state_with_version
+        if state["task_id"] == from_task_id:
+            state["task_id"] = to_task_id
+            await self._set_state(state, expected_version=version)
 
     async def get_sessions_for_task(self, task_id: int) -> list[TimerSession]:
         """Return all timer sessions for a given task, newest first.

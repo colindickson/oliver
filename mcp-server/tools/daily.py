@@ -10,6 +10,7 @@ from models.day import Day
 from models.day_rating import DayRating
 from models.roadblock import Roadblock
 from models.task import Task, STATUS_PENDING
+from oliver_shared import STATUS_IN_PROGRESS
 from tools.log_utils import log_call
 
 
@@ -107,8 +108,11 @@ def get_daily_plan(date_str: str = "") -> str:
 def set_daily_plan(date_str: str, tasks_json: str) -> str:
     """Replace all tasks for a day with the provided list.
 
-    Existing tasks are deleted before the new set is inserted so the
-    caller always has full control over the day's contents.
+    Existing completed/rolled_forward tasks are deleted before the new set is
+    inserted. Unfinished (pending/in_progress) tasks are NOT deleted: they move
+    back to the backlog (no day, no category). Idle work may be a continuation
+    picked from the backlog, and deleting it would strand its rolled_forward
+    original with no live copy, so idle work is never silently destroyed.
 
     Args:
         date_str: ISO-8601 date string (YYYY-MM-DD).
@@ -137,8 +141,15 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
                 "note": note.content if note else None,
                 "roadblocks": roadblock.content if roadblock else None,
             }
-            # Delete existing tasks for the day before inserting the replacement set.
-            session.query(Task).filter(Task.day_id == day.id).delete()
+            # Unfinished work returns to the backlog; the rest is replaced.
+            day_tasks = session.query(Task).filter(Task.day_id == day.id).all()
+            for old in day_tasks:
+                if old.status in (STATUS_PENDING, STATUS_IN_PROGRESS):
+                    old.day_id = None
+                    old.category = None
+                else:
+                    session.delete(old)
+            session.flush()
             for i, t in enumerate(new_tasks):
                 task = Task(
                     day_id=day.id,

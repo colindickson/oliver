@@ -14,6 +14,7 @@ from app.models.goal import goal_tasks_table
 from app.models.task import Task
 from app.services.day_service import DayService
 from app.services.tag_service import TagService
+from app.services.timer_service import TimerService
 from oliver_shared import (
     STATUS_COMPLETED,
     STATUS_IN_PROGRESS,
@@ -179,7 +180,9 @@ class TaskService:
             )
         tag_names = [tag.name for tag in task.tags]
         task.status = STATUS_ROLLED_FORWARD
-        return await self._create_continuation(task, day_id, category, tag_names)
+        new_task = await self._create_continuation(task, day_id, category, tag_names)
+        await TimerService(self._db).reassign(task.id, new_task.id)
+        return new_task
 
     async def move_task_category(
         self, task_id: int, new_category: str, order_index: int | None = None

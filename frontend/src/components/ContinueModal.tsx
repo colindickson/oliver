@@ -28,11 +28,11 @@ export function ContinueModal({ isOpen, onClose, onConfirm, taskTitle }: Continu
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
       onClick={onClose}
     >
       <div
-        className="bg-stone-800 rounded-2xl shadow-xl p-5 w-96 space-y-4"
+        className="bg-stone-800 rounded-2xl shadow-xl p-5 w-full max-w-sm space-y-4"
         onClick={e => e.stopPropagation()}
       >
         <div>

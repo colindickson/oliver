@@ -899,7 +899,7 @@ async def test_continue_task_without_target_date_uses_next_working_day(
         _, new_task = await service.continue_task(task.id)
 
     monday = date(2025, 6, 9)
-    target_day = await day_service.get_or_create_by_date(monday)
+    target_day = await DayService(db_session).get_or_create_by_date(monday)
     assert new_task.day_id == target_day.id
 
 
