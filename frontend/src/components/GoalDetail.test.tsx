@@ -3,8 +3,8 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '../test-utils'
 import { GoalDetail } from './GoalDetail'
-import type { GoalDetail as GoalDetailType } from '../api/client'
-import { goalApi } from '../api/client'
+import type { GoalDetail as GoalDetailType, Task } from '../api/client'
+import { goalApi, taskApi } from '../api/client'
 
 vi.mock('../api/client', async (orig) => {
   const actual = await orig<typeof import('../api/client')>()
@@ -19,6 +19,7 @@ vi.mock('../api/client', async (orig) => {
       archive: vi.fn(),
       unarchive: vi.fn(),
     },
+    taskApi: { ...actual.taskApi, moveToBacklog: vi.fn() },
   }
 })
 
@@ -101,5 +102,53 @@ describe('GoalDetail sub-goals', () => {
     await waitFor(() =>
       expect(goalApi.update).toHaveBeenCalledWith(1, { clear_target_date: true }),
     )
+  })
+})
+
+function task(partial: Partial<Task> & { id: number; title: string }): Task {
+  return {
+    day_id: 9, category: 'deep_work', description: null, status: 'pending',
+    order_index: 0, completed_at: null, tags: [],
+    rolled_from_task_id: null, rolled_from_date: null,
+    rolled_to_task_id: null, rolled_to_date: null, ...partial,
+  }
+}
+
+describe('GoalDetail move to backlog', () => {
+  // Goal tasks stuck on past days never appear in the main page's backlog
+  // picker; moving them to the backlog is how they become pickable again.
+  it('moves an unfinished scheduled task to the backlog', async () => {
+    vi.mocked(goalApi.getOne).mockResolvedValue(detail({
+      id: 1, title: 'Goal', tasks: [task({ id: 7, title: 'Stuck task' })],
+    }))
+    vi.mocked(taskApi.moveToBacklog).mockResolvedValue(task({ id: 7, title: 'Stuck task', day_id: null }))
+    renderWithProviders(<GoalDetail goalId={1} />)
+    await screen.findByText('Stuck task')
+
+    await userEvent.click(screen.getByRole('button', { name: /move to backlog/i }))
+
+    await waitFor(() => expect(taskApi.moveToBacklog).toHaveBeenCalledWith(7))
+  })
+
+  it('offers it only for unfinished tasks that are on a day and only when editable', async () => {
+    vi.mocked(goalApi.getOne).mockResolvedValue(detail({
+      id: 1, title: 'Goal', tasks: [
+        task({ id: 1, title: 'Already backlog', day_id: null }),
+        task({ id: 2, title: 'Done', status: 'completed' }),
+        task({ id: 3, title: 'Rolled', status: 'rolled_forward' }),
+      ],
+    }))
+    renderWithProviders(<GoalDetail goalId={1} />)
+    await screen.findByText('Already backlog')
+    expect(screen.queryByRole('button', { name: /move to backlog/i })).not.toBeInTheDocument()
+  })
+
+  it('is hidden on a read-only (archived) goal', async () => {
+    vi.mocked(goalApi.getOne).mockResolvedValue(detail({
+      id: 1, title: 'Goal', tasks: [task({ id: 7, title: 'Stuck task' })],
+    }))
+    renderWithProviders(<GoalDetail goalId={1} readOnly />)
+    await screen.findByText('Stuck task')
+    expect(screen.queryByRole('button', { name: /move to backlog/i })).not.toBeInTheDocument()
   })
 })

@@ -23,9 +23,10 @@ interface Props {
 interface TaskRowProps {
   task: Task & { dayDate?: string }
   onComplete?: (task: Task) => void
+  onMoveToBacklog?: (task: Task) => void
 }
 
-function TaskRow({ task, onComplete }: TaskRowProps) {
+function TaskRow({ task, onComplete, onMoveToBacklog }: TaskRowProps) {
   const statusIcon = {
     completed: (
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" className="text-moss-500 dark:text-moss-400">
@@ -82,6 +83,17 @@ function TaskRow({ task, onComplete }: TaskRowProps) {
             </span>
           ))}
         </div>
+      )}
+      {onMoveToBacklog && task.day_id !== null && (task.status === 'pending' || task.status === 'in_progress') && (
+        <button
+          type="button"
+          onClick={() => onMoveToBacklog(task)}
+          className="flex-shrink-0 text-[11px] text-stone-400 dark:text-stone-500 hover:text-terracotta-600 dark:hover:text-terracotta-400 transition-colors"
+          aria-label="Move to backlog"
+          title="Unschedule so it can be picked from the backlog"
+        >
+          → Backlog
+        </button>
       )}
     </div>
   )
@@ -167,6 +179,15 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals', goalId] })
       qc.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
+
+  const moveToBacklog = useMutation({
+    mutationFn: (task: Task) => taskApi.moveToBacklog(task.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', goalId] })
+      qc.invalidateQueries({ queryKey: ['backlog'] })
+      qc.invalidateQueries({ queryKey: ['day'] })
     },
   })
 
@@ -617,7 +638,14 @@ export function GoalDetail({ goalId, onDeleted, isFocusGoal, onSetFocus, onClear
             <p className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-1">
               Remaining ({remaining.length})
             </p>
-            {remaining.map(t => <TaskRow key={t.id} task={t} onComplete={(t) => toggleTaskComplete.mutate(t)} />)}
+            {remaining.map(t => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                onComplete={(t) => toggleTaskComplete.mutate(t)}
+                onMoveToBacklog={readOnly ? undefined : (t) => moveToBacklog.mutate(t)}
+              />
+            ))}
           </div>
         )}
 
