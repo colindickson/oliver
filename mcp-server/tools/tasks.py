@@ -1,7 +1,7 @@
 """Individual task CRUD tools."""
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import and_, case, exists, or_
 from sqlalchemy.orm import aliased
@@ -405,4 +405,51 @@ def complete_task(task_id: int) -> str:
     except Exception as e:
         error_json = json.dumps({"error": str(e)})
         log_call("complete_task", params, error_json, "error")
+        return error_json
+
+
+def complete_stale_tasks(days: int = 7) -> str:
+    """Mark idle tasks scheduled on a day more than ``days`` ago as completed.
+
+    Mirrors POST /api/backlog/complete-stale (same predicate, hand-copied).
+    Day-less backlog tasks are never touched.
+
+    Args:
+        days: Age threshold in days; must be at least 1.
+
+    Returns:
+        JSON dict with ``completed`` (count) and ``task_ids``, or an ``error`` dict.
+    """
+    params = {"days": days}
+    if days < 1:
+        error_json = json.dumps({"error": "days must be at least 1"})
+        log_call("complete_stale_tasks", params, error_json, "error")
+        return error_json
+    try:
+        with get_session() as session:
+            today = date.today()
+            continuation = aliased(Task)
+            stale = (
+                session.query(Task)
+                .join(Day, Task.day_id == Day.id)
+                .filter(
+                    Task.status.in_((STATUS_PENDING, STATUS_IN_PROGRESS)),
+                    Day.date < today - timedelta(days=days),
+                    ~exists().where(continuation.rolled_from_task_id == Task.id),
+                )
+                .all()
+            )
+            before_state = {t.id: t.status for t in stale}
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            for task in stale:
+                task.status = STATUS_COMPLETED
+                task.completed_at = now
+        result_json = json.dumps(
+            {"completed": len(before_state), "task_ids": list(before_state)}
+        )
+        log_call("complete_stale_tasks", params, result_json, "success", before_state=before_state)
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("complete_stale_tasks", params, error_json, "error")
         return error_json

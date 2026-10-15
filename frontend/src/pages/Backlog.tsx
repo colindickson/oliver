@@ -335,6 +335,60 @@ function AddTaskForm({ onAdd, isLoading }: AddTaskFormProps) {
   )
 }
 
+const STALE_DAYS = 7
+
+// Closes out tasks left on a daily board more than STALE_DAYS ago and forgotten.
+export function StaleSweep({ tasks }: { tasks: Task[] }) {
+  const qc = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - STALE_DAYS)
+  const cutoffStr = cutoff.toLocaleDateString('en-CA')
+  const count = tasks.filter(t => t.day_date && t.day_date < cutoffStr).length
+
+  const sweep = useMutation({
+    mutationFn: () => backlogApi.completeStale(STALE_DAYS),
+    onSuccess: () => {
+      for (const k of ['backlog', 'day', 'days', 'goals', 'goal']) qc.invalidateQueries({ queryKey: [k] })
+    },
+  })
+
+  if (count === 0) return null
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="text-xs text-stone-500 hover:text-terracotta-600 border border-stone-200 rounded-lg px-3 py-1.5 hover:bg-stone-50 transition-colors dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-terracotta-300"
+      >
+        Mark {count} task{count !== 1 ? 's' : ''} older than {STALE_DAYS} days done
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-stone-500 dark:text-stone-400">Mark {count} done?</span>
+      <button
+        type="button"
+        onClick={() => { setConfirming(false); sweep.mutate() }}
+        disabled={sweep.isPending}
+        className="text-xs text-terracotta-600 hover:bg-terracotta-50 dark:text-terracotta-300 dark:hover:bg-terracotta-900/20 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
+      >
+        Yes
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className="text-xs text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 px-1.5 py-0.5 rounded transition-colors"
+      >
+        No
+      </button>
+    </div>
+  )
+}
+
 // Main Backlog page
 export function Backlog() {
   const qc = useQueryClient()
@@ -347,6 +401,12 @@ export function Backlog() {
   const { data: tasks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['backlog', selectedTag, search],
     queryFn: () => backlogApi.list({ tag: selectedTag ?? undefined, search: search || undefined }),
+  })
+
+  // Unfiltered list: the stale sweep acts on the whole backlog, not the current filter
+  const { data: allIdle = [] } = useQuery({
+    queryKey: ['backlog', null, ''],
+    queryFn: () => backlogApi.list(),
   })
 
   // Fetch all tags for filter chips
@@ -473,6 +533,8 @@ export function Backlog() {
                 )}
               </div>
 
+              <StaleSweep tasks={allIdle} />
+
               {/* Add task form */}
               <AddTaskForm onAdd={handleAddTask} isLoading={createTask.isPending} />
 
@@ -535,6 +597,7 @@ export function Backlog() {
               {tasks.length} task{tasks.length !== 1 ? 's' : ''} idle
             </p>
           </div>
+          <StaleSweep tasks={allIdle} />
         </header>
 
         {/* Content */}

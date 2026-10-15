@@ -351,6 +351,8 @@ export const backlogApi = {
     api.post<Task>('/backlog', payload).then(r => r.data),
   moveToDay: (id: number, payload: MoveToDayPayload) =>
     api.post<Task>(`/backlog/${id}/move-to-day`, payload).then(r => r.data),
+  completeStale: (days: number) =>
+    api.post<{ completed: number }>(`/backlog/complete-stale?days=${days}`).then(r => r.data),
 }
 
 export interface TaskTemplate {

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -106,6 +106,22 @@ async def create_backlog_task(
     await db.commit()
     await db.refresh(task)
     return task
+
+
+@router.post("/complete-stale")
+async def complete_stale_backlog_tasks(
+    days: int = Query(7, ge=1), db: AsyncSession = Depends(get_db)
+) -> dict[str, int]:
+    """Mark idle tasks scheduled more than ``days`` days ago as done.
+
+    Clears work that was put on a daily board and never closed out.
+
+    Returns:
+        ``{"completed": <count>}``.
+    """
+    completed = await TaskService(db).complete_stale(days)
+    await db.commit()
+    return {"completed": completed}
 
 
 @router.post("/{task_id}/move-to-day", response_model=TaskResponse)

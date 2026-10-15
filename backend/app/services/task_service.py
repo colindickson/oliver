@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import and_, exists, insert, or_, select
+from sqlalchemy import and_, exists, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
@@ -46,6 +46,30 @@ class TaskService:
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
+
+    async def complete_stale(self, days: int) -> int:
+        """Mark idle tasks scheduled on a day more than ``days`` ago as completed.
+
+        Day-less tasks are deliberate backlog and are never touched.
+
+        Returns:
+            Number of tasks completed.
+        """
+        today = date.today()
+        ids = (
+            await self._db.execute(
+                select(Task.id)
+                .join(Day, Task.day_id == Day.id)
+                .where(backlog_condition(today), Day.date < today - timedelta(days=days))
+            )
+        ).scalars().all()
+        if ids:
+            await self._db.execute(
+                update(Task)
+                .where(Task.id.in_(ids))
+                .values(status=STATUS_COMPLETED, completed_at=datetime.now(timezone.utc))
+            )
+        return len(ids)
 
     async def continue_task(
         self, task_id: int, target_date: date | None = None

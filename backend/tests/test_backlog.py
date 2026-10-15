@@ -662,3 +662,59 @@ async def test_roll_forward_leaves_timer_on_other_task_alone(
     await client.post(f"/api/backlog/{orig.id}/move-to-day", json={"day_id": today_day.id})
 
     assert (await timer.get_current())["task_id"] == other.id
+
+
+# ---------------------------------------------------------------------------
+# POST /api/backlog/complete-stale - sweep forgotten scheduled tasks
+# ---------------------------------------------------------------------------
+
+
+async def test_complete_stale_sweeps_only_forgotten_scheduled_work(
+    client: AsyncClient, db_session: AsyncSession, today_day: Day, future_day: Day
+) -> None:
+    """Tasks put on a board 8+ days ago and never closed are forgotten, so they get
+    marked done. Day-less tasks are real backlog and recent/future days are still
+    live, so those must survive the sweep."""
+    old = await _make_day(db_session, date.today() - timedelta(days=8))
+    edge = await _make_day(db_session, date.today() - timedelta(days=7))
+    old_pending = await _make_task(db_session, old.id, "old pending")
+    old_active = await _make_task(db_session, old.id, "old active", status="in_progress")
+    keep = [
+        await _make_task(db_session, edge.id, "7 days ago"),
+        await _make_task(db_session, None, "dayless", category=None),
+        await _make_task(db_session, today_day.id, "today"),
+        await _make_task(db_session, future_day.id, "future"),
+    ]
+
+    resp = await client.post("/api/backlog/complete-stale", params={"days": 7})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"completed": 2}
+    for t in (old_pending, old_active):
+        await db_session.refresh(t)
+        assert t.status == "completed"
+        assert t.completed_at is not None
+    for t in keep:
+        await db_session.refresh(t)
+        assert t.status != "completed"
+
+
+async def test_complete_stale_leaves_already_completed_tasks_alone(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Re-stamping completed_at would rewrite history (streaks, analytics)."""
+    old = await _make_day(db_session, date.today() - timedelta(days=30))
+    stamp = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    done = await _make_task(db_session, old.id, status="completed", completed_at=stamp)
+
+    resp = await client.post("/api/backlog/complete-stale")
+
+    assert resp.json() == {"completed": 0}
+    await db_session.refresh(done)
+    assert done.completed_at.replace(tzinfo=timezone.utc) == stamp
+
+
+async def test_complete_stale_rejects_non_positive_days(client: AsyncClient) -> None:
+    """days=0 would sweep yesterday's work; guard against accidental mass completion."""
+    resp = await client.post("/api/backlog/complete-stale", params={"days": 0})
+    assert resp.status_code == 422

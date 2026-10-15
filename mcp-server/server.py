@@ -25,6 +25,7 @@ from tools.notifications import notify
 from tools.goals import create_goal, get_goal, list_goals
 from tools.tasks import (
     add_backlog_task,
+    complete_stale_tasks,
     complete_task,
     create_task,
     delete_task,
@@ -112,6 +113,15 @@ def list_backlog_tool(tag: str = "", search: str = "", include_completed: bool =
     include_completed: also list completed day-less tasks (use when deduping by tag).
     """
     return list_backlog(tag, search, include_completed)
+
+
+@mcp.tool()
+def complete_stale_tasks_tool(days: int = 7) -> str:
+    """Mark as done every unfinished task scheduled on a day more than `days` days ago.
+
+    Clears forgotten daily-board tasks out of the backlog. Day-less backlog tasks are untouched.
+    """
+    return complete_stale_tasks(days)
 
 
 @mcp.tool()
