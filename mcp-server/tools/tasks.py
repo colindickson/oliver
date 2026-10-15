@@ -288,6 +288,50 @@ def add_backlog_task(
         return error_json
 
 
+def list_backlog(tag: str = "", search: str = "") -> str:
+    """List backlog tasks (those not assigned to a day), ordered by ``order_index``.
+
+    Args:
+        tag: Only tasks carrying this tag (normalized like stored tags).
+        search: Case-insensitive substring match on title (wildcards are literal).
+
+    Returns:
+        JSON list of dicts with ``id``, ``title``, ``description``, ``status``
+        and ``tags``, or an ``error`` dict on failure.
+    """
+    params = {"tag": tag, "search": search}
+    try:
+        with get_session() as session:
+            query = session.query(Task).filter(Task.day_id.is_(None))
+            normalized = normalize_tag_name(tag) if tag else ""
+            if normalized:
+                query = query.filter(Task.tags.any(Tag.name == normalized))
+            if search:
+                escaped = (
+                    search.replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_")
+                )
+                query = query.filter(Task.title.ilike(f"%{escaped}%", escape="\\"))
+            result = [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "status": t.status,
+                    "tags": [tg.name for tg in t.tags],
+                }
+                for t in query.order_by(Task.order_index).all()
+            ]
+        result_json = json.dumps(result)
+        log_call("list_backlog", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("list_backlog", params, error_json, "error")
+        return error_json
+
+
 def complete_task(task_id: int) -> str:
     """Mark a task as completed.
 

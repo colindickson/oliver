@@ -22,7 +22,15 @@ from tools.days_off import (
 )
 from tools.metadata import set_day_metadata
 from tools.notifications import notify
-from tools.tasks import add_backlog_task, complete_task, create_task, delete_task, update_task
+from tools.goals import create_goal, list_goals
+from tools.tasks import (
+    add_backlog_task,
+    complete_task,
+    create_task,
+    delete_task,
+    list_backlog,
+    update_task,
+)
 from tools.project_defaults import get_project_defaults, set_project_default_tags
 from tools.work_log import log_work, batch_log_work, get_work_logs
 
@@ -93,6 +101,40 @@ def add_task_to_backlog(
         tags: Optional list of tag names (max 5)
     """
     return add_backlog_task(title, description, tags or [])
+
+
+@mcp.tool()
+def list_backlog_tool(tag: str = "", search: str = "") -> str:
+    """List backlog tasks (no assigned day), ordered by position.
+
+    tag: optional tag filter (case-insensitive).
+    search: optional case-insensitive substring match on title.
+    """
+    return list_backlog(tag, search)
+
+
+@mcp.tool()
+def create_goal_tool(
+    title: str,
+    description: str = "",
+    target_date: str = "",
+    tag_names: list[str] | None = None,
+) -> str:
+    """Create an active goal. Tasks with any of the goal's tags roll up into it.
+
+    target_date: YYYY-MM-DD, or omit for none.
+    tag_names: optional list of tag names (max 5, normalized to lowercase).
+    """
+    return create_goal(title, description, target_date, tag_names or [])
+
+
+@mcp.tool()
+def list_goals_tool(tag: str = "", include_archived: bool = False) -> str:
+    """List goals, optionally filtered by tag (case-insensitive).
+
+    Archived goals are excluded unless include_archived is true.
+    """
+    return list_goals(tag, include_archived)
 
 
 @mcp.tool()

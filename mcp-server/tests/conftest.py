@@ -23,9 +23,14 @@ for _module in pkgutil.iter_modules(models.__path__):
 
 
 @pytest.fixture
-def patched_get_session(monkeypatch):
-    """Monkeypatch tools.work_log.get_session to use a shared in-memory SQLite DB."""
-    import tools.work_log as work_log_module
+def log_calls():
+    """Records each log_call(name, params, result_json, status) by patched tools."""
+    return []
+
+
+@pytest.fixture
+def patched_get_session(monkeypatch, log_calls):
+    """Point get_session in each DB-backed tool module at one in-memory SQLite DB."""
 
     engine = create_engine(
         "sqlite://",
@@ -47,8 +52,9 @@ def patched_get_session(monkeypatch):
         finally:
             session.close()
 
-    monkeypatch.setattr(work_log_module, "get_session", fake_get_session)
-    # log_call opens its own real Postgres session for audit logging, which is
-    # unrelated to the normalization under test — stub it out.
-    monkeypatch.setattr(work_log_module, "log_call", lambda *a, **k: None)
+    for name in ("tools.work_log", "tools.tasks", "tools.goals"):
+        module = importlib.import_module(name)
+        monkeypatch.setattr(module, "get_session", fake_get_session)
+        # log_call opens its own real Postgres session; record calls instead.
+        monkeypatch.setattr(module, "log_call", lambda *a, **k: log_calls.append(a))
     return fake_get_session
