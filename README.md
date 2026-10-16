@@ -114,7 +114,6 @@ Claude will create the appropriate tasks across the three 3-3-3 categories. You 
 
 - *"What did I get done this week?"* → uses `get_analytics`
 - *"I'm sick, mark tomorrow as a sick day"* → uses `mark_day_off`
-- *"Start the timer on my deep work task"* → uses `start_timer`
 
 ---
 

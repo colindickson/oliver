@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.setting import Setting
-from oliver_shared import FOCUS_GOAL_KEY, RECURRING_DAYS_OFF_KEY, TIMER_DISPLAY_KEY
+from oliver_shared import FOCUS_GOAL_KEY, RECURRING_DAYS_OFF_KEY
 
 
 class SettingsService:
@@ -25,39 +25,6 @@ class SettingsService:
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
-
-    async def get_timer_display(self) -> bool:
-        """Return whether the focus timer should be displayed.
-
-        Returns:
-            True (default) if the timer should be shown, False if hidden.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting is None:
-            return True
-        return json.loads(setting.value)
-
-    async def set_timer_display(self, enabled: bool) -> bool:
-        """Save the timer display preference to settings.
-
-        Args:
-            enabled: Whether the timer should be displayed.
-
-        Returns:
-            The saved boolean value.
-        """
-        setting = await self._db.scalar(
-            select(Setting).where(Setting.key == TIMER_DISPLAY_KEY)
-        )
-        if setting:
-            setting.value = json.dumps(enabled)
-        else:
-            setting = Setting(key=TIMER_DISPLAY_KEY, value=json.dumps(enabled))
-            self._db.add(setting)
-        await self._db.flush()
-        return enabled
 
     async def get_focus_goal_id(self) -> int | None:
         """Return the current focus goal ID, or None if not set.

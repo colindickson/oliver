@@ -26,7 +26,6 @@ class Task(Base):
         order_index: Ordering within a category; lower values appear first.
         rolled_from_task_id: Original task this one continues; an original with a continuation is not idle.
         completed_at: UTC timestamp set when status transitions to completed.
-        timer_sessions: All timer sessions logged for this task.
     """
 
     __tablename__ = "tasks"
@@ -44,7 +43,4 @@ class Task(Base):
     )
 
     day = relationship("Day", back_populates="tasks")
-    timer_sessions = relationship(
-        "TimerSession", back_populates="task", cascade="all, delete-orphan"
-    )
     tags = relationship("Tag", secondary=task_tags_table, lazy="selectin")

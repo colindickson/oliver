@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, templatesApi, dayApi, mcpLogsApi, type TaskTemplate, type MCPLogResponse } from '../api/client'
-import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { Sidebar } from '../components/Sidebar'
 import { TemplateModal } from '../components/TemplateModal'
 import { ScheduleModal } from '../components/ScheduleModal'
@@ -297,7 +296,7 @@ function MCPLogCardMobile() {
   )
 }
 
-type SettingsSection = 'templates' | 'schedule' | 'preferences' | 'activity'
+type SettingsSection = 'templates' | 'schedule' | 'activity'
 
 interface SettingsNavProps {
   active: SettingsSection
@@ -324,16 +323,6 @@ function SettingsNav({ active, onChange }: SettingsNavProps) {
           <rect x="2" y="3" width="10" height="9" rx="1.5" />
           <path d="M5 2v2M9 2v2M2 6h10" />
           <path d="M5 9l1.5 1.5L9 8" />
-        </svg>
-      ),
-    },
-    {
-      id: 'preferences',
-      label: 'Preferences',
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="7" cy="7" r="5" />
-          <polyline points="7 4.5 7 7 9 8" />
         </svg>
       ),
     },
@@ -436,8 +425,6 @@ export function Settings() {
       setTimeout(() => setSaved(false), 1500)
     },
   })
-
-  const { showTimer, toggle: toggleTimer } = useTimerDisplay()
 
   function toggle(day: string) {
     const next = new Set(recurringDays)
@@ -627,27 +614,6 @@ export function Settings() {
                   })}
                 </div>
               )}
-            </div>
-
-            {/* Focus Timer card */}
-            <div className="rounded-2xl border border-stone-700 bg-stone-800/60 p-6">
-              <h2 className="text-base font-semibold text-stone-200 mb-1">
-                Display Focus Timer?
-              </h2>
-              <p className="text-sm text-stone-500 mb-4">
-                Show or hide the focus timer in the sidebar and mobile strip.
-              </p>
-              <button
-                type="button"
-                onClick={() => toggleTimer.mutate(!showTimer)}
-                className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150
-                  ${showTimer
-                    ? 'bg-terracotta-500 text-white shadow-glow'
-                    : 'bg-stone-700/60 text-stone-400 hover:bg-stone-700'
-                  }`}
-              >
-                {showTimer ? 'On' : 'Off'}
-              </button>
             </div>
 
             {/* MCP Tool Log card */}
@@ -909,27 +875,6 @@ export function Settings() {
                       })}
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Preferences section */}
-              {section === 'preferences' && (
-                <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6">
-                  <h2 className="text-base font-semibold text-stone-700 dark:text-stone-200 mb-1">Display Focus Timer?</h2>
-                  <p className="text-sm text-stone-400 dark:text-stone-500 mb-4">
-                    Show or hide the focus timer in the sidebar and mobile strip.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => toggleTimer.mutate(!showTimer)}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150 ${
-                      showTimer
-                        ? 'bg-terracotta-500 text-white shadow-glow'
-                        : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-700/60 dark:text-stone-400 dark:hover:bg-stone-700'
-                    }`}
-                  >
-                    {showTimer ? 'On' : 'Off'}
-                  </button>
                 </div>
               )}
 

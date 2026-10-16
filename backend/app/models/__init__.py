@@ -19,7 +19,6 @@ from app.models.setting import Setting
 from app.models.tag import Tag
 from app.models.task import Task
 from app.models.task_template import TaskTemplate, TemplateSchedule  # noqa: F401
-from app.models.timer_session import TimerSession
 from app.models.work_log import WorkLog
 
 __all__ = [
@@ -39,6 +38,5 @@ __all__ = [
     "Task",
     "TaskTemplate",
     "TemplateSchedule",
-    "TimerSession",
     "WorkLog",
 ]

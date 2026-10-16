@@ -22,7 +22,6 @@ from oliver_shared import (
 if TYPE_CHECKING:
     from app.models.day import Day
     from app.models.reminder import Reminder
-    from app.models.timer_session import TimerSession
 
 
 class Task(Base):
@@ -38,7 +37,6 @@ class Task(Base):
         status: Lifecycle state — ``pending``, ``in_progress``, or ``completed``.
         order_index: Ordering within a category; lower values appear first.
         completed_at: UTC timestamp set when status transitions to completed.
-        timer_sessions: All timer sessions logged for this task.
         reminders: All reminders scheduled for this task.
     """
 
@@ -71,12 +69,6 @@ class Task(Base):
     )
 
     day: Mapped[Day | None] = relationship("Day", back_populates="tasks")
-    timer_sessions: Mapped[list[TimerSession]] = relationship(
-        "TimerSession",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
     reminders: Mapped[list[Reminder]] = relationship(
         "Reminder",
         back_populates="task",

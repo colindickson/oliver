@@ -23,10 +23,8 @@ import { ContinueModal } from '../components/ContinueModal'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
-import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { FocusGoalBanner } from '../components/FocusGoalBanner'
 import { TodayWorkLogPanel } from '../components/TodayWorkLogPanel'
-import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { CATEGORIES, CATEGORY_LIST, type CategoryKey } from '../constants/categories'
 
 interface ColumnConfig {
@@ -52,7 +50,6 @@ function formatDate(date: Date): string {
 export function Today() {
   const qc = useQueryClient()
   const isMobile = useMobile()
-  const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<NonNullable<Task['category']>>('deep_work')
   const [continueTask, setContinueTask] = useState<Task | null>(null)
   const [activeId, setActiveId] = useState<number | null>(null)
@@ -442,7 +439,6 @@ export function Today() {
           </div>
         </div>
 
-        {showTimer && <MobileTimerStrip />}
         <BottomTabBar />
         <NotificationBanner />
         <ContinueModal

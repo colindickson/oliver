@@ -16,9 +16,8 @@ from app.models.daily_note import DailyNote
 from app.models.day import Day
 from app.models.day_off import DayOff
 from app.models.task import Task
-from app.models.timer_session import TimerSession
 from app.models.work_log import WorkLog
-from oliver_shared import CATEGORY_DEEP_WORK, DEEP_WORK_GOAL_SECONDS, STATUS_COMPLETED
+from oliver_shared import STATUS_COMPLETED
 
 
 class AnalyticsService:
@@ -188,84 +187,6 @@ class AnalyticsService:
             "current_streak": current_streak,
             "longest_streak": longest_streak,
         }
-
-    # ------------------------------------------------------------------
-    # Category time
-    # ------------------------------------------------------------------
-
-    async def get_category_time(self) -> dict:
-        """Sum timer-session durations grouped by task category.
-
-        Only categories that have at least one completed timer session are
-        included in the result.
-
-        Returns:
-            A dict with key ``entries``, whose value is a list of dicts each
-            containing ``category``, ``total_seconds``, and ``task_count``.
-        """
-        off_day_ids_subq = select(DayOff.day_id)
-
-        result = await self._db.execute(
-            select(
-                Task.category,
-                func.sum(TimerSession.duration_seconds).label("total_seconds"),
-                func.count(func.distinct(Task.id)).label("task_count"),
-            )
-            .join(TimerSession, TimerSession.task_id == Task.id)
-            .join(Day, Task.day_id == Day.id)
-            .where(TimerSession.duration_seconds.is_not(None))
-            .where(Day.id.not_in(off_day_ids_subq))
-            .group_by(Task.category)
-            .order_by(Task.category)
-        )
-        rows = result.all()
-
-        entries = [
-            {
-                "category": row.category,
-                "total_seconds": int(row.total_seconds),
-                "task_count": int(row.task_count),
-            }
-            for row in rows
-        ]
-
-        return {"entries": entries}
-
-    # ------------------------------------------------------------------
-    # Today's deep work time
-    # ------------------------------------------------------------------
-
-    async def get_today_deep_work_time(self) -> dict:
-        """Calculate total deep work time for today.
-
-        Sums all timer session durations for deep_work tasks on today's date.
-
-        Returns:
-            A dict with keys ``total_seconds`` and ``goal_seconds``.
-            goal_seconds is fixed at 10800 (3 hours).
-        """
-        today = date.today()
-
-        # Find today's day record
-        day_result = await self._db.execute(
-            select(Day).where(Day.date == today)
-        )
-        day = day_result.scalar_one_or_none()
-
-        if not day:
-            return {"total_seconds": 0, "goal_seconds": DEEP_WORK_GOAL_SECONDS}
-
-        # Sum all timer session durations for deep_work tasks on this day
-        result = await self._db.execute(
-            select(func.coalesce(func.sum(TimerSession.duration_seconds), 0))
-            .join(Task, TimerSession.task_id == Task.id)
-            .where(Task.day_id == day.id)
-            .where(Task.category == CATEGORY_DEEP_WORK)
-            .where(TimerSession.duration_seconds.is_not(None))
-        )
-        total_seconds = int(result.scalar_one() or 0)
-
-        return {"total_seconds": total_seconds, "goal_seconds": DEEP_WORK_GOAL_SECONDS}
 
     # ------------------------------------------------------------------
     # Work log activity

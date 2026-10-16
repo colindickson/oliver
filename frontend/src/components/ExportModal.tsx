@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { dayApi, timerApi } from '../api/client'
-import type { TimerSession } from '../api/client'
+import { dayApi } from '../api/client'
 import { buildExportData, downloadJson, generateExportFilename, getWeekBounds } from '../utils/export'
 
 interface Props {
@@ -64,27 +63,11 @@ export function ExportModal({ onClose }: Props) {
 
     setExporting(true)
     try {
-      // Fetch timer sessions for all tasks in the range
-      const tasksInRange = previewDays.flatMap(d => d.tasks)
-      const sessionsByTask = new Map<number, TimerSession[]>()
-
-      await Promise.all(
-        tasksInRange.map(async task => {
-          try {
-            const sessions = await timerApi.getSessions(task.id)
-            sessionsByTask.set(task.id, sessions)
-          } catch {
-            sessionsByTask.set(task.id, [])
-          }
-        })
-      )
-
       const exportData = buildExportData(
         days,
         periodType === 'custom' ? 'custom_range' : periodType,
         dateRange.from,
-        dateRange.to,
-        sessionsByTask
+        dateRange.to
       )
 
       const filename = generateExportFilename(dateRange.from, dateRange.to)

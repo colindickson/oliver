@@ -8,10 +8,9 @@ from sqlalchemy import func, select
 from models.day import Day
 from models.day_off import DayOff
 from models.task import Task
-from models.timer_session import TimerSession
 from tools.daily import get_session
 from tools.log_utils import log_call
-from oliver_shared import CATEGORY_DEEP_WORK, CATEGORY_MAINTENANCE, CATEGORY_SHORT_TASK, STATUS_COMPLETED
+from oliver_shared import STATUS_COMPLETED
 
 
 def get_analytics(days: int = 30) -> str:
@@ -31,8 +30,6 @@ def get_analytics(days: int = 30) -> str:
         - ``total_tasks``: Sum of all tasks across those days.
         - ``completed_tasks``: Count of tasks with ``status == "completed"``.
         - ``completion_rate_pct``: Integer percentage (0-100).
-        - ``category_time_seconds``: Dict mapping each category name to its
-          total recorded timer seconds.
     """
     params = {"days": days}
     try:
@@ -62,32 +59,6 @@ def get_analytics(days: int = 30) -> str:
                 base_task_query.where(Task.status == STATUS_COMPLETED)
             ).scalar_one() or 0
 
-            # Single query: sum timer seconds grouped by task category
-            category_seconds: dict[str, int] = {
-                CATEGORY_DEEP_WORK: 0,
-                CATEGORY_SHORT_TASK: 0,
-                CATEGORY_MAINTENANCE: 0,
-            }
-
-            category_rows = session.execute(
-                select(
-                    Task.category,
-                    func.sum(TimerSession.duration_seconds).label("total_seconds"),
-                )
-                .join(TimerSession, TimerSession.task_id == Task.id)
-                .join(Day, Task.day_id == Day.id)
-                .where(Day.date >= cutoff)
-                .where(Day.id.not_in(off_day_ids_subq))
-                .where(TimerSession.duration_seconds.isnot(None))
-                .group_by(Task.category)
-            ).all()
-
-            for row in category_rows:
-                if row.category is not None:
-                    category_seconds[row.category] = (
-                        category_seconds.get(row.category, 0) + int(row.total_seconds or 0)
-                    )
-
             completion_rate = (
                 round(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
             )
@@ -98,7 +69,6 @@ def get_analytics(days: int = 30) -> str:
                 "total_tasks": total_tasks,
                 "completed_tasks": completed_tasks,
                 "completion_rate_pct": completion_rate,
-                "category_time_seconds": category_seconds,
             }
         result_json = json.dumps(result, indent=2)
         log_call("get_analytics", params, result_json, "success")

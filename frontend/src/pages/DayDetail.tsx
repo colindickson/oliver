@@ -14,9 +14,7 @@ import { useTaskEdit } from '../hooks/useTaskEdit'
 import { useMobile } from '../contexts/MobileContext'
 import { MobileHeader } from '../components/MobileHeader'
 import { BottomTabBar } from '../components/BottomTabBar'
-import { MobileTimerStrip } from '../components/MobileTimerStrip'
 import { NotificationBanner } from '../components/NotificationBanner'
-import { useTimerDisplay } from '../hooks/useTimerDisplay'
 import { ContinueModal } from '../components/ContinueModal'
 import { CATEGORIES, CATEGORY_LIST, type CategoryKey } from '../constants/categories'
 import { formatRollDate } from '../utils/format'
@@ -502,7 +500,6 @@ export function DayDetail() {
   const [showDayOffForm, setShowDayOffForm] = useState(false)
 
   const isMobile = useMobile()
-  const { showTimer } = useTimerDisplay()
   const [activeTab, setActiveTab] = useState<CategoryKey>('deep_work')
 
   const upsertDayOff = useMutation({
@@ -772,7 +769,6 @@ export function DayDetail() {
           )}
         </div>
 
-        {showTimer && <MobileTimerStrip />}
         <NotificationBanner />
         <BottomTabBar />
         <ContinueModal

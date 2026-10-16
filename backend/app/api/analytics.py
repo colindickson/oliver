@@ -1,4 +1,4 @@
-"""Analytics API router — exposes summary, streaks, and category-time endpoints."""
+"""Analytics API router — exposes summary, streaks, and work-log activity endpoints."""
 
 from __future__ import annotations
 
@@ -7,10 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.analytics import (
-    CategoriesResponse,
     StreaksResponse,
     SummaryResponse,
-    TodayDeepWorkResponse,
     WorkLogActivityDay,
 )
 from app.services.analytics_service import AnalyticsService
@@ -48,37 +46,6 @@ async def get_streaks(db: AsyncSession = Depends(get_db)) -> StreaksResponse:
     """
     data = await AnalyticsService(db).get_streaks()
     return StreaksResponse(**data)
-
-
-@router.get("/categories", response_model=CategoriesResponse)
-async def get_categories(db: AsyncSession = Depends(get_db)) -> CategoriesResponse:
-    """Return total time spent and task count per category across all history.
-
-    Args:
-        db: Injected database session.
-
-    Returns:
-        A ``CategoriesResponse`` containing one entry per category with
-        recorded timer sessions.
-    """
-    data = await AnalyticsService(db).get_category_time()
-    return CategoriesResponse(**data)
-
-
-@router.get("/today-deep-work", response_model=TodayDeepWorkResponse)
-async def get_today_deep_work(
-    db: AsyncSession = Depends(get_db),
-) -> TodayDeepWorkResponse:
-    """Return today's total deep work time and the 3-hour goal.
-
-    Args:
-        db: Injected database session.
-
-    Returns:
-        A ``TodayDeepWorkResponse`` with ``total_seconds`` and ``goal_seconds``.
-    """
-    data = await AnalyticsService(db).get_today_deep_work_time()
-    return TodayDeepWorkResponse(**data)
 
 
 @router.get("/work-log-activity", response_model=list[WorkLogActivityDay])

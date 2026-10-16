@@ -29,18 +29,6 @@ class RecurringDaysOffUpsert(BaseModel):
         return v
 
 
-class TimerDisplayResponse(BaseModel):
-    """Response schema for timer display setting."""
-
-    enabled: bool
-
-
-class TimerDisplayUpdate(BaseModel):
-    """Request schema for updating timer display setting."""
-
-    enabled: bool
-
-
 class FocusGoalResponse(BaseModel):
     """Response schema for focus goal setting."""
 

@@ -35,7 +35,6 @@ from app.api import settings as settings_router
 from app.api import tags as tags_router
 from app.api import tasks as tasks_router
 from app.api import templates as templates_router
-from app.api import timer as timer_router
 
 
 @asynccontextmanager
@@ -124,7 +123,6 @@ app.include_router(settings_router.router)
 app.include_router(tags_router.router)
 app.include_router(tasks_router.router)
 app.include_router(templates_router.router)
-app.include_router(timer_router.router)
 
 
 @app.get("/api/health", tags=["meta"])

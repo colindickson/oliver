@@ -20,10 +20,7 @@ from app.models.roadblock import Roadblock
 from app.models.setting import Setting
 from app.models.tag import Tag
 from app.models.task import Task
-from app.models.timer_session import TimerSession
 from oliver_shared import RECURRING_DAYS_OFF_KEY
-
-_ACTIVE_TIMER_KEY = "active_timer"
 
 # Type alias for revert handler
 _Handler = Callable[[AsyncSession, MCPLog], Awaitable[None]]
@@ -299,58 +296,6 @@ async def _revert_notify(db: AsyncSession, log: MCPLog) -> None:
     await db.execute(delete(Notification).where(Notification.id == result_data["id"]))
 
 
-async def _revert_start_timer(db: AsyncSession, log: MCPLog) -> None:
-    try:
-        before = json.loads(log.before_state) if log.before_state else {}
-    except json.JSONDecodeError as e:
-        raise InvalidOperationError(
-            "MCP log entry has malformed JSON and cannot be reverted"
-        ) from e
-    prior_state = before.get("active_timer")
-    result = await db.execute(
-        select(Setting).where(Setting.key == _ACTIVE_TIMER_KEY)
-    )
-    setting = result.scalar_one_or_none()
-    if prior_state is None:
-        if setting:
-            await db.delete(setting)
-    else:
-        if setting:
-            setting.value = json.dumps(prior_state)
-        else:
-            db.add(Setting(key=_ACTIVE_TIMER_KEY, value=json.dumps(prior_state)))
-
-
-async def _revert_stop_timer(db: AsyncSession, log: MCPLog) -> None:
-    try:
-        result_data = json.loads(log.result) if log.result else {}
-    except json.JSONDecodeError as e:
-        raise InvalidOperationError(
-            "MCP log entry has malformed JSON and cannot be reverted"
-        ) from e
-    try:
-        before = json.loads(log.before_state) if log.before_state else {}
-    except json.JSONDecodeError as e:
-        raise InvalidOperationError(
-            "MCP log entry has malformed JSON and cannot be reverted"
-        ) from e
-    timer_session_id = result_data.get("timer_session_id")
-    if timer_session_id:
-        await db.execute(
-            delete(TimerSession).where(TimerSession.id == timer_session_id)
-        )
-    prior_state = before.get("active_timer")
-    result = await db.execute(
-        select(Setting).where(Setting.key == _ACTIVE_TIMER_KEY)
-    )
-    setting = result.scalar_one_or_none()
-    if prior_state is not None:
-        if setting:
-            setting.value = json.dumps(prior_state)
-        else:
-            db.add(Setting(key=_ACTIVE_TIMER_KEY, value=json.dumps(prior_state)))
-
-
 REVERT_HANDLERS: dict[str, _Handler] = {
     "create_task": _revert_create_task,
     "update_task": _revert_update_task,
@@ -362,8 +307,6 @@ REVERT_HANDLERS: dict[str, _Handler] = {
     "set_recurring_days_off": _revert_set_recurring_days_off,
     "set_day_metadata": _revert_set_day_metadata,
     "notify": _revert_notify,
-    "start_timer": _revert_start_timer,
-    "stop_timer": _revert_stop_timer,
 }
 
 

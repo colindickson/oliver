@@ -1,5 +1,5 @@
 // frontend/src/utils/export.ts
-import type { DailyNote, DayRating, DayResponse, Roadblock, Task, TimerSession } from '../api/client'
+import type { DailyNote, DayRating, DayResponse, Roadblock, Task } from '../api/client'
 
 interface ExportMetadata {
   exported_at: string
@@ -34,10 +34,6 @@ interface TaskExport {
   status: Task['status']
   completed_at: string | null
   order_index: number
-  timer_sessions: Array<{
-    started_at: string
-    duration_seconds: number
-  }>
 }
 
 interface DayExport {
@@ -62,8 +58,7 @@ export function buildExportData(
   days: DayResponse[],
   periodType: 'day' | 'week' | 'custom_range',
   from: string,
-  to: string,
-  timerSessionsByTask: Map<number, TimerSession[]>
+  to: string
 ): ExportData {
   const filteredDays = days.filter(d => d.date >= from && d.date <= to)
 
@@ -96,10 +91,6 @@ export function buildExportData(
       status: task.status,
       completed_at: task.completed_at,
       order_index: task.order_index,
-      timer_sessions: (timerSessionsByTask.get(task.id) ?? []).map(s => ({
-        started_at: s.started_at,
-        duration_seconds: s.duration_seconds ?? 0,
-      })),
     })),
   }))
 
