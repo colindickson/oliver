@@ -52,3 +52,34 @@ def test_replace_keeps_unfinished_in_backlog_and_deletes_finished(plan_session):
         assert [t.title for t in session.query(Task).filter(Task.day_id.isnot(None))] == ["new"]
 
     assert {"keep", "doing"} <= {t["title"] for t in json.loads(tasks.list_backlog())}
+
+
+def test_bad_ref_in_plan_leaves_the_day_untouched(plan_session):
+    """A malformed item must never empty the day.
+
+    A bad item must leave the day exactly as it was, whether it is caught by
+    the ref pre-validation pass or, if validation ever moves after the detach,
+    by the session rolling back. Either way, one bad item must not wipe the
+    existing plan.
+    """
+    with plan_session() as session:
+        day = Day(date=date.today())
+        session.add(day)
+        session.flush()
+        old = Task(day_id=day.id, category="deep_work", title="old", status="pending")
+        session.add(old)
+        session.flush()
+        old_id, day_id = old.id, day.id
+
+    result = json.loads(
+        daily.set_daily_plan(
+            date.today().isoformat(),
+            json.dumps([{"title": "ok"}, {"title": "bad", "external_id": "POKA-1"}]),
+        )
+    )
+    assert "error" in result
+
+    with plan_session() as session:
+        kept = session.get(Task, old_id)
+        assert (kept.day_id, kept.category) == (day_id, "deep_work")
+        assert session.query(Task).filter(Task.title.in_(["ok", "bad"])).count() == 0

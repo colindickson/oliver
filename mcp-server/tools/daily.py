@@ -121,7 +121,8 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
 
     Existing completed/rolled_forward tasks are deleted before the new set is
     inserted. Unfinished (pending/in_progress) tasks are NOT deleted: they move
-    back to the backlog (no day, no category). Idle work may be a continuation
+    back to the backlog (no day, no category), except a task whose ticket ref
+    matches an incoming item: that row is reused in place. Idle work may be a continuation
     picked from the backlog, and deleting it would strand its rolled_forward
     original with no live copy, so idle work is never silently destroyed.
 
@@ -155,7 +156,21 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
             }
             # Unfinished work returns to the backlog; the rest is replaced.
             day_tasks = session.query(Task).filter(Task.day_id == day.id).all()
+            # A ticket already live on this day keeps its row (and status) instead of being duplicated.
+            live = {
+                (old.external_source, old.external_id): old
+                for old in reversed(day_tasks)
+                if old.status in (STATUS_PENDING, STATUS_IN_PROGRESS) and old.external_source
+            }
+            reuse = {}  # incoming index -> existing row; each row is popped, so reused once
+            for i, t in enumerate(new_tasks):
+                row = live.pop(_external_ref(t.get("external_source"), t.get("external_id")), None)
+                if row is not None:
+                    reuse[i] = row
+            kept = {row.id for row in reuse.values()}
             for old in day_tasks:
+                if old.id in kept:
+                    continue
                 if old.status in (STATUS_PENDING, STATUS_IN_PROGRESS):
                     old.day_id = None
                     old.category = None
@@ -164,17 +179,15 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
             session.flush()
             for i, t in enumerate(new_tasks):
                 source, external_id = _external_ref(t.get("external_source"), t.get("external_id"))
-                task = Task(
-                    day_id=day.id,
-                    category=t.get("category", "short_task"),
-                    title=t["title"],
-                    description=t.get("description"),
-                    status=STATUS_PENDING,
-                    order_index=i,
-                    external_source=source,
-                    external_id=external_id,
-                )
-                session.add(task)
+                task = reuse.get(i)
+                if task is None:
+                    task = Task(status=STATUS_PENDING, external_source=source, external_id=external_id)
+                    session.add(task)
+                task.day_id = day.id
+                task.category = t.get("category", "short_task")
+                task.title = t["title"]
+                task.description = t.get("description")
+                task.order_index = i
 
         result_json = json.dumps(
             {"success": True, "date": target.isoformat(), "tasks_count": len(new_tasks)}

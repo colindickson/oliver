@@ -66,6 +66,31 @@ def test_set_daily_plan_keeps_ref_per_task(patched_get_session, monkeypatch, log
     assert len(json.loads(tasks.find_tasks_by_external_ref("jira", "POKA-9"))) == 1
 
 
+def test_replanning_a_day_reuses_the_live_task_for_the_same_ticket(
+    patched_get_session, monkeypatch, log_calls
+):
+    """Re-planning must not leave a pending backlog copy beside a new row for the same ticket.
+
+    Two unfinished tasks for one ref break status sync: the sync job treats the
+    newest as live and the older backlog copy stays pending forever.
+    """
+    import tools.daily as daily
+
+    monkeypatch.setattr(daily, "get_session", patched_get_session)
+    monkeypatch.setattr(daily, "log_call", lambda *a, **k: log_calls.append(a))
+    ticket = {"title": "Ticket", "external_source": "jira", "external_id": "POKA-9"}
+    assert json.loads(daily.set_daily_plan("", json.dumps([ticket])))["success"]
+    first = json.loads(tasks.find_tasks_by_external_ref("jira", "POKA-9"))[0]["id"]
+
+    replan = [{"title": "Other"}, {**ticket, "external_source": " Jira "}]
+    assert json.loads(daily.set_daily_plan("", json.dumps(replan)))["success"]
+
+    found = json.loads(tasks.find_tasks_by_external_ref("jira", "POKA-9"))
+    assert [t["id"] for t in found] == [first]
+    plan = json.loads(daily.get_daily_plan(""))
+    assert first in [t["id"] for t in plan["tasks"]]
+
+
 def test_empty_lookup_is_an_error_not_every_unlinked_task(patched_get_session):
     """A blank ref must not match tasks whose ref is NULL and get them all synced."""
     tasks.create_task("Plain", "short_task")
