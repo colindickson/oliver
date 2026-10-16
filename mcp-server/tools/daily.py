@@ -49,6 +49,15 @@ def _get_or_create_day(session, target_date: date) -> Day:
     return day
 
 
+def _external_ref(source: str | None, external_id: str | None) -> tuple[str | None, str | None]:
+    """Normalize a ticket ref. Both parts or neither: half a ref can never be synced."""
+    source = (source or "").strip().lower() or None
+    external_id = (external_id or "").strip() or None
+    if (source is None) != (external_id is None):
+        raise ValueError("external_source and external_id must be given together")
+    return source, external_id
+
+
 def get_daily_plan(date_str: str = "") -> str:
     """Return the daily plan for *date_str* (or today) as a JSON string.
 
@@ -85,6 +94,8 @@ def get_daily_plan(date_str: str = "") -> str:
                         "status": t.status,
                         "order_index": t.order_index,
                         "tags": [tag.name for tag in t.tags],
+                        "external_source": t.external_source,
+                        "external_id": t.external_id,
                     }
                     for t in tasks
                 ],
@@ -118,7 +129,8 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
         date_str: ISO-8601 date string (YYYY-MM-DD).
         tasks_json: JSON-encoded array of task dicts. Each dict must contain
             at minimum a ``title`` key. ``category`` defaults to
-            ``short_task`` when omitted.
+            ``short_task`` when omitted. Optional ``external_source`` and
+            ``external_id`` link the task to a ticket (both or neither).
 
     Returns:
         JSON-encoded dict with ``success``, ``date``, and ``tasks_count``.
@@ -151,6 +163,7 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
                     session.delete(old)
             session.flush()
             for i, t in enumerate(new_tasks):
+                source, external_id = _external_ref(t.get("external_source"), t.get("external_id"))
                 task = Task(
                     day_id=day.id,
                     category=t.get("category", "short_task"),
@@ -158,6 +171,8 @@ def set_daily_plan(date_str: str, tasks_json: str) -> str:
                     description=t.get("description"),
                     status=STATUS_PENDING,
                     order_index=i,
+                    external_source=source,
+                    external_id=external_id,
                 )
                 session.add(task)
 

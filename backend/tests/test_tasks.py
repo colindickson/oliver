@@ -424,6 +424,24 @@ async def test_continue_carries_direct_goal_links(
     assert resp.json()["id"] in [t["id"] for t in detail["tasks"]]
 
 
+async def test_continue_keeps_external_ticket_ref(
+    client: AsyncClient, db_session: AsyncSession, day: Day
+) -> None:
+    """The continuation is the live copy, so it must stay linked to its ticket
+    or a status sync from Jira would only find the completed original."""
+    task = Task(
+        day_id=day.id, category="deep_work", title="POKA-1", order_index=0,
+        external_source="jira", external_id="POKA-1",
+    )
+    db_session.add(task)
+    await db_session.commit()
+
+    resp = await client.post(f"/api/tasks/{task.id}/continue")
+
+    new_task = await db_session.get(Task, resp.json()["id"])
+    assert (new_task.external_source, new_task.external_id) == ("jira", "POKA-1")
+
+
 async def test_continue_404_for_missing_task(client: AsyncClient) -> None:
     """POST /continue returns 404 when the task does not exist."""
     resp = await client.post("/api/tasks/99999/continue")

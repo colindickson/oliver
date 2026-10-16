@@ -37,6 +37,8 @@ class Task(Base):
         status: Lifecycle state — ``pending``, ``in_progress``, or ``completed``.
         order_index: Ordering within a category; lower values appear first.
         completed_at: UTC timestamp set when status transitions to completed.
+        external_source: System the task came from (e.g. ``jira``), lowercase; set with ``external_id``.
+        external_id: Ticket key in that system (e.g. ``POKA-123``), used to sync status back.
         reminders: All reminders scheduled for this task.
     """
 
@@ -60,6 +62,8 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default=STATUS_PENDING)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    external_source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     rolled_from: Mapped[Task | None] = relationship(
         "Task",
@@ -84,6 +88,7 @@ class Task(Base):
     __table_args__ = (
         Index("ix_tasks_status", "status"),
         Index("ix_tasks_day_id_category", "day_id", "category"),
+        Index("ix_tasks_external_ref", "external_source", "external_id"),
         CheckConstraint(
             "category IS NULL OR category IN ('deep_work', 'short_task', 'maintenance')",
             name="ck_tasks_category_valid",

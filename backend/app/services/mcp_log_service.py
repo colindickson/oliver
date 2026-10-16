@@ -109,6 +109,8 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
         db.add(day)
         await db.flush()
 
+    tag_names: list[str] = before.get("tags", [])
+    # Tags go in the constructor: assigning after flush lazy-loads and fails under async.
     task = Task(
         day_id=day.id,
         title=before["title"],
@@ -116,12 +118,12 @@ async def _revert_delete_task(db: AsyncSession, log: MCPLog) -> None:
         status=before.get("status", "pending"),
         category=before.get("category"),
         order_index=0,
+        external_source=before.get("external_source"),
+        external_id=before.get("external_id"),
+        tags=await _resolve_tags_for_revert(db, tag_names),
     )
     db.add(task)
     await db.flush()
-
-    tag_names: list[str] = before.get("tags", [])
-    task.tags = await _resolve_tags_for_revert(db, tag_names)
 
 
 async def _revert_complete_task(db: AsyncSession, log: MCPLog) -> None:

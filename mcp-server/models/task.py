@@ -26,6 +26,8 @@ class Task(Base):
         order_index: Ordering within a category; lower values appear first.
         rolled_from_task_id: Original task this one continues; an original with a continuation is not idle.
         completed_at: UTC timestamp set when status transitions to completed.
+        external_source: System the task came from (e.g. ``jira``), lowercase; set with ``external_id``.
+        external_id: Ticket key in that system (e.g. ``POKA-123``), used to sync status back.
     """
 
     __tablename__ = "tasks"
@@ -41,6 +43,8 @@ class Task(Base):
     rolled_from_task_id = Column(
         Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
+    external_source = Column(String(50), nullable=True)
+    external_id = Column(String(255), nullable=True)
 
     day = relationship("Day", back_populates="tasks")
     tags = relationship("Tag", secondary=task_tags_table, lazy="selectin")

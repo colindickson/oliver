@@ -29,6 +29,7 @@ from tools.tasks import (
     complete_task,
     create_task,
     delete_task,
+    find_tasks_by_external_ref,
     list_backlog,
     update_task,
 )
@@ -46,7 +47,8 @@ def get_daily_plan_tool(date: str = "") -> str:
 
 @mcp.tool()
 def set_daily_plan_tool(date: str, tasks: str) -> str:
-    """Replace all tasks for a date. tasks must be a JSON array string like: '[{"title":"Task","category":"deep_work"}]'"""
+    """Replace all tasks for a date. tasks must be a JSON array string like: '[{"title":"Task","category":"deep_work"}]'
+    Each task may also carry "external_source" and "external_id" (see create_task_tool)."""
     return set_daily_plan(date, tasks)
 
 
@@ -57,10 +59,15 @@ def create_task_tool(
     day_date: str = "",
     description: str = "",
     tags: list[str] | None = None,
+    external_source: str = "",
+    external_id: str = "",
 ) -> str:
     """Create a task. category must be: deep_work, short_task, or maintenance.
-    day_date defaults to today (YYYY-MM-DD). tags is an optional list of tag strings (max 5)."""
-    return create_task(title, category, day_date, description, tags or [])
+    day_date defaults to today (YYYY-MM-DD). tags is an optional list of tag strings (max 5).
+    If the task comes from a ticketing system, ALWAYS set external_source (system name,
+    e.g. "jira", "linear", "github") and external_id (its ticket key, e.g. "POKA-123")
+    together, so its status can be synced later."""
+    return create_task(title, category, day_date, description, tags or [], external_source, external_id)
 
 
 @mcp.tool()
@@ -93,6 +100,8 @@ def add_task_to_backlog(
     title: str,
     description: str = "",
     tags: list[str] | None = None,
+    external_source: str = "",
+    external_id: str = "",
 ) -> str:
     """Add a new task to the backlog. Backlog tasks have no assigned day or category.
 
@@ -100,8 +109,21 @@ def add_task_to_backlog(
         title: Task title (required)
         description: Optional task description
         tags: Optional list of tag names (max 5)
+        external_source: Ticketing system the task comes from (e.g. "jira"). ALWAYS set
+            it, with external_id, when the task comes from such a system.
+        external_id: Ticket key in that system (e.g. "POKA-123")
     """
-    return add_backlog_task(title, description, tags or [])
+    return add_backlog_task(title, description, tags or [], external_source, external_id)
+
+
+@mcp.tool()
+def find_tasks_by_external_ref_tool(external_source: str, external_id: str) -> str:
+    """Find tasks linked to a ticket (e.g. external_source="jira", external_id="POKA-123").
+
+    Use to sync status from the ticketing system: the newest unfinished match is
+    the live task; update it with update_task_tool / complete_task_tool.
+    """
+    return find_tasks_by_external_ref(external_source, external_id)
 
 
 @mcp.tool()

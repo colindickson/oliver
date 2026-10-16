@@ -133,6 +133,8 @@ class TaskService:
             status=STATUS_PENDING,
             order_index=0,
             rolled_from_task_id=task.id,
+            external_source=task.external_source,
+            external_id=task.external_id,
         )
         new_task.tags = tag_objects
         self._db.add(new_task)

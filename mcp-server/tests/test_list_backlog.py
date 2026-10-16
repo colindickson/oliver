@@ -35,7 +35,9 @@ def test_tag_filter_returns_only_matching_backlog_tasks(patched_get_session):
     result = json.loads(tasks.list_backlog(tag="POKA-12345"))
 
     assert [t["title"] for t in result] == ["POKA-1001 Fix thing"]
-    assert set(result[0]) == {"id", "title", "description", "status", "tags", "day"}
+    assert set(result[0]) == {
+        "id", "title", "description", "status", "tags", "day", "external_source", "external_id",
+    }
     assert result[0]["tags"] == ["poka-12345"]
 
 

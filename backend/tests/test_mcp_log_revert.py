@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Day, Task, Tag  # ensure tables registered
@@ -153,3 +154,24 @@ async def test_revert_update_task_recreates_deleted_tag(
     refreshed = await db_session.get(Task, task.id)
     tag_names = [t.name for t in refreshed.tags]
     assert "urgent" in tag_names
+
+
+async def test_revert_delete_task_restores_external_ticket_ref(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Undoing a delete must bring back the ticket link, or the task can't be synced."""
+    log = await _seed_log(
+        db_session,
+        tool_name="delete_task",
+        before_state=json.dumps({
+            "title": "POKA-2", "status": "pending", "category": "deep_work",
+            "day_date": "2025-06-01", "tags": [],
+            "external_source": "jira", "external_id": "POKA-2",
+        }),
+    )
+
+    resp = await client.post(f"/api/mcp-logs/{log.id}/revert")
+
+    assert resp.status_code == 200
+    task = (await db_session.execute(select(Task).where(Task.title == "POKA-2"))).scalar_one()
+    assert (task.external_source, task.external_id) == ("jira", "POKA-2")

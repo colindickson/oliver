@@ -9,7 +9,7 @@ from sqlalchemy.orm import aliased
 from models.day import Day
 from models.tag import Tag
 from models.task import Task
-from tools.daily import get_session, _get_or_create_day
+from tools.daily import get_session, _external_ref, _get_or_create_day
 from tools.log_utils import log_call
 from oliver_shared import (
     MAX_TAGS_PER_TASK,
@@ -54,6 +54,8 @@ def create_task(
     day_date: str = "",
     description: str = "",
     tags: list[str] | None = None,
+    external_source: str = "",
+    external_id: str = "",
 ) -> str:
     """Create a new task and append it to the day's task list.
 
@@ -66,17 +68,21 @@ def create_task(
         day_date: ISO-8601 date string (YYYY-MM-DD). Defaults to today.
         description: Optional extended description.
         tags: Optional list of tag names (max 5, will be normalized).
+        external_source: System the ticket lives in (e.g. ``jira``); requires ``external_id``.
+        external_id: Ticket key in that system (e.g. ``POKA-123``); requires ``external_source``.
 
     Returns:
         JSON-encoded dict with the created task's ``id``, ``title``,
-        ``category``, ``status``, and ``tags``.
+        ``category``, ``status``, ``tags``, ``external_source`` and ``external_id``.
     """
     if tags is None:
         tags = []
     params = {"title": title, "category": category, "day_date": day_date,
-              "description": description, "tags": tags}
+              "description": description, "tags": tags,
+              "external_source": external_source, "external_id": external_id}
     try:
         validate_tag_count(tags)
+        external_source, external_id = _external_ref(external_source, external_id)
     except ValueError as e:
         error_json = json.dumps({"error": str(e)})
         log_call("create_task", params, error_json, "error")
@@ -97,6 +103,8 @@ def create_task(
                 title=title,
                 description=description or None,
                 order_index=count,
+                external_source=external_source,
+                external_id=external_id,
             )
             session.add(task)
             session.flush()
@@ -112,6 +120,8 @@ def create_task(
                 "category": task.category,
                 "status": task.status,
                 "tags": [t.name for t in task.tags],
+                "external_source": task.external_source,
+                "external_id": task.external_id,
             }
         result_json = json.dumps(result)
         log_call("create_task", params, result_json, "success", before_state=None)
@@ -226,6 +236,8 @@ def delete_task(task_id: int) -> str:
                 "category": task.category,
                 "day_date": day.date.isoformat() if day else None,
                 "tags": [t.name for t in task.tags],
+                "external_source": task.external_source,
+                "external_id": task.external_id,
             }
             session.delete(task)
 
@@ -242,8 +254,12 @@ def add_backlog_task(
     title: str,
     description: str = "",
     tags: list[str] | None = None,
+    external_source: str = "",
+    external_id: str = "",
 ) -> str:
     """Add a task to the backlog (no day assigned, no category).
+
+    ``external_source``/``external_id`` link it to a ticket, as in :func:`create_task`.
 
     Returns:
         JSON-encoded dict with created task or error.
@@ -251,10 +267,12 @@ def add_backlog_task(
     if tags is None:
         tags = []
 
-    params = {"title": title, "description": description, "tags": tags}
+    params = {"title": title, "description": description, "tags": tags,
+              "external_source": external_source, "external_id": external_id}
 
     try:
         validate_tag_count(tags)
+        external_source, external_id = _external_ref(external_source, external_id)
     except ValueError as e:
         error_json = json.dumps({"error": str(e)})
         log_call("add_backlog_task", params, error_json, "error")
@@ -269,6 +287,8 @@ def add_backlog_task(
                 title=title,
                 description=description or None,
                 order_index=existing_count,
+                external_source=external_source,
+                external_id=external_id,
             )
             session.add(task)
             session.flush()
@@ -283,6 +303,8 @@ def add_backlog_task(
                 "status": task.status,
                 "tags": [t.name for t in task.tags],
                 "day_id": task.day_id,
+                "external_source": task.external_source,
+                "external_id": task.external_id,
             }
 
         result_json = json.dumps(result)
@@ -309,7 +331,8 @@ def list_backlog(tag: str = "", search: str = "", include_completed: bool = Fals
 
     Returns:
         JSON list of dicts with ``id``, ``title``, ``description``, ``status``,
-        ``tags`` and ``day`` (ISO date or None), or an ``error`` dict on failure.
+        ``tags``, ``day`` (ISO date or None), ``external_source`` and
+        ``external_id``, or an ``error`` dict on failure.
     """
     params = {"tag": tag, "search": search, "include_completed": include_completed}
     try:
@@ -350,6 +373,8 @@ def list_backlog(tag: str = "", search: str = "", include_completed: bool = Fals
                     "status": t.status,
                     "tags": [tg.name for tg in t.tags],
                     "day": d.isoformat() if d else None,
+                    "external_source": t.external_source,
+                    "external_id": t.external_id,
                 }
                 for t, d in query.order_by(
                     Task.day_id.isnot(None),
@@ -366,6 +391,44 @@ def list_backlog(tag: str = "", search: str = "", include_completed: bool = Fals
     except Exception as e:
         error_json = json.dumps({"error": str(e)})
         log_call("list_backlog", params, error_json, "error")
+        return error_json
+
+
+def find_tasks_by_external_ref(external_source: str, external_id: str) -> str:
+    """List every task linked to a ticket, so a sync job can update its status.
+
+    Includes completed tasks and rolled-forward originals; the newest (highest
+    ``id``) unfinished one is the live copy.
+
+    Returns:
+        JSON list of dicts with ``id``, ``title``, ``status`` and ``day`` (ISO
+        date or None), ordered by ``id``, or an ``error`` dict.
+    """
+    params = {"external_source": external_source, "external_id": external_id}
+    try:
+        source, ref_id = _external_ref(external_source, external_id)
+        if source is None:
+            # == None would compile to IS NULL and match every unlinked task.
+            raise ValueError("external_source and external_id are required")
+        with get_session() as session:
+            rows = (
+                session.query(Task, Day.date)
+                .outerjoin(Day, Task.day_id == Day.id)
+                .filter(Task.external_source == source, Task.external_id == ref_id)
+                .order_by(Task.id)
+                .all()
+            )
+            result = [
+                {"id": t.id, "title": t.title, "status": t.status,
+                 "day": d.isoformat() if d else None}
+                for t, d in rows
+            ]
+        result_json = json.dumps(result)
+        log_call("find_tasks_by_external_ref", params, result_json, "success")
+        return result_json
+    except Exception as e:
+        error_json = json.dumps({"error": str(e)})
+        log_call("find_tasks_by_external_ref", params, error_json, "error")
         return error_json
 
 
